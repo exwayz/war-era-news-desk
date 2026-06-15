@@ -6,6 +6,38 @@ The format is inspired by Keep a Changelog and follows Semantic Versioning princ
 
 ---
 
+## [0.1.1-beta] - 2026-06-15
+
+### Added
+
+* Animated article indexing status indicator.
+* Yellow pulse animation while article indexing is in progress.
+* Green completion pulse animation after successful article indexing.
+* "Copy News Brief" action for timeline events.
+* Dedicated newsroom-style intelligence templates for `battleOpened` events.
+* Multiple randomized summary templates for supported event types to reduce repetitive phrasing.
+
+### Improved
+
+* Reworked live auto-refresh behavior to preserve the user's current reading position.
+* Timeline updates now append newly detected events instead of re-rendering the entire feed.
+* Prevented automatic refreshes from forcing the page back to the top while scrolling.
+* Article feed status messaging now displays `indexing...` during fetch operations before transitioning to the loaded state.
+* Replaced the former "Copy Headline" workflow with "Copy News Brief".
+* Copy operation now includes both the generated headline and its accompanying intelligence summary.
+* Significantly overhauled event intelligence rendering with more natural newsroom-style reporting.
+* Rewrote multiple event summaries to better resemble professional journalistic language rather than system-generated logs.
+* Introduced randomized sentence variations across supported event summaries for a more dynamic reading experience.
+* Improved fallback event descriptions with more informative and context-aware reporting.
+
+### Technical
+
+* Optimized incremental timeline rendering for live updates.
+* Reduced unnecessary DOM re-rendering during automatic refresh cycles.
+* Added randomized summary selection helper for event intelligence generation.
+* Expanded event-specific rendering logic with dedicated handling for additional event types.
+
+
 ## [0.1.0-beta] - 2026-06-15
 
 ### Added
