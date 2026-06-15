@@ -126,7 +126,7 @@ function populateEventTypes() {
 
 function bindEvents() {
   elements.applyFiltersButton.addEventListener("click", () => loadEvents({ reset: true }));
-  elements.refreshButton.addEventListener("click", () => loadEvents({ reset: true }));
+  elements.refreshButton.addEventListener("click", () => loadEvents({ reset: true }) && loadArticles(reset = true));
   elements.loadMoreButton.addEventListener("click", () => loadEvents({ reset: false }));
   elements.themeButton.addEventListener("click", toggleTheme);
   elements.eventList.addEventListener("click", handleTimelineAction);
@@ -252,8 +252,9 @@ function startAutoRefresh() {
 
   const apiKey = elements.apiKeyInput.value.trim();
   if (!apiKey) return;
+  
+  refreshEvents();
 
-  loadEvents({ reset: true });
   if (limitter < 10){
 	  limitter++;
 	  loadArticles(false);
@@ -261,7 +262,55 @@ function startAutoRefresh() {
 	  limitter = 100;
   }
 
-}, 30000);
+}, 5000);
+}
+
+async function refreshEvents() {
+
+    const apiKey =
+        elements.apiKeyInput.value.trim();
+
+    if (!apiKey) return;
+
+    const result = await fetchTrpc(
+        EVENTS_METHOD,
+        {
+            ...state.lastFilters,
+            limit: 20
+        },
+        apiKey
+    );
+
+    const newestEvents =
+        normalizeEvents(result);
+
+    if (!newestEvents.length) return;
+
+    const existingIds =
+        new Set(
+            state.events.map(
+                e => e._id || e.id
+            )
+        );
+
+    const fresh =
+        newestEvents.filter(
+            e =>
+                !existingIds.has(
+                    e._id || e.id
+                )
+        );
+
+    if (!fresh.length) return;
+
+    state.events = [
+        ...fresh,
+        ...state.events
+    ];
+
+    renderTimeline();
+	loadArticles(true);
+	limitter = 0
 }
 
 function toggleTheme() {
@@ -707,9 +756,31 @@ readButton.addEventListener("click", () => {
     elements.articleList.append(node);
 }
 
-    elements.articleFeedMeta.textContent =
-        `${articles.length} articles`;
+	if (limitter < 10) {
+		elements.articleFeedMeta.textContent =
+        `indexing....`;
+		elements.articleFeedMeta.classList.remove("loadedPulse");
+		elements.articleFeedMeta.classList.add("indexing");
+	}else{
+		elements.articleFeedMeta.textContent =
+        `${articles.length} articles loaded`;
+		elements.articleFeedMeta.classList.remove("indexing");
 
+		/* restart animation */
+		elements.articleFeedMeta.classList.remove("loadedPulse");
+
+		void elements.articleFeedMeta.offsetWidth;
+
+		elements.articleFeedMeta.classList.add("loadedPulse");
+		elements.articleFeedMeta.addEventListener(
+			"animationend",
+			() => {
+			elements.articleFeedMeta.classList.remove("loadedPulse");
+			},
+			{ once: true }
+		);
+	}
+    
     elements.loadMoreArticlesButton.hidden =
         !state.articleCursor;
 
@@ -789,30 +860,16 @@ async function handleTimelineAction(event) {
 
   if (!timelineEvent) return;
 
-  const eventData = getEventData(timelineEvent);
-  const eventType =
-    timelineEvent.type ||
-    timelineEvent.eventType ||
-    eventData.type ||
-    timelineEvent.name ||
-    "event";
+  const news =
+    buildArticleSeed(timelineEvent);
 
-  const headline = buildEventTitle(
-    timelineEvent,
-    eventType,
-    eventData
-  );
+await navigator.clipboard.writeText(news);
 
-  try {
-    await navigator.clipboard.writeText(headline);
-    setStatus(`Headline copied: "${headline}"`);
+setStatus("News brief copied.");
 
 setTimeout(() => {
-  clearStatus();
+    clearStatus();
 }, 3000);
-  } catch (error) {
-    setStatus("Failed to copy headline.", "error");
-  }
 }
 
 function getEventData(event) {
@@ -1041,215 +1098,823 @@ if (eventType === "financedRevolt") {
   return formatEventType(eventType);
 }
 
+const __pickMemory = new Map();
+
+function pick(...choices) {
+
+  if (choices.length <= 1) {
+    return choices[0] ?? "";
+  }
+
+  const key = choices.join("||");
+
+  const last = __pickMemory.get(key);
+
+  const available =
+    choices.filter(item => item !== last);
+
+  const chosen =
+    available[
+      Math.floor(Math.random() * available.length)
+    ];
+
+  __pickMemory.set(key, chosen);
+
+  return chosen;
+
+}
+
 function buildEventSummary(event, eventData) {
-  const eventType = event.type || event.eventType || eventData.type || event.name || "event";
-  const countryNames = collectCountryIds(event, eventData).map(nameCountry).filter(Boolean);
-  const regionName = nameRegion(eventData.region || eventData.defenderRegion);
+  const eventType =
+    event.type ||
+    event.eventType ||
+    eventData.type ||
+    event.name ||
+    "event";
+
+  const countryNames =
+    collectCountryIds(event, eventData)
+      .map(nameCountry)
+      .filter(Boolean);
+
+  const regionName =
+    nameRegion(
+      eventData.region ||
+      eventData.defenderRegion
+    );
 
   if (eventType === "countryMoneyTransfer") {
-    const [from, to] = collectCountryIds(event, eventData).map(nameCountry);
-    if (from && to) return `${from} sent ${formatMoney(eventData.money)} to ${to}.`;
+
+    const [from, to] =
+      collectCountryIds(event, eventData)
+        .map(nameCountry);
+
+    if (from && to) {
+
+      return pick(
+
+        `${from} has transferred ${formatMoney(eventData.money)} in funds to ${to}.`,
+
+        `Financial records indicate a transfer of ${formatMoney(eventData.money)} from ${from} to ${to}.`,
+
+        `${formatMoney(eventData.money)} has reportedly been transferred from ${from} to ${to}.`,
+
+        `Authorities have confirmed a financial transfer worth ${formatMoney(eventData.money)} from ${from} to ${to}.`
+
+      );
+
+    }
+
   }
 
-  if (eventType === "allianceFormed" || eventType === "allianceBroken") {
-    const [first, second] = collectCountryIds(event, eventData).map(nameCountry);
-    const allianceName = eventData.allianceName || eventData.alliance?.name || eventData.alliance;
-    if (first && second && allianceName) {
-      return `${first} and ${second} ${eventType === "allianceFormed" ? "joined" : "left"} ${allianceName}.`;
+  if (
+    eventType === "allianceFormed" ||
+    eventType === "allianceBroken"
+  ) {
+
+    const [first, second] =
+      collectCountryIds(event, eventData)
+        .map(nameCountry);
+
+    const allianceName =
+      eventData.allianceName ||
+      eventData.alliance?.name ||
+      eventData.alliance;
+
+    if (
+      first &&
+      second &&
+      allianceName
+    ) {
+
+      if (eventType === "allianceFormed") {
+
+        return pick(
+
+          `${first} and ${second} have formally joined the ${allianceName} alliance.`,
+
+          `A new diplomatic chapter has begun as ${first} and ${second} officially enter the ${allianceName} alliance.`,
+
+          `${first} and ${second} have announced their participation in the ${allianceName} alliance.`,
+
+          `Officials confirmed that ${first} and ${second} are now members of the ${allianceName} alliance.`
+
+        );
+
+      }
+
+      return pick(
+
+        `${first} and ${second} have withdrawn from the ${allianceName} alliance.`,
+
+        `${first} and ${second} have officially left the ${allianceName} alliance.`,
+
+        `The partnership between ${first} and ${second} inside the ${allianceName} alliance has come to an end.`,
+
+        `Officials confirmed the departure of ${first} and ${second} from the ${allianceName} alliance.`
+
+      );
+
     }
+
     if (first && second) {
-      return `${first} and ${second} ${eventType === "allianceFormed" ? "entered" : "ended"} a mutual alliance.`;
+
+      if (eventType === "allianceFormed") {
+
+        return pick(
+
+          `${first} and ${second} have entered into a formal alliance.`,
+
+          `Diplomatic negotiations have resulted in an alliance between ${first} and ${second}.`,
+
+          `${first} and ${second} have announced a new strategic partnership.`
+
+        );
+
+      }
+
+      return pick(
+
+        `The alliance between ${first} and ${second} has officially come to an end.`,
+
+        `${first} and ${second} are no longer formally allied.`,
+
+        `Diplomatic ties between ${first} and ${second} have been dissolved.`
+
+      );
+
     }
+
   }
 
-  if (eventType === "battleEnded") {
-    const winnerSide = eventData.wonBy === "attacker" ? "attacker" : "defender";
-    const winner = winnerSide === "attacker" ? nameCountry(eventData.attackerCountry) : nameCountry(eventData.defenderCountry);
-    const loser = winnerSide === "attacker" ? nameCountry(eventData.defenderCountry) : nameCountry(eventData.attackerCountry);
-    if (winner && loser) return `${winner} won as ${winnerSide}; ${loser} lost the battle.`;
+  if (eventType === "battleOpened") {
+
+  const attacker =
+    nameCountry(eventData.attackerCountry);
+
+  const defender =
+    nameCountry(eventData.defenderCountry);
+
+  const attackerRegion =
+    nameRegion(eventData.attackerRegion);
+
+  const defenderRegion =
+    nameRegion(eventData.defenderRegion);
+
+  if (
+    attacker &&
+    defender &&
+    attackerRegion &&
+    defenderRegion
+  ) {
+
+    return pick(
+
+      `${attacker} has launched a military offensive from ${attackerRegion} against ${defender}'s position in ${defenderRegion}.`,
+
+      `Armed conflict has broken out as forces from ${attacker} begin operations against ${defender} near ${defenderRegion}.`,
+
+      `Military operations are now underway after ${attacker} opened a new offensive targeting ${defender} in ${defenderRegion}.`,
+
+      `Fresh fighting has erupted between ${attacker} and ${defender}, with clashes reported around ${defenderRegion}.`,
+
+      `Battlefield reports indicate that ${attacker} has initiated an assault toward ${defenderRegion}, bringing a new front into active conflict.`
+
+    );
+
   }
+
+  if (
+    attacker &&
+    defender
+  ) {
+
+    return pick(
+
+      `Hostilities have broken out between ${attacker} and ${defender}.`,
+
+      `Military operations have commenced as ${attacker} launches an offensive against ${defender}.`,
+
+      `Fresh fighting has erupted between ${attacker} and ${defender}.`,
+
+      `Reports confirm that armed conflict has begun between ${attacker} and ${defender}.`,
+
+      `${attacker} has opened a new military offensive against ${defender}.`
+
+    );
+
+  }
+
+}
   
+  if (eventType === "battleEnded") {
+
+    const winnerSide =
+      eventData.wonBy === "attacker"
+        ? "attacker"
+        : "defender";
+
+    const winner =
+      winnerSide === "attacker"
+        ? nameCountry(eventData.attackerCountry)
+        : nameCountry(eventData.defenderCountry);
+
+    const loser =
+      winnerSide === "attacker"
+        ? nameCountry(eventData.defenderCountry)
+        : nameCountry(eventData.attackerCountry);
+
+    if (
+      winner &&
+      loser
+    ) {
+
+      return pick(
+
+        `Military operations have concluded with ${winner} emerging victorious over ${loser}.`,
+
+        `${winner} has secured victory following the conclusion of fighting against ${loser}.`,
+
+        `Latest battlefield reports confirm a victory for ${winner} over ${loser}.`,
+
+        `The battle has come to an end with ${winner} prevailing over ${loser}.`
+
+      );
+
+    }
+
+  }
+
   if (eventType === "newPresident") {
-  const country = nameCountry(eventData.country);
-  const president = nameUser(eventData.user);
 
-  if (president && country) {
-    return `${president} has been elected president of ${country}.`;
-  }
+    const country =
+      nameCountry(eventData.country);
 
-  if (country) {
-    return `${country} has elected a new president.`;
-  }
-}
+    const president =
+      nameUser(eventData.user);
 
-if (eventType === "regionTransfer") {
-  const [from, to] = collectCountryIds(event, eventData).map(nameCountry);
+    if (
+      president &&
+      country
+    ) {
 
-  const region =
-    nameRegion(eventData.region) ||
-    nameRegion(eventData.regionId);
+      return pick(
 
-  if (from && to && region) {
-    return `${from} has transferred ${region} to ${to}.`;
-  }
+        `${president} has officially been elected president of ${country}.`,
 
-  if (from && to) {
-    return `${from} has transferred a region to ${to}.`;
-  }
-}
+        `${country} has elected ${president} as its new president.`,
 
-if (eventType === "allianceMemberJoined") {
+        `Election officials confirmed ${president} as the newly elected president of ${country}.`,
 
-    const country = nameCountry(eventData.country);
+        `${president} will assume the presidency of ${country} following the latest vote.`
 
-    const alliance = eventData.allianceName;
+      );
 
-    if (country && alliance) {
-        return `${country} has joined the alliance ${alliance}.`;
     }
 
     if (country) {
-        return `${country} has joined an alliance.`;
+
+      return pick(
+
+        `${country} has officially elected a new president.`,
+
+        `Election results indicate that ${country} has chosen a new president.`,
+
+        `A new president has been elected in ${country}.`
+
+      );
+
     }
-}
 
-if (eventType === "defensivePactFormed") {
-  const countries = collectCountryIds(event, eventData).map(nameCountry);
-  const [countryA, countryB] = countries;
+  }
+if (eventType === "regionTransfer") {
 
-  if (countryA && countryB) {
-    return `${countryA} has signed a defensive pact with ${countryB}.`;
+    const [from, to] =
+      collectCountryIds(event, eventData)
+        .map(nameCountry);
+
+    const region =
+      nameRegion(eventData.region) ||
+      nameRegion(eventData.regionId);
+
+    if (from && to && region) {
+
+      return pick(
+
+        `Control of ${region} has officially been transferred from ${from} to ${to}.`,
+
+        `${region} has formally changed hands following its transfer from ${from} to ${to}.`,
+
+        `Officials have confirmed the transfer of ${region} from ${from} to ${to}.`,
+
+        `The territorial transfer of ${region} from ${from} to ${to} has now been finalized.`
+
+      );
+
+    }
+
+    if (from && to) {
+
+      return pick(
+
+        `A territorial transfer has officially taken place between ${from} and ${to}.`,
+
+        `${from} has transferred territory to ${to}, according to the latest reports.`,
+
+        `Officials confirmed a territorial transfer involving ${from} and ${to}.`
+
+      );
+
+    }
+
   }
 
-  return "A new defensive pact has been signed.";
-}
+  if (eventType === "allianceMemberJoined") {
 
-if (eventType === "depositDiscovered") {
-  const resource = eventData.itemCode || "resource";
-  const region =
-    nameRegion(eventData.region) ||
-    nameRegion(eventData.regionId);
+    const country =
+      nameCountry(eventData.country);
 
-  if (region) {
-    return `A deposit of ${resource} has been discovered in ${region}.`;
+    const alliance =
+      eventData.allianceName;
+
+    if (country && alliance) {
+
+      return pick(
+
+        `${country} has officially joined the ${alliance} alliance.`,
+
+        `${country} has entered the ranks of the ${alliance} alliance.`,
+
+        `Alliance officials confirmed the admission of ${country} into ${alliance}.`,
+
+        `${country} has become the newest member of the ${alliance} alliance.`
+
+      );
+
+    }
+
+    if (country) {
+
+      return pick(
+
+        `${country} has officially joined a new alliance.`,
+
+        `${country} has announced its entry into a formal alliance.`,
+
+        `Diplomatic developments indicate that ${country} has joined an alliance.`
+
+      );
+
+    }
+
   }
 
-  return `A new deposit of ${resource} has been discovered.`;
-}
+  if (eventType === "defensivePactFormed") {
 
-if (eventType === "depositDepleted") {
-  const resource = eventData.itemCode || "resource";
-  const region =
-    nameRegion(eventData.region) ||
-    nameRegion(eventData.regionId);
+    const countries =
+      collectCountryIds(event, eventData)
+        .map(nameCountry);
 
-  if (region) {
-    return `The ${resource} deposit in ${region} has been depleted.`;
+    const [countryA, countryB] =
+      countries;
+
+    if (countryA && countryB) {
+
+      return pick(
+
+        `${countryA} and ${countryB} have signed a new defensive pact.`,
+
+        `A mutual defense agreement has been concluded between ${countryA} and ${countryB}.`,
+
+        `${countryA} and ${countryB} have formalized a new defensive partnership.`,
+
+        `Officials confirmed the signing of a defensive pact between ${countryA} and ${countryB}.`
+
+      );
+
+    }
+
+    return pick(
+
+      `A new defensive pact has been signed.`,
+
+      `Officials have confirmed the conclusion of a new defensive agreement.`,
+
+      `A fresh mutual defense agreement has entered into effect.`
+
+    );
+
   }
 
-  return `A ${resource} deposit has been depleted.`;
-}
+  if (eventType === "depositDiscovered") {
 
-if (eventType === "systemRevolt") {
-  const region =
-    nameRegion(eventData.region) ||
-    nameRegion(eventData.regionId);
+    const resource =
+      eventData.itemCode || "resource";
 
-  if (region) {
-    return `People are angry and an automatic revolt has erupted in ${region}.`;
+    const region =
+      nameRegion(eventData.region) ||
+      nameRegion(eventData.regionId);
+
+    if (region) {
+
+      return pick(
+
+        `Authorities have confirmed the discovery of a new ${resource} deposit in ${region}.`,
+
+        `Survey teams have identified a ${resource} deposit in ${region}.`,
+
+        `Geological reports indicate the discovery of ${resource} reserves in ${region}.`,
+
+        `A newly discovered ${resource} deposit has been reported in ${region}.`
+
+      );
+
+    }
+
+    return pick(
+
+      `Authorities have confirmed the discovery of a new ${resource} deposit.`,
+
+      `Survey teams have reported a newly discovered ${resource} reserve.`,
+
+      `Fresh geological findings indicate the presence of a new ${resource} deposit.`
+
+    );
+
   }
 
-  return "People are angry and an automatic revolt has erupted.";
-}
+  if (eventType === "depositDepleted") {
 
-if (eventType === "regionLiberated") {
+    const resource =
+      eventData.itemCode || "resource";
 
-  const countries = collectCountryIds(event, eventData).map(nameCountry);
+    const region =
+      nameRegion(eventData.region) ||
+      nameRegion(eventData.regionId);
 
-  const liberator = countries[0];
-  const recipient = countries[1];
+    if (region) {
 
-  const region =
-    nameRegion(eventData.regionId) ||
-    nameRegion(eventData.region);
+      return pick(
 
-  if (liberator && recipient && region) {
-    return `${liberator} has liberated ${region} and returned it to ${recipient}.`;
+        `The ${resource} deposit in ${region} has reportedly been exhausted.`,
+
+        `Extraction efforts have depleted the ${resource} deposit in ${region}.`,
+
+        `Officials confirmed that the ${resource} deposit in ${region} has run dry.`,
+
+        `The known ${resource} reserves in ${region} have now been depleted.`
+
+      );
+
+    }
+
+    return pick(
+
+      `A ${resource} deposit has reportedly been exhausted.`,
+
+      `Officials have confirmed the depletion of a ${resource} deposit.`,
+
+      `Known reserves of ${resource} have reportedly been depleted.`
+
+    );
+
   }
 
-  return "A region has been liberated.";
-}
+  if (eventType === "systemRevolt") {
 
-if (eventType === "revolutionStarted") {
+    const region =
+      nameRegion(eventData.region) ||
+      nameRegion(eventData.regionId);
 
-  const country =
-    nameCountry(eventData.countryId) ||
-    nameCountry(eventData.country);
+    if (region) {
 
-  if (country) {
-    return `A revolution has begun in ${country}.`;
+      return pick(
+
+        `Civil unrest has erupted in ${region}, escalating into open revolt.`,
+
+        `Reports from ${region} indicate that widespread unrest has turned into open rebellion.`,
+
+        `${region} has become the center of a growing uprising amid mounting unrest.`,
+
+        `Fresh reports suggest that open revolt has broken out across ${region}.`
+
+      );
+
+    }
+
+    return pick(
+
+      `Civil unrest has escalated into open revolt.`,
+
+      `Reports indicate that an uprising has broken out.`,
+
+      `Authorities are reporting widespread unrest and open rebellion.`
+
+    );
+
   }
 
-  return "A revolution has begun.";
-}
+  if (eventType === "regionLiberated") {
 
-if (eventType === "revolutionEnded") {
+    const countries =
+      collectCountryIds(event, eventData)
+        .map(nameCountry);
 
-  const country =
-    nameCountry(eventData.countryId) ||
-    nameCountry(eventData.country);
+    const liberator =
+      countries[0];
 
-  if (eventData.wonBy === "attacker") {
-    return `The revolutionary forces have prevailed in ${country}.`;
+    const recipient =
+      countries[1];
+
+    const region =
+      nameRegion(eventData.regionId) ||
+      nameRegion(eventData.region);
+
+    if (
+      liberator &&
+      recipient &&
+      region
+    ) {
+
+      return pick(
+
+        `${liberator} has liberated ${region} before formally returning it to ${recipient}.`,
+
+        `${region} has been liberated by ${liberator} and restored to ${recipient}.`,
+
+        `Officials confirmed that ${region} has been returned to ${recipient} following its liberation by ${liberator}.`,
+
+        `${liberator} has successfully liberated ${region} and transferred control back to ${recipient}.`
+
+      );
+
+    }
+
+    return pick(
+
+      `A region has reportedly been liberated.`,
+
+      `Officials have confirmed the liberation of a contested region.`,
+
+      `Latest reports indicate that a region has been successfully liberated.`
+
+    );
+
+  }
+ if (eventType === "revolutionStarted") {
+
+    const country =
+      nameCountry(eventData.countryId) ||
+      nameCountry(eventData.country);
+
+    if (country) {
+
+      return pick(
+
+        `A revolution has erupted in ${country} following mounting internal tensions.`,
+
+        `Reports indicate that revolutionary activity has broken out across ${country}.`,
+
+        `${country} has entered a period of open revolutionary unrest.`,
+
+        `Growing instability has escalated into a revolution in ${country}.`,
+
+        `Authorities are reporting the outbreak of a revolution in ${country}.`
+
+      );
+
+    }
+
+    return pick(
+
+      `A revolution has erupted.`,
+
+      `Reports indicate that revolutionary forces have mobilized.`,
+
+      `Authorities have confirmed the outbreak of a revolution.`,
+
+      `An internal uprising has escalated into open revolution.`
+
+    );
+
   }
 
-  if (eventData.wonBy === "defender") {
-    return `Government forces have successfully suppressed the revolution in ${country}.`;
+  if (eventType === "revolutionEnded") {
+
+    const country =
+      nameCountry(eventData.countryId) ||
+      nameCountry(eventData.country);
+
+    if (eventData.wonBy === "attacker") {
+
+      return pick(
+
+        `Revolutionary forces have emerged victorious in ${country}, bringing the conflict to a close.`,
+
+        `Latest reports confirm a revolutionary victory in ${country}.`,
+
+        `The revolution in ${country} has concluded with the insurgent forces prevailing.`,
+
+        `Revolutionary forces have secured victory after the end of fighting in ${country}.`,
+
+        `Officials now acknowledge the success of the revolutionary movement in ${country}.`
+
+      );
+
+    }
+
+    if (eventData.wonBy === "defender") {
+
+      return pick(
+
+        `Government forces have successfully suppressed the uprising in ${country}.`,
+
+        `Authorities report that the revolution in ${country} has been brought under control.`,
+
+        `Government troops have restored control after defeating revolutionary forces in ${country}.`,
+
+        `The attempted revolution in ${country} has been successfully contained.`,
+
+        `Official sources confirm that government forces have prevailed in ${country}.`
+
+      );
+
+    }
+
+    if (country) {
+
+      return pick(
+
+        `The revolutionary conflict in ${country} has officially come to an end.`,
+
+        `Fighting linked to the revolution in ${country} has now concluded.`,
+
+        `Authorities have confirmed the end of the revolutionary conflict in ${country}.`,
+
+        `The internal conflict in ${country} has formally ended.`
+
+      );
+
+    }
+
+    return pick(
+
+      `The revolution has officially come to an end.`,
+
+      `Authorities have confirmed the conclusion of the revolutionary conflict.`,
+
+      `The internal uprising has now concluded.`
+
+    );
+
   }
 
-  if (country) {
-    return `The revolution in ${country} has come to an end.`;
+  if (eventType === "financedRevolt") {
+
+    const region =
+      nameRegion(eventData.regionId);
+
+    const occupier =
+      nameCountry(eventData.occupyingCountryId);
+
+    const revolting =
+      nameCountry(eventData.revoltingCountryId);
+
+    if (
+      region &&
+      occupier &&
+      revolting
+    ) {
+
+      return pick(
+
+        `Reports indicate that an externally backed revolt has been launched in ${region} against the occupation by ${occupier} in support of ${revolting}.`,
+
+        `Foreign-backed insurgent activity has reportedly emerged in ${region}, targeting the occupation by ${occupier}.`,
+
+        `Authorities report outside support for an armed uprising in ${region} aligned with ${revolting}.`,
+
+        `An externally financed rebellion has reportedly begun in ${region} against occupying forces from ${occupier}.`,
+
+        `Fresh intelligence suggests that outside funding has fueled armed resistance in ${region}.`
+
+      );
+
+    }
+
+    return pick(
+
+      `Reports indicate that outside support has financed an armed uprising.`,
+
+      `Authorities are investigating reports of foreign-backed insurgent activity.`,
+
+      `An externally supported revolt has reportedly been organized.`
+
+    );
+
   }
 
-  return "The revolution has ended.";
-}
+  if (
+    eventType === "peaceMade" &&
+    countryNames.length > 0
+  ) {
 
-if (eventType === "financedRevolt") {
+    const countries =
+      uniqueValues(countryNames).join(" and ");
 
-  const region =
-    nameRegion(eventData.regionId);
+    return pick(
 
-  const occupier =
-    nameCountry(eventData.occupyingCountryId);
+      `${countries} have formally signed a peace agreement, bringing hostilities to an end.`,
 
-  const revolting =
-    nameCountry(eventData.revoltingCountryId);
+      `A formal peace agreement has been concluded between ${countries}.`,
 
-  if (region && occupier && revolting) {
-    return `An armed revolt has been financed in ${region} against the occupation by ${occupier} in support of ${revolting}.`;
+      `Hostilities between ${countries} have officially ended following the signing of a peace agreement.`,
+
+      `Diplomatic negotiations have resulted in a peace agreement between ${countries}.`,
+
+      `${countries} have reached a peace settlement after successful negotiations.`,
+
+      `Officials have confirmed the signing of a peace agreement between ${countries}.`
+
+    );
+
   }
 
-  return "An external party has financed a revolt.";
-}
+  if (
+    countryNames.length > 0 &&
+    regionName
+  ) {
 
-  if (eventType === "peaceMade" && countryNames.length > 0) {
-    return `${uniqueValues(countryNames).join(" and ")} signed peace.`;
+    const countries =
+      uniqueValues(countryNames).join(", ");
+
+    return pick(
+
+      `The latest developments involve ${countries} in and around ${regionName}.`,
+
+      `Fresh reports from ${regionName} concern activities involving ${countries}.`,
+
+      `Attention remains focused on ${regionName}, where developments involving ${countries} continue to unfold.`,
+
+      `Officials are monitoring ongoing developments involving ${countries} around ${regionName}.`
+
+    );
+
   }
 
-  if (countryNames.length > 0 && regionName) {
-    return `${uniqueValues(countryNames).join(", ")} around ${regionName}.`;
-  }
+  if (
+    countryNames.length > 0
+  ) {
 
-  if (countryNames.length > 0) {
-    return `Related countries: ${uniqueValues(countryNames).join(", ")}.`;
+    const countries =
+      uniqueValues(countryNames).join(", ");
+
+    return pick(
+
+      `Recent developments involve ${countries}.`,
+
+      `Officials continue to monitor events involving ${countries}.`,
+
+      `Fresh reports concern ongoing developments related to ${countries}.`,
+
+      `Attention remains focused on the latest activities involving ${countries}.`
+
+    );
+
   }
 
   if (regionName) {
-    return `Related region: ${regionName}.`;
+
+    return pick(
+
+      `The latest reports concern developments in ${regionName}.`,
+
+      `Attention remains focused on events unfolding in ${regionName}.`,
+
+      `Fresh information continues to emerge from ${regionName}.`,
+
+      `Officials are monitoring the latest developments in ${regionName}.`
+
+    );
+
   }
 
-  return "Fresh event from the War Era global feed.";
+  return pick(
+
+    `Further details are emerging from the latest reports across the War Era world.`,
+
+    `Additional developments continue to arrive from the global War Era news feed.`,
+
+    `Authorities and observers continue to monitor events unfolding across the War Era world.`,
+
+    `More information is expected as reports continue to arrive from around the world.`,
+
+    `This remains one of the latest reported developments from across the War Era world.`
+
+  );
+
 }
+
 
 function buildDetails(event, eventData) {
   const details = [];
@@ -1375,15 +2040,46 @@ function getWarEraLink(event, eventData) {
 }
 
 function buildArticleSeed(event) {
-  const eventData = getEventData(event);
-  const eventType = event.type || event.eventType || eventData.type || event.name || "event";
-  const headline = buildEventTitle(event, eventType, eventData);
-  const summary = buildEventSummary(event, eventData);
-  const details = buildDetails(event, eventData).map((item) => `${item.label}: ${item.value}`).join("\n");
-  const link = getWarEraLink(event, eventData);
-  const brief = [summary, details, link ? `Source: ${link}` : ""].filter(Boolean).join("\n\n");
 
-  return { headline, brief };
+    const eventData = getEventData(event);
+
+    const eventType =
+        event.type ||
+        event.eventType ||
+        eventData.type ||
+        event.name ||
+        "event";
+
+    const headline =
+        buildEventTitle(
+            event,
+            eventType,
+            eventData
+        );
+
+    const summary =
+        buildEventSummary(
+            event,
+            eventData
+        );
+
+    const details =
+        buildDetails(event, eventData)
+            .map(item =>
+                `• ${item.label}: ${item.value}`
+            )
+            .join("\n");
+
+    const link =
+        getWarEraLink(event, eventData);
+
+    return `# ${headline}
+
+${summary}
+
+${details}
+
+${link ? `Source: ${link}` : ""}`;
 }
 
 function formatMoney(value) {
