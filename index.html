@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+
+    <meta charset="utf-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1">
+
+    <title>War Era News Desk</title>
+
+    <link
+        rel="stylesheet"
+        href="style.css">
+
+</head>
+
+<body>
+
+<header class="topbar">
+
+    <div>
+
+        <p class="eyebrow">
+            War Era Journalist Tool
+        </p>
+
+        <h1>
+            News Desk
+        </h1>
+
+        <p class="author-credit">
+
+            by
+
+            <a
+                href="https://app.warera.io/user/69bd432766cd740733175da7"
+                target="_blank"
+                rel="noopener">
+
+                rooster
+
+            </a>
+
+        </p>
+
+    </div>
+
+    <div class="topbar-actions">
+
+        <a
+            class="tool-link"
+            href="https://lundgrenwarera.github.io/warera-writer/"
+            target="_blank"
+            rel="noopener">
+
+            Writer
+
+        </a>
+
+        <button
+            class="icon-button"
+            id="themeButton"
+            type="button"
+            title="Switch theme">
+
+            Dark
+
+        </button>
+
+        <button
+            class="icon-button"
+            id="refreshButton"
+            type="button"
+            title="Refresh events">
+
+            &#8635;
+
+        </button>
+
+        <button
+            class="icon-button"
+            id="apiButton"
+            type="button"
+            title="API Key">
+
+            🔑
+
+        </button>
+
+    </div>
+
+</header>
+
+<div
+    id="apiKeyModal"
+    class="modal hidden">
+
+    <div class="modal-card">
+
+        <h2>
+            War Era API Key
+        </h2>
+
+        <p>
+            Insert your API key.
+        </p>
+
+        <input
+            id="apiKeyInput"
+            type="password"
+            autocomplete="off"
+            placeholder="Paste API key">
+
+        <button id="saveApiKeyButton">
+
+            Save
+
+        </button>
+
+    </div>
+
+</div>
+
+<main class="shell">
+
+    <div class="dashboard-grid">
+
+        <!-- LEFT COLUMN -->
+
+        <div class="column">
+
+            <aside class="filters timeline-filters">
+
+                <div class="filter-row">
+
+                    <div class="filter-group">
+
+                        <label for="countryInput">
+                            Country
+                        </label>
+
+                        <input
+                            id="countryInput"
+                            type="text"
+                            list="countryOptions"
+                            placeholder="Optional">
+
+                        <datalist id="countryOptions"></datalist>
+
+                    </div>
+
+                    <div class="filter-group">
+
+                        <label for="eventTypeSelect">
+                            Event Type
+                        </label>
+
+                        <select id="eventTypeSelect">
+
+                            <option value="">
+                                All event types
+                            </option>
+
+                        </select>
+
+                    </div>
+
+                </div>
+
+                <div class="filter-row">
+
+                    <div class="filter-group">
+
+                        <label for="startTimeInput">
+                            From
+                        </label>
+
+                        <input
+                            id="startTimeInput"
+                            type="datetime-local">
+
+                    </div>
+
+                    <div class="filter-group">
+
+                        <label for="endTimeInput">
+                            To
+                        </label>
+
+                        <input
+                            id="endTimeInput"
+                            type="datetime-local">
+
+                    </div>
+
+                </div>
+
+                <div class="button-row">
+
+                    <button
+                        class="primary-button"
+                        id="applyFiltersButton"
+                        type="button">
+
+                        Refresh Timeline
+
+                    </button>
+
+                    <button
+                        class="secondary-button"
+                        id="clearFiltersButton"
+                        type="button">
+
+                        Clear
+
+                    </button>
+
+                </div>
+
+            </aside>
+
+            <section class="articles-feed">
+
+                <div class="article-toolbar">
+
+                    <input
+                        id="articleSearch"
+                        type="text"
+                        placeholder="Search Articles...">
+
+                </div>
+
+                <div class="feed-header">
+
+                    <div>
+
+                        <p id="articleFeedMeta">
+
+                            Ready to fetch the latest articles.
+
+                        </p>
+
+                    </div>
+
+                </div>
+
+                <div
+                    id="articleStatusBox"
+                    class="status"
+                    hidden>
+                </div>
+
+                <div
+                    id="articleList"
+                    class="event-list">
+                </div>
+
+                <button
+                    id="loadMoreArticlesButton"
+                    class="load-button"
+                    type="button"
+                    hidden>
+
+                    Load More
+
+                </button>
+
+            </section>
+
+        </div>
+
+        <!-- RIGHT COLUMN -->
+
+        <div class="column">
+
+            <section class="feed">
+
+                <div class="feed-header">
+
+                    <div>
+
+                        <h2>
+                           <span id="globalEventsTitle">Global Events</span>
+                        </h2>
+
+                        <p id="feedMeta">
+
+                            Ready to fetch the latest events.
+
+                        </p>
+
+                    </div>
+
+                </div>
+
+                <div
+                    id="statusBox"
+                    class="status"
+                    hidden>
+                </div>
+
+                <div
+                    id="eventList"
+                    class="event-list">
+                </div>
+
+                <button
+                    id="loadMoreButton"
+                    class="load-button"
+                    type="button"
+                    hidden>
+
+                    Load More
+
+                </button>
+
+            </section>
+
+        </div>
+
+    </div>
+
+</main>
+
+<template id="eventCardTemplate">
+
+    <article class="event-card">
+
+        <div class="event-card-main">
+
+            <span class="event-type"></span>
+
+            <h3 class="event-title"></h3>
+
+            <p class="event-summary"></p>
+
+            <dl class="event-details"></dl>
+
+            <div class="event-actions">
+
+                <a
+                    class="event-link"
+                    target="_blank"
+                    rel="noopener">
+
+                    Open in War Era
+
+                </a>
+
+                <button
+                    class="event-write-button"
+                    type="button">
+
+                    Copy Headline
+
+                </button>
+
+            </div>
+
+        </div>
+
+        <time class="event-time"></time>
+
+    </article>
+
+</template>
+
+<template id="articleCardTemplate">
+
+    <article class="article-card">
+
+        <div class="article-card-main">
+
+            <span class="article-category"></span>
+
+            <h3 class="article-title"></h3>
+
+            <div class="article-meta"></div>
+
+            <div class="article-stats"></div>
+
+            <div class="article-actions">
+
+                <button class="article-open">
+
+                    Open
+
+                </button>
+
+                <button class="article-read">
+
+                    Read
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </article>
+
+</template>
+
+<div id="articleReaderModal" class="reader-modal hidden">
+    <div class="reader-window">
+        <div class="reader-header">
+            <h2 id="readerTitle"></h2>
+			<div id="readerAuthor" class="reader-author"></div>
+
+            <button id="closeReader">
+                ✕
+            </button>
+        </div>
+
+        <div id="readerContent" class="reader-content"></div>
+    </div>
+</div>
+
+<script src="script.js"></script>
+
+</body>
+</html>
