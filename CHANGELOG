@@ -1,0 +1,82 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is inspired by Keep a Changelog and follows Semantic Versioning principles.
+
+---
+
+## [0.1.0-beta] - 2026-06-15
+
+### Added
+
+- Initial public beta release.
+- Real-time Global Events timeline powered by the War Era API.
+- Support for major event categories including:
+  - Wars
+  - Battles
+  - Alliances
+  - Revolutions
+  - Region transfers
+  - Economic events
+  - Political events
+- Event pagination and "Load More" support.
+- Event filtering by:
+  - Country
+  - Event type
+  - Date/time range
+- Country auto-complete and lookup system.
+- Automatic resolution of:
+  - Countries
+  - Regions
+  - Battles
+  - Usernames
+- Human-readable event intelligence rendering.
+- Direct links to War Era event pages.
+- One-click "Write as Article" integration with War Era Writer.
+- Real-time article feed.
+- Article search functionality.
+- Article pagination support.
+- API key management system.
+- Secure local API key storage using browser localStorage.
+- Light and Dark theme support.
+- Auto-refresh engine for live monitoring.
+- Responsive dashboard layout.
+- Live status indicator for active timeline monitoring.
+
+### Improved
+
+- Reworked dashboard layout to prioritize the Global Events feed.
+- Redesigned filtering interface for a cleaner newsroom workflow.
+- Improved article feed placement and navigation.
+- Simplified article controls to focus on search and reading.
+
+### Technical
+
+- Built entirely with vanilla HTML, CSS, and JavaScript.
+- No external frameworks or dependencies.
+- Direct integration with War Era TRPC endpoints.
+- Modular rendering system for events and articles.
+- Lookup caching for countries, regions, battles, and users.
+
+### Known Issues
+
+- Reader Mode is still under active development.
+- Some article metadata may not always resolve correctly.
+- Additional event intelligence templates are planned.
+- Mobile layout still requires further optimization.
+- Performance tuning for large timelines is ongoing.
+
+### Planned
+
+- Refinement of the live refresh engine.
+- Integrated newsroom clock and time utilities.
+- Reader Mode interface overhaul.
+- Improved event intelligence summaries.
+- Battle Monitoring system.
+- Automated post-battle intelligence reports featuring:
+  - Top damage dealers
+  - Participation statistics
+  - Casualty and performance analysis
+  - Battle outcome assessments
+- Continued UI and workflow improvements for War Era journalists.
