@@ -1160,3 +1160,72 @@ button:focus-visible{
     opacity: 0.75;
     font-style: italic;
 }
+
+/* ==========================
+   ARTICLE FEED STATUS EFFECTS
+   ========================== */
+
+#articleFeedMeta.indexing {
+    color: #ffd84d;
+    background: linear-gradient(
+        90deg,
+        rgba(255,216,77,0.25) 0%,
+        rgba(255,216,77,1) 50%,
+        rgba(255,216,77,0.25) 100%
+    );
+
+    background-size: 250% 100%;
+
+    -webkit-background-clip: text;
+    background-clip: text;
+
+    color: transparent;
+
+    animation: articleIndexSweep 1.2s linear infinite;
+}
+
+@keyframes articleIndexSweep {
+
+    from {
+        background-position: 200% 0;
+    }
+
+    to {
+        background-position: -200% 0;
+    }
+
+}
+
+
+
+#articleFeedMeta.loadedPulse {
+
+    color: #49d16d;
+
+    animation: articleLoadedPulse 0.22s ease-in-out 3;
+}
+
+@keyframes articleLoadedPulse {
+
+    0% {
+
+        transform: scale(1);
+        opacity: 1;
+
+    }
+
+    50% {
+
+        transform: scale(1.05);
+        opacity: 0.55;
+
+    }
+
+    100% {
+
+        transform: scale(1);
+        opacity: 1;
+
+    }
+
+}
