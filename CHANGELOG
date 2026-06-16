@@ -6,6 +6,40 @@ The format is inspired by Keep a Changelog and follows Semantic Versioning princ
 
 ---
 
+## [0.2.0-beta] - 2026-06-16
+
+### Added
+
+*Dedicated Battle Tracker page for monitoring ongoing battles.
+*Dedicated Market Tracker page for monitoring global market conditions.
+*Dedicated Job Market Tracker page for workforce and wage monitoring.
+*Market intelligence panel displaying:
+	-Highest commodity price
+	-Average wage
+	-Total wage
+	-24-hour trade volume
+*"Copy Report" action for Battle Tracker.
+*"Copy Report" action for Market Tracker.
+*"Copy Report" action for Job Market Tracker.
+*"Copy Article" action inside Reader Mode for copying full article text.
+*Animated oscilloscope background effect for the newsroom interface.
+
+### Improved
+
+*Refined overall dashboard layout with a cleaner and more organized newsroom workflow.
+*Redesigned Reader Mode interface for improved readability and usability.
+*Improved visual consistency across monitoring pages.
+*Better separation between event monitoring, battle tracking, and market intelligence sections.
+*Streamlined report generation workflow through integrated copy actions.
+
+### Technical
+
+*Expanded monitoring architecture with dedicated tracker modules.
+*Added text-ready report generation utilities for tracker pages.
+*Extended Reader Mode functionality with direct article text extraction.
+*Integrated additional market statistic processing and rendering logic.
+
+
 ## [0.1.1-beta] - 2026-06-15
 
 ### Added
