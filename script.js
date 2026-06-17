@@ -477,6 +477,7 @@ async function silentRefreshEvents() {
     S.events = [...fresh, ...S.events];
     renderTimeline();
     S.articleLimiter = 0;
+	loadArticles(true);
     window.ecgPulse?.(1.2);
   } catch {}
 }
