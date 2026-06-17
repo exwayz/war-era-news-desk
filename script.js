@@ -1230,8 +1230,10 @@ function buildRoundGpBar(rd, roundIdx) {
 
     <div style="display:flex;justify-content:space-between;font-size:.64rem;color:var(--ink-dim);margin-top:3px">
       <span>0</span>
-      <span style="position:relative;left:-4px">150</span>
-      <span>300</span>
+	  <span>1500</span>
+      <span style="position:relative;left:-4px">300</span>
+      <span>150</span>
+	  <span>0</span>
     </div>
 
   </div>`;
