@@ -1,5 +1,5 @@
 /* =======================================================
-   WAR ERA NEWS DESK — script.js v4.0
+   WAR ERA NEWS DESK — 
    Full rewrite: scroll fix, journalist summaries for all
    event types, battle detail XLS export, live damage bars,
    working jobs (company name + location + filter), market
