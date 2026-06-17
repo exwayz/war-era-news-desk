@@ -1,5 +1,5 @@
 /* =======================================================
-   WAR ERA NEWS DESK — 
+   WAR ERA NEWS DESK — script.js 
    Full rewrite: scroll fix, journalist summaries for all
    event types, battle detail XLS export, live damage bars,
    working jobs (company name + location + filter), market
@@ -2272,6 +2272,7 @@ function setBattleStatus(m,t="info") { E.battleListStatus.hidden=false; E.battle
 function clearBattleStatus() { E.battleListStatus.hidden=true; E.battleListStatus.textContent=""; E.battleListStatus.classList.remove("error"); }
 function battleId(b) { return b._id||b.id||b.battleId||""; }
 
+// ─── MARKET STATS (TOPBAR) ────────────────────────────
 const DAY_MS = 86400000;
 
 async function fetchTxLast24h(type, k, maxPages=8) {
@@ -2335,7 +2336,6 @@ async function loadMarketFull() {
   setMs(E.marketEconStatus,"Loading economic data…");
   setMs(E.marketPricesStatus,"Loading commodity prices…");
   setMs(E.marketOrdersStatus,"Loading trading orders…");
-  setMs(E.marketInflationStatus,"Calculating inflation…");
 
   const [wagesR,tradesR,pricesR] = await Promise.allSettled([
     fetchTxLast24h("wage",k),
@@ -2386,117 +2386,16 @@ async function loadMarketFull() {
     const pi=arr.slice(0,10).reduce((s,i)=>s+Number(i.price||i.value||0),0)/Math.min(10,arr.length);
     S.market.priceHistory.push({t:Date.now(),i:pi});
     if(S.market.priceHistory.length>48) S.market.priceHistory.shift();
-
-    // ── Persist current PI snapshot ──
-    const nowTs = Date.now();
-    const piEntry = { t: nowTs, pi };
-    try {
-      const stored = JSON.parse(localStorage.getItem("wa-nd-pi-history")||"[]");
-      stored.push(piEntry);
-      const cutoff = nowTs - 72 * 3600 * 1000;
-      const trimmed = stored.filter(e=>e.t>cutoff).slice(-500);
-      localStorage.setItem("wa-nd-pi-history", JSON.stringify(trimmed));
-      S.market.priceIndexHistory = trimmed;
-    } catch {
-      S.market.priceIndexHistory.push(piEntry);
-      if (S.market.priceIndexHistory.length > 500) S.market.priceIndexHistory.shift();
-    }
-
     E.marketPricesData.innerHTML=arr.slice(0,30).map(item=>{
       const name=item.itemCode||item.item||item.name||"Unknown";
       const price=Number(item.price||item.value||0);
-      return `<div class="price-row"><span class="price-name">${name}</span><span class="price-val">${fmtMoney(price)} &#8383;</span></div>`;
+      return `<div class="price-row"><span class="price-name">${name}</span><span class="price-val">${fmtMoney(price)} ₿</span></div>`;
     }).join("")||"<p style='color:var(--ink-dim)'>No price data.</p>";
     if (S.market.priceHistory.length>1) {
-      E.marketPricesData.innerHTML+=miniChart(S.market.priceHistory.map(p=>p.i),"Price Index (Top-10 Avg &#8383;)","var(--blue)");
+      E.marketPricesData.innerHTML+=miniChart(S.market.priceHistory.map(p=>p.i),"Price Index (Top-10 Avg ₿)","var(--blue)");
     }
     clrMs(E.marketPricesStatus);
   } catch { setMs(E.marketPricesStatus,"Could not load price data.",true); }
-
-  // ── Inflation: backfill PI history from itemMarket transactions on first load ──
-  try {
-    if (S.market.priceIndexHistory.length < 2) {
-      setMs(E.marketInflationStatus,"Backfilling price history from transactions…");
-      const cutoff24 = Date.now() - 24*3600*1000;
-      const txItems = [];
-      let cursor;
-      for (let p=0; p<8; p++) {
-        let res;
-        try { res = await fetchTrpc("transaction.getPaginatedTransactions",{limit:100,transactionType:"itemMarket",cursor},k); }
-        catch { break; }
-        const data = unwrap(res);
-        const page = Array.isArray(data)?data:(data?.items||[]);
-        if (!page.length) break;
-        let hitOld = false;
-        for (const tx of page) {
-          const ts = new Date(tx.createdAt||tx.date||tx.timestamp||0).getTime();
-          if (Number.isFinite(ts) && ts > 0 && ts < cutoff24) { hitOld=true; continue; }
-          txItems.push(tx);
-        }
-        cursor = data?.nextCursor||data?.cursor||null;
-        if (hitOld || !cursor) break;
-      }
-
-      if (txItems.length >= 2) {
-        // Top-10 most-traded items
-        const freq = {};
-        for (const tx of txItems) {
-          const ic = tx.itemCode||tx.item||"";
-          if (ic) freq[ic] = (freq[ic]||0) + 1;
-        }
-        const topItems = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([ic])=>ic);
-
-        // Live price fallback map
-        const livePriceMap = {};
-        for (const item of (S.market.prices||[])) {
-          const ic = item.itemCode||item.item||item.name||"";
-          const price = Number(item.price||item.value||0);
-          if (ic && price) livePriceMap[ic] = price;
-        }
-
-        // Bucket by 30-min slot
-        const buckets = {};
-        for (const tx of txItems) {
-          const ts = new Date(tx.createdAt||tx.date||tx.timestamp||0);
-          if (isNaN(ts)) continue;
-          const ic = tx.itemCode||tx.item||"";
-          if (!topItems.includes(ic)) continue;
-          const unitPrice = Number(tx.unitPrice||tx.pricePerUnit||tx.price||tx.amount||0);
-          if (!unitPrice) continue;
-          const mins = ts.getMinutes() < 30 ? "00" : "30";
-          const slotKey = ts.toISOString().slice(0,13)+":"+mins;
-          if (!buckets[slotKey]) buckets[slotKey] = {};
-          if (!buckets[slotKey][ic]) buckets[slotKey][ic] = {s:0,n:0};
-          buckets[slotKey][ic].s += unitPrice;
-          buckets[slotKey][ic].n++;
-        }
-
-        const newHistory = Object.entries(buckets)
-          .sort((a,b)=>a[0].localeCompare(b[0]))
-          .map(([slot, itemMap]) => {
-            const t = new Date(slot).getTime();
-            const vals = topItems.map(ic => {
-              if (itemMap[ic]) return itemMap[ic].s / itemMap[ic].n;
-              return livePriceMap[ic] || 0;
-            }).filter(v=>v>0);
-            const pi = vals.length ? vals.reduce((s,v)=>s+v,0)/vals.length : 0;
-            return { t, pi };
-          })
-          .filter(e=>e.pi>0);
-
-        if (newHistory.length >= 2) {
-          const existing = S.market.priceIndexHistory;
-          const merged = [...newHistory, ...existing]
-            .sort((a,b)=>a.t-b.t)
-            .filter((e,i,arr)=>i===0||e.t-arr[i-1].t>5*60*1000);
-          const final72h = merged.filter(e=>e.t>Date.now()-72*3600*1000).slice(-500);
-          try { localStorage.setItem("wa-nd-pi-history", JSON.stringify(final72h)); } catch {}
-          S.market.priceIndexHistory = final72h;
-        }
-      }
-    }
-    clrMs(E.marketInflationStatus);
-  } catch { clrMs(E.marketInflationStatus); }
 
   // Orders
   try {
@@ -2549,7 +2448,6 @@ async function loadMarketFull() {
   } catch(e) { setMs(E.marketOrdersStatus,"Could not load orders: "+(e.message||""),true); }
 
   loadMarketStats();
-  renderInflationCard();
   window.ecgPulse?.(1.5);
 }
 
@@ -2579,141 +2477,6 @@ function miniChart(values, label, color="var(--accent)") {
   </div>`;
 }
 
-function renderInflationCard() {
-  if (!E.marketInflationData) return;
-  const history = S.market.priceIndexHistory;
-
-  // Always clear status first
-  if (E.marketInflationStatus) {
-    E.marketInflationStatus.hidden = true;
-    E.marketInflationStatus.textContent = "";
-    E.marketInflationStatus.classList.remove("error");
-  }
-
-  if (history.length < 2) {
-    // Show partial data if we have 1 point; otherwise minimal state
-    E.marketInflationData.innerHTML = `
-      <div class="infl-hero" style="margin-bottom:12px">
-        ${history.length===1
-          ? `<span class="infl-pi-val">${fmtMoney(history[0].pi)} <small style="font-size:.7rem;color:var(--ink-dim);font-weight:600">&#8383; PI</small></span>`
-          : `<span style="color:var(--ink-dim);font-size:.9rem;font-weight:700">Awaiting market data…</span>`
-        }
-        <span class="infl-trend-badge" style="background:rgba(132,148,168,.1);color:var(--ink-dim);border-color:rgba(132,148,168,.2)">⏳ Building history</span>
-      </div>
-      <div class="infl-rows">
-        <div class="infl-row"><span class="infl-lbl">1h Change</span><span class="infl-val infl-flat">—</span></div>
-        <div class="infl-row"><span class="infl-lbl">6h Change</span><span class="infl-val infl-flat">—</span></div>
-        <div class="infl-row"><span class="infl-lbl">24h Inflation</span><span class="infl-val infl-flat">—</span></div>
-        <div class="infl-row"><span class="infl-lbl">Data Points</span><span class="infl-val" style="color:var(--ink-dim)">${history.length} / 2 needed</span></div>
-      </div>
-      <p style="margin:10px 0 0;color:var(--ink-dim);font-size:.72rem;line-height:1.5">
-        No itemMarket transaction history found for this period. Data will accumulate on each refresh.
-      </p>`;
-    return;
-  }
-
-  const now = Date.now();
-  const latest = history[history.length - 1];
-  const currentPI = latest.pi;
-
-  // Find closest entry at or before (now - ms), fall back to oldest available
-  function findNearestBefore(ms) {
-    const target = now - ms;
-    let best = null;
-    for (const e of history) {
-      if (e.t <= target) best = e;
-    }
-    return best;  // null = no data that old, caller handles
-  }
-
-  const entry1h  = findNearestBefore(1  * 3600 * 1000);
-  const entry6h  = findNearestBefore(6  * 3600 * 1000);
-  const entry24h = findNearestBefore(24 * 3600 * 1000);
-
-  function pctChange(prev, curr) {
-    if (!prev || prev.pi === 0) return null;
-    return ((curr - prev.pi) / prev.pi) * 100;
-  }
-
-  const chg1h  = pctChange(entry1h,  currentPI);
-  const chg6h  = pctChange(entry6h,  currentPI);
-  const chg24h = pctChange(entry24h, currentPI);
-
-  function fmtPct(v) {
-    if (v === null) return { text:"—", cls:"infl-flat" };
-    const sign = v >= 0 ? "+" : "";
-    const cls  = v > 0.5 ? "infl-up" : v < -0.5 ? "infl-down" : "infl-flat";
-    return { text: sign + v.toFixed(2) + "%", cls };
-  }
-
-  const f1h  = fmtPct(chg1h);
-  const f6h  = fmtPct(chg6h);
-  const f24h = fmtPct(chg24h);
-
-  // Trend driven by longest available window
-  const primaryChg = chg24h ?? chg6h ?? chg1h;
-  const trend = primaryChg === null ? "neutral"
-    : primaryChg > 1.5  ? "hot"
-    : primaryChg > 0.3  ? "warm"
-    : primaryChg < -1.5 ? "deflating"
-    : primaryChg < -0.3 ? "cooling"
-    : "stable";
-
-  const trendLabel = {
-    hot:"🔥 Inflationary", warm:"📈 Rising Prices",
-    stable:"⚖ Stable", cooling:"📉 Cooling",
-    deflating:"❄ Deflationary", neutral:"— Insufficient Data",
-  }[trend];
-
-  const trendColor = {
-    hot:"var(--red)", warm:"var(--yellow)",
-    stable:"var(--green)", cooling:"var(--blue)",
-    deflating:"var(--blue)", neutral:"var(--ink-dim)",
-  }[trend];
-
-  const sparkValues = history.map(e => e.pi);
-
-  let html = `
-  <div class="infl-hero" style="margin-bottom:12px">
-    <span class="infl-pi-val">${fmtMoney(currentPI)} <small style="font-size:.7rem;color:var(--ink-dim);font-weight:600">&#8383; PI</small></span>
-    <span class="infl-trend-badge" style="background:${trendColor}22;color:${trendColor};border-color:${trendColor}55">${trendLabel}</span>
-  </div>
-  <div class="infl-rows">
-    <div class="infl-row">
-      <span class="infl-lbl">1h Change</span>
-      <span class="infl-val ${f1h.cls}">${f1h.text}</span>
-    </div>
-    <div class="infl-row">
-      <span class="infl-lbl">6h Change</span>
-      <span class="infl-val ${f6h.cls}">${f6h.text}</span>
-    </div>
-    <div class="infl-row">
-      <span class="infl-lbl">24h Inflation</span>
-      <span class="infl-val ${f24h.cls}">${f24h.text}</span>
-    </div>
-    <div class="infl-row">
-      <span class="infl-lbl">Data Points</span>
-      <span class="infl-val" style="color:var(--ink-dim)">${history.length}</span>
-    </div>
-    <div class="infl-row">
-      <span class="infl-lbl">Tracking Since</span>
-      <span class="infl-val" style="color:var(--ink-dim);font-size:.74rem">${fmtDate(history[0].t)}</span>
-    </div>
-  </div>`;
-
-  // Chart — same pattern as wage chart
-  if (sparkValues.length > 1) {
-    html += miniChart(sparkValues, "Price Index Over Time (&#8383;)", "var(--yellow)");
-  }
-
-  html += `<p style="margin:10px 0 0;color:var(--ink-dim);font-size:.72rem;line-height:1.5">
-    PI = avg of top-10 commodity prices. Inflation = ((PI<sub>now</sub> &minus; PI<sub>past</sub>) / PI<sub>past</sub>) &times; 100.
-  </p>`;
-
-  E.marketInflationData.innerHTML = html;
-}
-
-
 function copyMarketReport() {
   const ec=S.market.econ; const prices=S.market.prices||[]; const orders=S.market.orders||[];
   let r=`# War Era Market Intelligence Report\nGenerated: ${new Date().toUTCString()}\n\n## Economic Overview\n`;
@@ -2722,15 +2485,6 @@ function copyMarketReport() {
   for(const i of prices.slice(0,15)) r+=`- ${i.itemCode||i.name||"?"}: ${fmtMoney(Number(i.price||0))} BTC\n`;
   r+=`\n## Top Trading Orders\n`;
   for(const o of orders.slice(0,10)) r+=`- ${(o.orderType||o.type||"ORDER")} ${o._itemCode||o.itemCode||"?"} ×${fmtNum(o._qty||o.quantity||0)} @ ${fmtMoney(o._price||0)} BTC/u\n`;
-  // Inflation
-  const hist = S.market.priceIndexHistory;
-  if (hist.length >= 2) {
-    const now = Date.now();
-    const curr = hist[hist.length-1].pi;
-    function nearBefore(ms){ const t=now-ms; let b=hist[0]; for(const e of hist) if(e.t<=t) b=e; return b; }
-    const pct=(ref)=>ref&&ref.pi?((curr-ref.pi)/ref.pi*100).toFixed(2)+"%":"—";
-    r+=`\n## Price Inflation\n- Current PI: ${fmtMoney(curr)} BTC\n- 1h: ${pct(nearBefore(3600000))}\n- 6h: ${pct(nearBefore(6*3600000))}\n- 24h: ${pct(nearBefore(86400000))}\n`;
-  }
   navigator.clipboard.writeText(r).then(()=>toast("Market report copied."));
 }
 
