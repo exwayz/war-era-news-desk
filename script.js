@@ -3155,10 +3155,10 @@ function buildSummary(event,type,ed) {
         `Territorial maps are being redrawn as ${reg} passes from ${c1} to ${c2}.`
       );
       if(c1&&c2) return pick(
-		  `A territorial transfer between ${c1} and ${c2} has been confirmed.`
-	  	  `Territorial Control Shifts as ${c2} Acquires Region from ${c1}`
-		  `Regional Authority Changes Hands Following Transfer Agreement Between ${c1} and ${c2}`
-		  `Territorial Realignment Underway as Region Moves from ${c1} to ${c2}`
+		  `A territorial transfer between ${c1} and ${c2} has been confirmed.`,
+	  	  `Territorial Control Shifts as ${c2} Acquires Region from ${c1}.`,
+		  `Regional Authority Changes Hands Following Transfer Agreement Between ${c1} and ${c2}.`,
+		  `Territorial Realignment Underway as Region Moves from ${c1} to ${c2}.`
 	  );
       break;
     case "depositDiscovered": {
