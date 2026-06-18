@@ -1230,7 +1230,7 @@ function buildRoundGpBar(rd, roundIdx) {
 
     <div style="display:flex;justify-content:space-between;font-size:.64rem;color:var(--ink-dim);margin-top:3px">
       <span>0</span>
-	  <span>1500</span>
+	  <span>150</span>
       <span style="position:relative;left:-4px">300</span>
       <span>150</span>
 	  <span>0</span>
@@ -2926,7 +2926,7 @@ function buildTitle(event,type,ed) {
   if(event.description) return event.description;
   const atk=nameCountry(ed.attackerCountry); const def=nameCountry(ed.defenderCountry);
   const reg=nameRegion(ed.defenderRegion)||nameRegion(ed.region)||nameRegion(ed.regionId);
-  const cids=collectCountryIds(event,ed);
+  const cids=collectCountryIds(event,ed);\
   const [c1,c2]=cids.map(nameCountry);
   const allianceName=ed.allianceName||ed.alliance?.name||ed.allianceName||"";
 
@@ -3027,15 +3027,25 @@ function buildSummary(event,type,ed) {
   const cnames=[...new Set(cids.map(nameCountry).filter(Boolean))];
   const [c1,c2]=cnames;
   const allianceName=ed.allianceName||ed.alliance?.name||ed.allianceName||"the alliance";
+  let monet=money(ed.money);
 
   switch(type){
     case "countryMoneyTransfer":
-      if(c1&&c2) return pick(
-        `${c1} has transferred ${fmtMoney(ed.money)} ₿ to ${c2} in an inter-governmental financial transaction.`,
-        `Financial records confirm ${c1} sent ${fmtMoney(ed.money)} ₿ directly to ${c2}.`,
-        `${fmtMoney(ed.money)} ₿ has been moved from ${c1} to ${c2} in an official state transfer.`
-      );
-      break;
+      if (monet < 10){
+		  if(c1&&c2) return pick(
+		  `${c1} transferred just ${fmtMoney(ed.money)} ₿ to ${c2}, a sum so small that observers are already questioning whether the transaction was intended as assistance or merely a symbolic gesture.`,
+          `The latest financial exchange saw ${c1} send ${fmtMoney(ed.money)} to ${c2}. Analysts agree the paperwork probably cost more than the transfer itself.`,
+          `${c1} sent ${fmtMoney(ed.money)} to ${c2}, a contribution so modest that observers are debating whether it should be classified as foreign aid or a diplomatic joke.`
+          );
+		  break;
+      }else{
+	  	  if(c1&&c2) return pick(
+		  `${c1} has transferred ${fmtMoney(ed.money)} ₿ to ${c2} in an inter-governmental financial transaction.`,
+          `Financial records confirm ${c1} sent ${fmtMoney(ed.money)} ₿ directly to ${c2}.`,
+          `${fmtMoney(ed.money)} ₿ has been moved from ${c1} to ${c2} in an official state transfer.`
+          );
+	  	  break;
+	  }
     case "allianceFormed":
       if(c1&&c2) return pick(
         `${c1} and ${c2} have entered into a formal military alliance, pledging mutual support.`,
@@ -3147,7 +3157,12 @@ function buildSummary(event,type,ed) {
         `${reg} has been formally handed over from ${c1} to ${c2} in an official territorial transfer.`,
         `Territorial maps are being redrawn as ${reg} passes from ${c1} to ${c2}.`
       );
-      if(c1&&c2) return pick(`A territorial transfer between ${c1} and ${c2} has been confirmed.`);
+      if(c1&&c2) return pick(
+		  `A territorial transfer between ${c1} and ${c2} has been confirmed.`
+	  	  `Territorial Control Shifts as ${c2} Acquires Region from ${c1}`
+		  `Regional Authority Changes Hands Following Transfer Agreement Between ${c1} and ${c2}`
+		  `Territorial Realignment Underway as Region Moves from ${c1} to ${c2}`
+	  );
       break;
     case "depositDiscovered": {
       const res=ed.itemCode||"resource";
