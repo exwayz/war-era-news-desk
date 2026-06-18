@@ -1511,6 +1511,11 @@ input:focus, select:focus, button:focus-visible {
   left:0;
   right:0;
 
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  gap:6px;
+
   padding:6px 14px;
 
   border-left:3px solid var(--accent);
@@ -1527,18 +1532,22 @@ input:focus, select:focus, button:focus-visible {
   font-size:.7rem;
   font-weight:500;
 
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-
   opacity:0;
 
-  transform:
-    translateY(24px);
+  transform:translateY(24px);
 
   transition:
     opacity .35s ease,
     transform .35s ease;
+}
+
+.toast-title{
+  flex:1;
+  text-align:right;
+
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
 }
 
 .live-event-toast.show{
@@ -1586,4 +1595,72 @@ input:focus, select:focus, button:focus-visible {
   bottom:0;
 
   backdrop-filter:blur(6px);
+}
+
+
+..market-title{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.live-indicator{
+  display:inline;
+  align-items:center;
+  gap:6px;
+
+  font-size:.72rem;
+  font-weight:900;
+  letter-spacing:.08em;
+
+  color:#4ade80;
+}
+
+.live-dot{
+  width:8px;
+  height:8px;
+
+  border-radius:50%;
+
+  position:relative;
+
+  animation:livePulse 1.8s infinite;
+}
+
+.live-dot::after{
+  content:"";
+
+  position:absolute;
+
+  inset:0;
+
+  border-radius:50%;
+
+  animation:liveRing 1.8s infinite;
+}
+
+@keyframes livePulse{
+
+  0%,100%{
+    opacity:1;
+  }
+
+  50%{
+    opacity:.4;
+  }
+
+}
+
+@keyframes liveRing{
+
+  0%{
+    transform:scale(1);
+    opacity:.8;
+  }
+
+  100%{
+    transform:scale(5);
+    opacity:0;
+  }
+
 }
