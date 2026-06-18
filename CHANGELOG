@@ -6,6 +6,60 @@ The format is inspired by Keep a Changelog and follows Semantic Versioning princ
 
 ---
 
+##[0.4.3-beta] - 2026-06-19
+
+###Added
+
+*Live Event Toast notification system for newly detected timeline events.
+*Automatic toast suppression while the user is actively viewing the Timeline tab.
+*Dedicated toast container integrated into the navigation bar area.
+*Animated toast entrance and exit transitions using slide-up motion.
+*Audio notification support for live event alerts.
+*Market Intelligence live activity indicator.
+*Animated signal-strength style status indicator to visually represent continuous real-time market monitoring.
+*Persistent Price Index chart container within the Commodity Prices panel.
+*Dedicated chart region separated from commodity list rendering.
+*Market order dataset separation between commodity trading orders and equipment market transactions.
+*Automatic market view rotation architecture for alternating market datasets.
+*Support for equipment transaction parsing from itemMarket transaction history.
+*Support for equipment item code normalization and human-readable equipment naming.
+
+###Improved
+
+*Live timeline monitoring now generates contextual toast notifications using generated event titles rather than relying on raw API payload fields.
+*Improved event title handling by reusing the existing buildTitle() intelligence generation pipeline.
+*Enhanced visibility of newly detected events when browsing non-timeline sections.
+*Improved market monitoring UX through persistent visual feedback indicating live updates.
+*Improved Commodity Prices panel layout by allowing commodity lists to scroll independently from chart visualizations.
+*Refined chart placement to behave similarly to frozen spreadsheet rows, ensuring trend visibility at all times.
+*Improved market intelligence readability through separation of data lists and trend visualizations.
+*Enhanced support for equipment market activity alongside traditional commodity order books.
+*Improved handling of mixed market datasets without requiring changes to existing rendering and reporting systems.
+*Refined toast notification styling and positioning within the navigation area.
+*Improved handling of long event headlines within constrained toast layouts.
+
+###Technical
+
+*Introduced dedicated live-event toast rendering pipeline.
+*Added conditional notification logic based on active tab state.
+*Implemented reusable event title generation through integration with buildTitle().
+*Added toast animation lifecycle management including timed appearance and removal states.
+*Added market live-indicator animation framework using CSS keyframe sequences.
+*Separated commodity and equipment order collection pipelines for future market expansion.
+*Prepared rotating market data architecture allowing alternating dataset presentation without modifying downstream rendering logic.
+*Added support for extracting equipment transaction pricing from itemMarket transaction payloads.
+*Introduced dedicated chart container architecture for persistent market visualizations.
+*Refactored market panel rendering structure to support independently scrolling content regions.
+*Expanded market intelligence framework to accommodate future multi-category market analytics.
+
+###UX
+
+*Users now receive unobtrusive live notifications when important events occur while reading Battles, Market, or Jobs pages.
+*Price Index trend visualization remains visible while browsing large commodity datasets.
+*Market Intelligence section now more clearly communicates that data is continuously updated in real time.
+*Reduced risk of missing important geopolitical or military developments while navigating away from the Timeline page.
+
+
 ## [0.4.2-beta] - 2026-06-17
 
 ### Added
