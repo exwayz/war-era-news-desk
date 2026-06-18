@@ -3023,7 +3023,6 @@ function buildTitle(event,type,ed) {
 function buildSummary(event,type,ed) {
   const atk=nameCountry(ed.attackerCountry); const def=nameCountry(ed.defenderCountry);
   const reg=nameRegion(ed.defenderRegion)||nameRegion(ed.region)||nameRegion(ed.regionId);
-  const monet = Number(ed.money || 0);
   const cids=collectCountryIds(event,ed);
   const cnames=[...new Set(cids.map(nameCountry).filter(Boolean))];
   const [c1,c2]=cnames;
@@ -3032,22 +3031,18 @@ function buildSummary(event,type,ed) {
 
   switch(type){
     case "countryMoneyTransfer":
-
-    if (c1 && c2 && monet < 10) {
-        return pick([
+	   const monet = Number(ed.money || 0);
+       if (c1 && c2 && monet < 10) return pick(
             `${c1} transferred just ${fmtMoney(monet)} ₿ to ${c2}, a sum so small that observers are already questioning whether the transaction was intended as assistance or merely a symbolic gesture.`,
             `The latest financial exchange saw ${c1} send ${fmtMoney(monet)} ₿ to ${c2}. Analysts agree the paperwork probably cost more than the transfer itself.`,
             `${c1} sent ${fmtMoney(monet)} ₿ to ${c2}, a contribution so modest that observers are debating whether it should be classified as foreign aid or a diplomatic joke.`
-        ]);
-    }
-    if (c1 && c2) {
-        return pick([
+        );
+       if (c1 && c2) return pick(
             `${c1} has transferred ${fmtMoney(monet)} ₿ to ${c2} in an inter-governmental financial transaction.`,
             `Financial records confirm ${c1} sent ${fmtMoney(monet)} ₿ directly to ${c2}.`,
             `${fmtMoney(monet)} ₿ has been moved from ${c1} to ${c2} in an official state transfer.`
-        ]);
-    }
-    break;
+        );
+      break;
     case "allianceFormed":
       if(c1&&c2) return pick(
         `${c1} and ${c2} have entered into a formal military alliance, pledging mutual support.`,
