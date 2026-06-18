@@ -105,6 +105,7 @@ const E = {
   copyArticleBtn: document.getElementById("copyArticleBtn"),
   battleList: document.getElementById("battleList"),
   battleListStatus: document.getElementById("battleListStatus"),
+  clearBattleDetailBtn: document.getElementById("clearBattleDetailBtn"),
   battleDetailPane: document.getElementById("battleDetailPane"),
   battleRefreshBtn: document.getElementById("battleRefreshBtn"),
   battleTabLive: document.getElementById("battleTabLive"),
@@ -114,6 +115,7 @@ const E = {
   battleReportTitle: document.getElementById("battleReportTitle"),
   battleReportMeta: document.getElementById("battleReportMeta"),
   battleReportContent: document.getElementById("battleReportContent"),
+  openBattlePageBtn: document.getElementById("openBattlePageBtn"),
   copyBattleReportBtn: document.getElementById("copyBattleReportBtn"),
   closeBattleReport: document.getElementById("closeBattleReport"),
   marketRefreshBtn: document.getElementById("marketRefreshBtn"),
@@ -393,6 +395,7 @@ function bindAll() {
     navigator.clipboard.writeText(E.readerContent.innerText||"").then(()=>toast("Article copied."));
   });
 
+  E.clearBattleDetailBtn?.addEventListener("click", clearBattleDetail);
   E.battleTabLive?.addEventListener("click",()=>{ S.battleMode="live"; stopBattlePolling(); loadBattles(true); updateBattleTabPills(); });
   E.battleTabHistory?.addEventListener("click",()=>{ S.battleMode="history"; stopBattlePolling(); loadBattles(true); updateBattleTabPills(); });
   E.battleRefreshBtn?.addEventListener("click",()=>loadBattles(true));
@@ -403,6 +406,20 @@ function bindAll() {
   E.copyBattleReportBtn?.addEventListener("click",()=>{
     navigator.clipboard.writeText(E.battleReportContent.innerText||"").then(()=>toast("Battle report copied."));
   });
+  E.openBattlePageBtn?.addEventListener("click", () => {
+
+	const battleId =
+		E.openBattlePageBtn.dataset.battleId;
+
+	if (!battleId)
+		return;
+
+	window.open(
+		`https://app.warera.io/battle/${battleId}`,
+		"_blank"
+		);
+
+	});
 
   E.marketRefreshBtn?.addEventListener("click",()=>loadMarketFull());
   E.copyMarketReportBtn?.addEventListener("click", copyMarketReport);
@@ -632,7 +649,7 @@ function makeBattleCard(battle) {
     if (isLive) {
       S.liveBattleTimer = setInterval(async()=>{
         if (S.selectedBattleId===bid) { await loadBattleDetail(battle,bid,true); window.ecgPulse?.(0.7); }
-      }, 8000);
+      }, 5000);
     }
   });
 
@@ -1046,6 +1063,23 @@ function orderIssuer(o) {
   return "Unknown";
 }
 
+function makeEntityLink(name, url) {
+
+  if (!url)
+    return name || "Unknown";
+
+  return `
+    <a
+      href="${url}"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="entity-link"
+    >
+      ${name}
+    </a>
+  `;
+}
+
 function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpMu, gpCountry, orders, atkPar, defPar, roundsData, roundGpData) {
   const atk = nameCountry(b.attacker?.country||b.attackerCountry||b.attacker?.countryId);
   const def = nameCountry(b.defender?.country||b.defenderCountry||b.defender?.countryId);
@@ -1255,13 +1289,42 @@ function buildRoundGpBar(rd, roundIdx) {
       <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;color:var(--ink-dim);margin-top:2px">${def||"Defender"}</div>
     </div>
   </div>`;
-
+  
   let html = `
-  <div class="br-section">
-    <h3 class="br-section-title">Battle Overview${liveTag}</h3>
-    ${roundTabsHtml}
-    <div class="br-narrative">${narrative}</div>`;
+<div class="br-section">
 
+  <div style="
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    margin-bottom:12px;
+  ">
+
+    <h3 class="br-section-title" style="margin:0">
+      Battle Overview${liveTag}
+    </h3>
+
+    <button
+      id="clearBattleDetailBtn"
+      class="btn-secondary"
+      style="
+	    margin-left:auto;
+        padding:4px 10px;
+        min-width:auto;
+      ">
+      ⌫ Clear
+    </button>
+
+  </div>
+
+  ${roundTabsHtml}
+
+  <div class="br-narrative">
+    ${narrative}
+  </div>
+`;
+	
   // Battle score (rounds won) always shown
   html += battleScoreHtml;
 
@@ -1359,13 +1422,29 @@ ${Array.from({length:maxRows},(_,i)=>{
 
   const atkHtml = a ? `
     <td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td>
-    <td>${nameUser(a.userId||a.user)||a.username||"Unknown"}</td>
+	<td>${
+  makeEntityLink(
+    nameUser(a.userId||a.user)
+      || a.username
+      || "Unknown",
+
+    `https://app.warera.io/user/${a.userId||a.user}`
+  )
+}</td>
     <td>${fmtNum(getValue(a))}</td>
   ` : `<td></td><td></td><td></td>`;
 
   const defHtml = d ? `
     <td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td>
-    <td>${nameUser(d.userId||d.user)||d.username||"Unknown"}</td>
+	<td>${
+  makeEntityLink(
+    nameUser(d.userId||d.user)
+      || d.username
+      || "Unknown",
+
+    `https://app.warera.io/user/${d.userId||d.user}`
+  )
+}</td>
     <td>${fmtNum(getValue(d))}</td>
   ` : `<td></td><td></td><td></td>`;
 
@@ -1427,13 +1506,29 @@ ${Array.from({length:maxRows},(_,i)=>{
 
   const atkHtml = a ? `
     <td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td>
-    <td>${nameUser(a.userId||a.user)||a.username||"Unknown"}</td>
+	<td>${
+  makeEntityLink(
+    nameUser(a.userId||a.user)
+      || a.username
+      || "Unknown",
+
+    `https://app.warera.io/user/${a.userId||a.user}`
+  )
+}</td>
     <td>${fmtNum(getPoints(a))}</td>
   ` : `<td></td><td></td><td></td>`;
 
   const defHtml = d ? `
     <td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td>
-    <td>${nameUser(d.userId||d.user)||d.username||"Unknown"}</td>
+	<td>${
+  makeEntityLink(
+    nameUser(d.userId||d.user)
+      || d.username
+      || "Unknown",
+
+    `https://app.warera.io/user/${d.userId||d.user}`
+  )
+}</td>
     <td>${fmtNum(getPoints(d))}</td>
   ` : `<td></td><td></td><td></td>`;
 
@@ -1501,11 +1596,17 @@ ${Array.from({length:maxRowsMu},(_,i)=>{
 
   const atkHtml = a ? `
     <td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td>
-    <td>${
-      nameMu(a.muId||a.mu)
+    <td>
+${
+  makeEntityLink(
+    nameMu(a.muId||a.mu)
       ||
-      `MU ${String(a.muId||a.mu).slice(-6)}`
-    }</td>
+      `MU ${String(a.muId||a.mu).slice(-6)}`,
+
+    `https://app.warera.io/mu/${a.muId||a.mu}`
+  )
+}
+</td>
     <td>${fmtNum(getValue(a))}</td>
   `
   :
@@ -1513,11 +1614,16 @@ ${Array.from({length:maxRowsMu},(_,i)=>{
 
   const defHtml = d ? `
     <td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td>
-    <td>${
-      nameMu(d.muId||d.mu)
-      ||
-      `MU ${String(d.muId||d.mu).slice(-6)}`
-    }</td>
+    <td>
+${
+  makeEntityLink(
+    nameMu(d.muId||d.mu)
+      || `MU ${String(d.muId||d.mu).slice(-6)}`,
+
+    `https://app.warera.io/mu/${d.muId||d.mu}`
+  )
+}
+</td>
     <td>${fmtNum(getValue(d))}</td>
   `
   :
@@ -1590,7 +1696,16 @@ ${Array.from({length:maxRowsMuGP},(_,i)=>{
 
   const atkHtml = a ? `
     <td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td>
-    <td>${nameMu(a.muId||a.mu)||`MU ${String(a.muId||a.mu).slice(-6)}`}</td>
+    ${
+  makeEntityLink(
+    nameMu(a.muId||a.mu)
+      ||
+      `MU ${String(a.muId||a.mu).slice(-6)}`,
+
+    `https://app.warera.io/mu/${a.muId||a.mu}`
+  )
+}
+</td>
     <td>${fmtNum(getPoints(a))}</td>
   `
   :
@@ -1598,7 +1713,16 @@ ${Array.from({length:maxRowsMuGP},(_,i)=>{
 
   const defHtml = d ? `
     <td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td>
-    <td>${nameMu(d.muId||d.mu)||`MU ${String(d.muId||d.mu).slice(-6)}`}</td>
+    <td>
+${
+  makeEntityLink(
+    nameMu(d.muId||d.mu)
+      || `MU ${String(d.muId||d.mu).slice(-6)}`,
+
+    `https://app.warera.io/mu/${d.muId||d.mu}`
+  )
+}
+</td>
     <td>${fmtNum(getPoints(d))}</td>
   `
   :
@@ -1675,15 +1799,21 @@ ${Array.from({length:maxRowsCountry},(_,i)=>{
 
   const atkHtml = a ? `
     <td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td>
-    <td>${
-      nameCountry(a.countryId||a.country)
+    <td>
+${
+  makeEntityLink(
+    nameCountry(a.countryId||a.country)
       ||
       a.countryName
       ||
       a.name
       ||
-      "Unknown"
-    }</td>
+      "Unknown",
+
+    `https://app.warera.io/country/${a.countryId||a.country}`
+  )
+}
+</td>
     <td>${fmtNum(getValue(a))}</td>
   `
   :
@@ -1691,15 +1821,21 @@ ${Array.from({length:maxRowsCountry},(_,i)=>{
 
   const defHtml = d ? `
     <td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td>
-    <td>${
-      nameCountry(d.countryId||d.country)
+    <td>
+${
+  makeEntityLink(
+    nameCountry(d.countryId||d.country)
       ||
-      d.countryName
+      a.countryName
       ||
-      d.name
+      a.name
       ||
-      "Unknown"
-    }</td>
+      "Unknown",
+
+    `https://app.warera.io/country/${d.countryId||d.country}`
+  )
+}
+</td>
     <td>${fmtNum(getValue(d))}</td>
   `
   :
@@ -1778,15 +1914,21 @@ ${Array.from({length:maxRowsCountryGP},(_,i)=>{
 
   const atkHtml = a ? `
     <td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td>
-    <td>${
-      nameCountry(a.countryId||a.country)
+    <td>
+${
+  makeEntityLink(
+    nameCountry(a.countryId||a.country)
       ||
       a.countryName
       ||
       a.name
       ||
-      "Unknown"
-    }</td>
+      "Unknown",
+
+    `https://app.warera.io/country/${a.countryId||a.country}`
+  )
+}
+</td>
     <td>${fmtNum(getPoints(a))}</td>
   `
   :
@@ -1794,15 +1936,21 @@ ${Array.from({length:maxRowsCountryGP},(_,i)=>{
 
   const defHtml = d ? `
     <td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td>
-    <td>${
-      nameCountry(d.countryId||d.country)
+    <td>
+${
+  makeEntityLink(
+    nameCountry(d.countryId||d.country)
       ||
-      d.countryName
+      a.countryName
       ||
-      d.name
+      a.name
       ||
-      "Unknown"
-    }</td>
+      "Unknown",
+
+    `https://app.warera.io/country/${d.countryId||d.country}`
+  )
+}
+</tdd
     <td>${fmtNum(getPoints(d))}</td>
   `
   :
@@ -1945,6 +2093,13 @@ const priority = `
   </div>`;
 
   E.battleDetailPane.innerHTML = html;
+  document
+  .getElementById("clearBattleDetailBtn")
+  ?.addEventListener("click", () => {
+
+    clearBattleDetail();
+
+  });
 
   // ── Wire up round tab buttons ──────────────────────
   const roundTabContainer = document.getElementById(`brRoundTabs_${bid}`);
@@ -1983,6 +2138,7 @@ const priority = `
     E.battleReportTitle.textContent = "Battle Report: "+title;
     E.battleReportMeta.textContent = `${isLive?"Live":"Ended"} · ${started?fmtDate(started):""}${ended?" → "+fmtDate(ended):""}`;
     E.battleReportContent.innerHTML = html.replace(/<div[^>]*>\s*<button[^>]*id="openFullReportBtn"[^>]*>[\s\S]*?<\/div>/,"");
+	if (E.openBattlePageBtn) {E.openBattlePageBtn.dataset.battleId = bid;}
     E.battleReportModal.classList.remove("hidden");
   });
 
@@ -2013,6 +2169,25 @@ function normalizeRankRow(r) {
     muId: r.muId || r.mu || null,
     countryId: r.countryId || r.country || null,
   };
+}
+
+function clearBattleDetail() {
+
+  stopBattlePolling();
+
+  S.selectedBattleId = null;
+
+  document
+    .querySelectorAll(".battle-card")
+    .forEach(c => c.classList.remove("selected"));
+
+  E.battleDetailPane.innerHTML = `
+    <div class="detail-placeholder">
+      <span class="placeholder-icon">⚔</span>
+      <p>Select a battle to view the intelligence report</p>
+    </div>
+  `;
+
 }
 
 // ─── BATTLE XLS EXPORT ────────────────────────────────
@@ -2842,14 +3017,15 @@ function renderArticles() {
   E.articleList.innerHTML="";
   for(const a of arts) {
     const node=E.tplArticle.content.firstElementChild.cloneNode(true);
+	const stats = a.stats || {};
     node.querySelector(".ac-cat").textContent=a.category||"General";
     node.querySelector(".ac-title").textContent=a.title||"Untitled";
     node.querySelector(".ac-meta").textContent=`${nameUser(a.author)||"Unknown"} · ${a.language||"?"} · ${fmtDate(a.createdAt)}`;
-    node.querySelector(".ac-stats").textContent=`Score: ${a.score??a.voteScore??a.votes??0}`;
+    node.querySelector(".ac-stats").textContent = `👁 ${stats.views ?? 0} • Score ${stats.score ?? 0}`;
     node.querySelector(".ac-open").addEventListener("click",()=>window.open(`https://app.warera.io/article/${a._id||a.id}`,"_blank","noopener"));
     node.querySelector(".ac-read").addEventListener("click",()=>{
       E.readerTitle.textContent=a.title||"Untitled";
-      E.readerAuthor.textContent=`By ${nameUser(a.author)||"Unknown"}`;
+      E.readerAuthor.textContent=`By ${nameUser(a.author)||"Unknown"} | 👁 ${stats.views ?? 0} • ✯ ${stats.score ?? 0} • 🖒 ${stats.likes ?? 0} • 🖓 ${stats.dislikes ?? 0}`;
       E.readerContent.innerHTML=a.content||"<p>No content available.</p>";
       E.readerContent.querySelectorAll("a").forEach(l=>{ l.target="_blank"; l.rel="noopener noreferrer"; });
       E.readerContent.querySelectorAll("iframe").forEach(f=>{ f.style.width="100%"; f.style.aspectRatio="16/9"; f.style.height="auto"; });
