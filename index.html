@@ -37,8 +37,8 @@
       <span class="market-value" id="statAvgWage">—</span>
     </div>
     <div class="market-divider"></div>
-    <div class="market-stat" title="Total wages last 24h">
-      <span class="market-label">Total Wages</span>
+    <div class="market-stat" title="Average last 24h">
+      <span class="market-label">Avg Payroll</span>
       <span class="market-value" id="statTotalWage">—</span>
     </div>
     <div class="market-divider"></div>
@@ -75,6 +75,7 @@
   <button class="tab-btn" data-tab="battles" role="tab" aria-selected="false">⚔ Battles</button>
   <button class="tab-btn" data-tab="market" role="tab" aria-selected="false">📈 Market</button>
   <button class="tab-btn" data-tab="jobs" role="tab" aria-selected="false">💼 Jobs</button>
+  <div id="liveEventToastArea"></div>
 </nav>
 
 <!-- ═══════════════════════════════════════════
@@ -202,16 +203,33 @@
         <div id="marketEconStatus" class="status-msg" hidden></div>
         <div id="marketEconData"></div>
       </div>
-      <div class="glass-panel market-cell">
-        <h3 class="cell-title">📦 Commodity Prices</h3>
-        <div id="marketPricesStatus" class="status-msg" hidden></div>
-        <div id="marketPricesData"></div>
-      </div>
+       <div class="glass-panel market-cell market-prices-cell">
+  <h3 class="cell-title">📦 Commodity Prices</h3>
+
+  <div id="marketPricesStatus"
+       class="status-msg"
+       hidden>
+  </div>
+
+  <div id="marketPricesData"
+       class="market-prices-list">
+  </div>
+
+  <div id="marketPricesChart"
+       class="market-prices-chart">
+  </div>
+</div>
       <div class="glass-panel market-cell">
         <h3 class="cell-title">🔝 Top Trading Orders</h3>
         <div id="marketOrdersStatus" class="status-msg" hidden></div>
         <div id="marketOrdersData"></div>
       </div>
+	  <div class="glass-panel market-cell">
+		<h3 class="cell-title">🏆 Most Valuable Commodities 
+		<span class="info-tip">ⓘ</span></h3>
+		<div id="marketValuableStatus" class="status-msg" hidden></div>
+		<div id="marketValuableData"></div>
+	  </div>
     </div>
   </div>
 
