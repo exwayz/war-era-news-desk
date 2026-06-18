@@ -191,17 +191,19 @@
   <!-- ── MARKET TAB ── -->
   <div class="tab-panel" id="tab-market" role="tabpanel">
     <div class="market-toolbar panel-head">
-      <h2>📈 Market Intelligence</h2>
+      <h2>📈 Market Intelligence <p class="live-indicator live-dot">◉</p></h2>
       <div class="btn-row">
         <button class="btn-primary" id="marketRefreshBtn">⟳ Refresh</button>
+		<button class="btn-secondary" id="marketOpenBtn">🛒 Go To Market</button>
         <button class="btn-secondary" id="copyMarketReportBtn">📋 Copy Report</button>
       </div>
     </div>
     <div class="market-grid">
       <div class="glass-panel market-cell">
-        <h3 class="cell-title">💰 Economic Overview</h3>
+        <h3 class="cell-title">💰 Economic Overview </h3>
         <div id="marketEconStatus" class="status-msg" hidden></div>
         <div id="marketEconData"></div>
+		
       </div>
        <div class="glass-panel market-cell market-prices-cell">
   <h3 class="cell-title">📦 Commodity Prices</h3>
