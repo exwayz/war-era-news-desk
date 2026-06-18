@@ -810,6 +810,10 @@ input:focus, select:focus, button:focus-visible {
 
 .bc-select:hover { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
 
+#battleDetailPane{
+  position:relative;
+}
+
 /* ── BATTLE DETAIL (inside pane) ────────────────────── */
 .detail-placeholder {
   height: 100%;
@@ -1320,4 +1324,60 @@ input:focus, select:focus, button:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration:.01ms !important; transition-duration:.01ms !important; }
   #oscilloscopeCanvas { display: none; }
+}
+
+.entity-link{
+  color:inherit;
+  text-decoration:none;
+  cursor:pointer;
+  transition:
+    color .18s ease,
+    text-shadow .18s ease,
+    transform .18s ease;
+}
+
+.entity-link:hover{
+  color:var(--red);
+  text-shadow:
+    0 0 6px rgba(255,70,70,.65),
+    0 0 12px rgba(255,70,70,.35);
+}
+
+.entity-link:active{
+  transform:translateY(1px);
+}
+
+.entity-link::after{
+  content:" ↗";
+  opacity:.45;
+  font-size:.8em;
+}
+
+.entity-link{
+  position:relative;
+}
+
+.entity-link:hover::before{
+  content:"Access on War Era";
+  position:absolute;
+  bottom:120%;
+  left:50%;
+  transform:translateX(-50%);
+
+  padding:4px 8px;
+
+  background:var(--surface-hi);
+  border:1px solid var(--red);
+
+  border-radius:6px;
+
+  white-space:nowrap;
+
+  font-size:.65rem;
+
+  color:var(--ink);
+
+  z-index:1000;
+
+  pointer-events:none;
 }
