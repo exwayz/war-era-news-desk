@@ -119,6 +119,7 @@ const E = {
   copyBattleReportBtn: document.getElementById("copyBattleReportBtn"),
   closeBattleReport: document.getElementById("closeBattleReport"),
   marketRefreshBtn: document.getElementById("marketRefreshBtn"),
+  marketOpenBtn: document.getElementById("marketOpenBtn"),
   copyMarketReportBtn: document.getElementById("copyMarketReportBtn"),
   marketEconStatus: document.getElementById("marketEconStatus"),
   marketEconData: document.getElementById("marketEconData"),
@@ -426,6 +427,7 @@ function bindAll() {
 	});
 
   E.marketRefreshBtn?.addEventListener("click",()=>loadMarketFull(true));
+  E.marketOpenBtn?.addEventListener("click", () => {window.open(`https://app.warera.io/market`, "_blank");});
   E.copyMarketReportBtn?.addEventListener("click", copyMarketReport);
 
   E.jobsRefreshBtn?.addEventListener("click",()=>loadJobs(true));
@@ -3561,14 +3563,14 @@ function showLiveEventToast(event){
 
   toast.className =
     "live-event-toast";
-
-  toast.innerHTML = `
-    <span style="color:#f87171">
-      NEW
-    </span>
-    •
+ toast.innerHTML = `
+  <span style="color:#f87171;flex-shrink:0">
+    NEW
+  </span>
+  <span class="toast-title">
     ${title}
-  `;
+  </span>
+`;
 
   area.appendChild(toast);
 
