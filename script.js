@@ -126,6 +126,9 @@ const E = {
   marketPricesData: document.getElementById("marketPricesData"),
   marketOrdersStatus: document.getElementById("marketOrdersStatus"),
   marketOrdersData: document.getElementById("marketOrdersData"),
+  marketOrdersData: document.getElementById("marketOrdersData"),
+  marketValuableStatus: document.getElementById("marketValuableStatus"),
+  marketValuableData: document.getElementById("marketValuableData"),
   jobsRefreshBtn: document.getElementById("jobsRefreshBtn"),
   copyJobsReportBtn: document.getElementById("copyJobsReportBtn"),
   jobsStatus: document.getElementById("jobsStatus"),
@@ -135,6 +138,7 @@ const E = {
   tplEvent: document.getElementById("eventCardTemplate"),
   tplArticle: document.getElementById("articleCardTemplate"),
   tplBattle: document.getElementById("battleCardTemplate"),
+  marketPricesChart: document.getElementById("marketPricesChart"),
 };
 
 // ─── NIXIE CLOCK ──────────────────────────────────────
@@ -421,7 +425,7 @@ function bindAll() {
 
 	});
 
-  E.marketRefreshBtn?.addEventListener("click",()=>loadMarketFull());
+  E.marketRefreshBtn?.addEventListener("click",()=>loadMarketFull(true));
   E.copyMarketReportBtn?.addEventListener("click", copyMarketReport);
 
   E.jobsRefreshBtn?.addEventListener("click",()=>loadJobs(true));
@@ -491,12 +495,23 @@ async function silentRefreshEvents() {
     const result = await fetchTrpc("event.getEventsPaginated", {...S.lastFilters, limit:20}, apiKey());
     const fresh = normalizeEvents(result).filter(e=>!S.events.some(x=>(x._id||x.id)===(e._id||e.id)));
     if (!fresh.length) return;
+	for(const ev of fresh){
+  		showLiveEventToast(ev);
+	   }
     S.events = [...fresh, ...S.events];
     renderTimeline();
     S.articleLimiter = 0;
 	loadArticles(true);
     window.ecgPulse?.(1.2);
   } catch {}
+}
+
+function isTimelineOpen(){
+
+  return document
+    .getElementById("tab-timeline")
+    ?.classList.contains("active");
+
 }
 
 // ─── EVENTS — LOAD ────────────────────────────────────
@@ -2477,6 +2492,11 @@ async function fetchTxLast24h(type, k, maxPages=8) {
 
 function txAmt(t) { const v=Number(t.amount??t.value??t.money??t.total??t.price??0); return Number.isFinite(v)?v:0; }
 
+setInterval(
+  ()=>loadMarketStats(),
+  10000
+);
+
 async function loadMarketStats() {
   const k=apiKey(); if(!k) return;
   try {
@@ -2484,13 +2504,44 @@ async function loadMarketStats() {
       fetchTxLast24h("wage",k),
       fetchTxLast24h("trading",k),
       fetchTrpc("itemTrading.getPrices",{},k),
+	  
     ]);
-    if (wagesR.status==="fulfilled"&&wagesR.value.length) {
-      const wages=wagesR.value;
-      const total=wages.reduce((s,t)=>s+txAmt(t),0);
-      E.statAvgWage.textContent=fmtMoney(total/wages.length)+" ₿";
-      E.statTotalWage.textContent=fmtMoney(total)+" ₿";
-    }
+    if (wagesR.status==="fulfilled" && wagesR.value.length) {
+  const wages = wagesR.value;
+
+  const totalPayroll = wages.reduce((s,t)=>{
+    return s + Number(
+      t.money ??
+      t.amount ??
+      t.value ??
+      0
+    );
+  },0);
+
+  const totalQuantity = wages.reduce((s,t)=>{
+    return s + Number(
+      t.quantity ??
+      t.workerCount ??
+      0
+    );
+  },0);
+
+  const avgWage =
+    totalQuantity > 0
+      ? totalPayroll / totalQuantity
+      : 0;
+	  
+	const avgPayroll =
+  wages.length > 0
+    ? totalPayroll / wages.length
+    : 0;
+
+  E.statAvgWage.textContent =
+    fmtMoney(avgWage, 3) + " ₿";
+
+  E.statTotalWage.textContent =
+    fmtMoney(avgPayroll) + " ₿";
+}
     if (tradesR.status==="fulfilled"&&tradesR.value.length) {
       E.statTradeVol.textContent=fmtMoney(tradesR.value.reduce((s,t)=>s+txAmt(t),0))+" ₿";
     }
@@ -2503,17 +2554,27 @@ async function loadMarketStats() {
       }
     }
   } catch {}
+  
 }
 
+setInterval(
+  ()=>loadMarketFull(false),
+  10000
+);
+
+const onlyone = 0;
+
+
 // ─── MARKET FULL ──────────────────────────────────────
-async function loadMarketFull() {
+async function loadMarketFull(showLoading=true) {
   const k=apiKey(); if(!k) return;
   function setMs(el,msg,err=false) { el.hidden=false; el.textContent=msg; el.classList.toggle("error",err); }
   function clrMs(el) { el.hidden=true; el.textContent=""; el.classList.remove("error"); }
-
+  if(showLoading){
   setMs(E.marketEconStatus,"Loading economic data…");
   setMs(E.marketPricesStatus,"Loading commodity prices…");
   setMs(E.marketOrdersStatus,"Loading trading orders…");
+}
 
   const [wagesR,tradesR,pricesR] = await Promise.allSettled([
     fetchTxLast24h("wage",k),
@@ -2525,29 +2586,101 @@ async function loadMarketFull() {
   try {
     const wages=wagesR.status==="fulfilled"?wagesR.value:[];
     const trades=tradesR.status==="fulfilled"?tradesR.value:[];
-    const totalW=wages.reduce((s,t)=>s+txAmt(t),0);
-    const avgW=wages.length?totalW/wages.length:0;
+    const totalPayroll = wages.reduce((s,t)=>{
+  return s + Number(
+    t.money ??
+    t.amount ??
+    t.value ??
+    0
+  );
+},0);
+
+const totalQuantity = wages.reduce((s,t)=>{
+  return s + Number(
+    t.quantity ??
+    t.workerCount ??
+    0
+  );
+},0);
+
+const avgWage =
+  totalQuantity > 0
+    ? totalPayroll / totalQuantity
+    : 0;
+
+const avgPayroll =
+  wages.length > 0
+    ? totalPayroll / wages.length
+    : 0;
     const tradeVol=trades.reduce((s,t)=>s+txAmt(t),0);
-    S.market.econ={avgWage:avgW,totalWages:totalW,tradeVol,wageCount:wages.length,tradeCount:trades.length};
+    S.market.econ = {
+  avgWage,
+  avgPayroll,
+  totalPayroll,
+  totalQuantity,
+  tradeVol,
+  wageCount:wages.length,
+  tradeCount:trades.length
+};
 
     const wageByH={};
     for (const t of wages) {
       const h=new Date(t.createdAt||t.date||0).toISOString().slice(0,16);
-      if(!wageByH[h]) wageByH[h]={s:0,n:0};
-      wageByH[h].s+=txAmt(t); wageByH[h].n++;
+      if(!wageByH[h]){
+  wageByH[h] = {
+    payroll:0,
+    qty:0
+  };
+}
+
+wageByH[h].payroll += Number(t.money || 0);
+wageByH[h].qty += Number(t.quantity || 0);
     }
-    S.market.wageHistory=Object.entries(wageByH).sort((a,b)=>a[0].localeCompare(b[0])).map(([h,v])=>({h,avg:v.n>0?v.s/v.n:0}));
+    
+	S.market.wageHistory =
+  Object.entries(wageByH)
+    .sort((a,b)=>a[0].localeCompare(b[0]))
+    .map(([h,v])=>({
+      h,
+      avg:
+        v.qty > 0
+          ? v.payroll / v.qty
+          : 0
+    }));
 	S.market.wageHistory.push({
     t: Date.now(),
-    avg: avgW
+    avg: avgWage
 });
     E.marketEconData.innerHTML=[
-      {label:"Avg Wage (24h)",   value:wages.length?fmtMoney(avgW)+" ₿":"N/A"},
-      {label:"Total Wages (24h)",value:wages.length?fmtMoney(totalW)+" ₿":"N/A"},
-      {label:"Wage Transactions", value:wages.length+""},
-      {label:"Trade Volume (24h)",value:trades.length?fmtMoney(tradeVol)+" ₿":"N/A"},
-      {label:"Trade Transactions",value:trades.length+""},
-    ].map(r=>`<div class="econ-row"><span class="econ-row-label">${r.label}</span><span class="econ-row-val">${r.value}</span></div>`).join("");
+  {
+    label:"Avg Wage (24h)",
+    value:fmtMoney(avgWage, 3)+" ₿"
+  },
+  {
+    label:"Avg Payroll (Txn)",
+    value:fmtMoney(avgPayroll)+" ₿"
+  },
+  {
+    label:"Total Payroll (24h)",
+    value:fmtMoney(totalPayroll)+" ₿"
+  },
+  {
+    label:"Total Work Done (24h)",
+    value:fmtNum(totalQuantity)
+  },
+  {
+    label:"Wage Transactions",
+    value:fmtNum(wages.length)
+  },
+  {
+    label:"Trade Volume (24h)",
+    value:fmtMoney(tradeVol)+" ₿"
+  },
+  {
+    label:"Trade Transactions",
+    value:fmtNum(trades.length)
+  }
+].map(r=>`<div class="econ-row"><span class="econ-row-label">${r.label}</span><span class="econ-row-val">${r.value}</span></div>`).join("");
 
     if (S.market.wageHistory.length>1) {
       E.marketEconData.innerHTML+=miniChart(S.market.wageHistory.map(w=>w.avg),"Avg Wage by Hour (₿)","var(--accent)");
@@ -2569,18 +2702,21 @@ async function loadMarketFull() {
       const price=Number(item.price||item.value||0);
       return `<div class="price-row"><span class="price-name">${name}</span><span class="price-val">${fmtMoney(price)} ₿</span></div>`;
     }).join("")||"<p style='color:var(--ink-dim)'>No price data.</p>";
-    if (S.market.priceHistory.length>1) {
-      E.marketPricesData.innerHTML+=miniChart(S.market.priceHistory.map(p=>p.i),"Price Index (Top-10 Avg ₿)","var(--blue)");
-    }
+      E.marketPricesChart.innerHTML =
+  miniChart(
+    S.market.priceHistory.map(p=>p.i),
+    "Price Index (Top-10 Avg ₿)",
+    "var(--blue)"
+  );
     clrMs(E.marketPricesStatus);
   } catch { setMs(E.marketPricesStatus,"Could not load price data.",true); }
 
   // Orders
+  let allOrders=[];
   try {
     const topItems=(S.market.prices||[]).slice(0,10).map(i=>i.itemCode||i.item||i.name).filter(Boolean);
-    let allOrders=[];
     if (topItems.length) {
-      const rs=await Promise.allSettled(topItems.map(ic=>fetchTrpc("tradingOrder.getTopOrders",{itemCode:ic,limit:5},k)));
+      const rs=await Promise.allSettled(topItems.map(ic=>fetchTrpc("tradingOrder.getTopOrders",{itemCode:ic,limit:20},k)));
       for (let i=0;i<rs.length;i++) {
         if (rs[i].status==="fulfilled") {
           const d=unwrap(rs[i].value);
@@ -2602,8 +2738,9 @@ async function loadMarketFull() {
     // If still empty, try fetching itemMarket transactions as fallback
     if (!allOrders.length) {
       try {
-        const txR = await fetchTrpc("transaction.getPaginatedTransactions",{limit:50,transactionType:"itemMarket"},k);
+        const txR = await fetchTrpc("transaction.getPaginatedTransactions",{limit:20,transactionType:"itemMarket"},k);
         const txData = unwrap(txR);
+		console.log("order try2", txData);
         const txItems = Array.isArray(txData)?txData:(txData?.items||[]);
         allOrders = txItems.map(t=>({
           _itemCode: t.itemCode||t.item||"?",
@@ -2615,7 +2752,7 @@ async function loadMarketFull() {
       } catch {}
     }
     S.market.orders=allOrders;
-    E.marketOrdersData.innerHTML=allOrders.slice(0,25).map(o=>{
+    E.marketOrdersData.innerHTML=allOrders.slice(0,100).map(o=>{
       const item=o._itemCode||o.itemCode||o.item||o.name||"Item";
       const qty=o._qty||o.quantity||o.amount||0;
       const price=o._price;
@@ -2624,9 +2761,133 @@ async function loadMarketFull() {
     }).join("")||"<p style='color:var(--ink-dim)'>No orders available.</p>";
     clrMs(E.marketOrdersStatus);
   } catch(e) { setMs(E.marketOrdersStatus,"Could not load orders: "+(e.message||""),true); }
+  
+  //Valuable
+  const commodityScores = {};
+  
+  for (const o of allOrders) {
+
+  const item = o._itemCode || o.itemCode || o.item;
+
+  const qty = Number(
+    o._qty ||
+    o.quantity ||
+    o.amount ||
+    0
+  );
+
+  const price = Number(
+    o._price ||
+    o.price ||
+    0
+  );
+
+  if(!commodityScores[item]){
+    commodityScores[item] = {
+      item,
+      qty:0,
+      value:0
+    };
+  }
+
+  commodityScores[item].qty += qty;
+  commodityScores[item].value += qty * price;
+}
+
+	const topValuable = Object.values(commodityScores)
+	.sort((a,b)=>b.value-a.value)
+	.slice(0,20);
+	
+	const prevScores = S.market.prevCommodityScores || {};
+
+for(const item of topValuable){
+
+  const oldValue = prevScores[item.item];
+
+  item.trend = 0;
+  item.changePct = 0;
+
+  if(
+    Number.isFinite(oldValue) &&
+    oldValue > 0
+  ){
+
+    item.changePct =
+      ((item.value - oldValue) / oldValue) * 100;
+
+    if(item.value > oldValue){
+      item.trend = 1;
+    }
+    else if(item.value < oldValue){
+      item.trend = -1;
+    }
+
+  }
+
+}
+	
+	E.marketValuableData.innerHTML = commodityBars(topValuable);
+	
+	S.market.prevCommodityScores = {};
+
+for(const item of topValuable){
+
+  S.market.prevCommodityScores[item.item] =
+    item.value;
+
+}
 
   loadMarketStats();
   window.ecgPulse?.(1.5);
+}
+
+function commodityBars(data){
+
+  if(!data.length) return "";
+
+  const max = Math.max(...data.map(x=>x.value));
+
+  return `
+    <div class="commodity-bars">
+      ${data.map(x=>`
+
+        <div class="commodity-bar-row">
+
+          <div class="commodity-bar-head">
+
+  <span>
+    ${x.item}
+
+    ${
+      x.trend > 0
+      ? `<small class="commodity-up">
+          ▲ +${x.changePct.toFixed(1)}%
+         </small>`
+      : x.trend < 0
+      ? `<small class="commodity-down">
+          ▼ ${x.changePct.toFixed(1)}%
+         </small>`
+      : ``
+    }
+
+  </span>
+
+  <span>${fmtMoney(x.value)} ₿</span>
+
+</div>
+
+          <div class="commodity-bar-bg">
+            <div
+              class="commodity-bar-fill"
+              style="width:${(x.value/max)*100}%">
+            </div>
+          </div>
+
+        </div>
+
+      `).join("")}
+    </div>
+  `;
 }
 
 function miniChart(values, label, color="var(--accent)") {
@@ -2658,11 +2919,85 @@ function miniChart(values, label, color="var(--accent)") {
 function copyMarketReport() {
   const ec=S.market.econ; const prices=S.market.prices||[]; const orders=S.market.orders||[];
   let r=`# War Era Market Intelligence Report\nGenerated: ${new Date().toUTCString()}\n\n## Economic Overview\n`;
-  if(ec){ r+=`- Avg wage: ${fmtMoney(ec.avgWage)} BTC\n- Total wages: ${fmtMoney(ec.totalWages)} BTC (${ec.wageCount} txn)\n- Trade vol: ${fmtMoney(ec.tradeVol)} BTC (${ec.tradeCount} txn)\n\n`; }
+  if(ec){ r+=`- Avg wage: ${fmtMoney(ec.avgWage, 3)} BTC/hit\n- Avg payroll: ${fmtMoney(ec.avgPayroll)} BTC\n- Total payroll: ${fmtMoney(ec.totalPayroll)} BTC\n- Total work done: ${fmtNum(ec.totalQuantity)} hits (${ec.wageCount} txn)\n- Trade vol: ${fmtMoney(ec.tradeVol)} BTC (${ec.tradeCount} txn)\n\n`; }
   r+=`## Top Commodity Prices\n`;
-  for(const i of prices.slice(0,15)) r+=`- ${i.itemCode||i.name||"?"}: ${fmtMoney(Number(i.price||0))} BTC\n`;
+  for(const i of prices.slice(0,23)) r+=`- ${i.itemCode||i.name||"?"}: ${fmtMoney(Number(i.price||0))} BTC\n`;
   r+=`\n## Top Trading Orders\n`;
-  for(const o of orders.slice(0,10)) r+=`- ${(o.orderType||o.type||"ORDER")} ${o._itemCode||o.itemCode||"?"} ×${fmtNum(o._qty||o.quantity||0)} @ ${fmtMoney(o._price||0)} BTC/u\n`;
+  for(const o of orders.slice(0,100)) r+=`- ${(o.orderType||o.type||"ORDER")} ${o._itemCode||o.itemCode||"?"} ×${fmtNum(o._qty||o.quantity||0)} @ ${fmtMoney(o._price||0)} BTC/u\n`;
+  r += `\n\n## Most Valuable Commodities\n`;
+
+const commodityScores = {};
+
+for(const o of orders){
+
+  const item =
+    o._itemCode ||
+    o.itemCode ||
+    o.item ||
+    "?";
+
+  const qty = Number(
+    o._qty ||
+    o.quantity ||
+    o.amount ||
+    0
+  );
+
+  const price = Number(
+    o._price ||
+    o.price ||
+    0
+  );
+
+  if(!commodityScores[item]){
+    commodityScores[item] = {
+      item,
+      value:0
+    };
+  }
+
+  commodityScores[item].value += qty * price;
+}
+
+const valuable = Object.values(commodityScores)
+  .sort((a,b)=>b.value-a.value)
+  .slice(0,20);
+
+const prevScores =
+  S.market.prevCommodityScores || {};
+
+for(const item of valuable){
+
+  const oldValue =
+    prevScores[item.item];
+
+  let trend = "";
+  let change = "";
+
+  if(
+    Number.isFinite(oldValue) &&
+    oldValue > 0
+  ){
+
+    const pct =
+      ((item.value - oldValue) /
+      oldValue) * 100;
+
+    if(pct > 0){
+      trend = "▲";
+      change = ` (+${pct.toFixed(1)}%)`;
+    }
+    else if(pct < 0){
+      trend = "▼";
+      change = ` (${pct.toFixed(1)}%)`;
+    }
+
+  }
+
+  r +=
+    `- ${item.item}: ${fmtMoney(item.value)} BTC ${trend}${change}\n`;
+
+}
   navigator.clipboard.writeText(r).then(()=>toast("Market report copied."));
 }
 
@@ -3193,6 +3528,110 @@ function buildTitle(event,type,ed) {
   if(bn) return `${fmtType(type)}: ${bn}`;
   if(reg) return `${fmtType(type)}: ${reg}`;
   return fmtType(type);
+}
+
+function showLiveEventToast(event){
+
+  if(isTimelineOpen()) return;
+
+  const area =
+    document.getElementById(
+      "liveEventToastArea"
+    );
+
+  if(!area) return;
+  
+  const type =
+    event.eventType ||
+    event.type ||
+    event._type ||
+    "";
+
+  const ed =
+    event.eventData ||
+    event.data ||
+    event.details ||
+    {};
+
+  const title =
+    buildTitle(event,type,ed);
+
+  const toast =
+    document.createElement("div");
+
+  toast.className =
+    "live-event-toast";
+
+  toast.innerHTML = `
+    <span style="color:#f87171">
+      NEW
+    </span>
+    •
+    ${title}
+  `;
+
+  area.appendChild(toast);
+
+  requestAnimationFrame(()=>{
+
+    toast.classList.add("show");
+
+  });
+
+  playPing();
+
+  setTimeout(()=>{
+
+    toast.classList.add("hide");
+
+  },10000);
+
+  setTimeout(()=>{
+
+    toast.remove();
+
+  },10400);
+
+}
+
+function playPing(){
+
+  try{
+
+    const ctx =
+      new (
+        window.AudioContext ||
+        window.webkitAudioContext
+      )();
+
+    const osc =
+      ctx.createOscillator();
+
+    const gain =
+      ctx.createGain();
+
+    osc.type="sine";
+
+    osc.frequency.value=880;
+
+    gain.gain.value=.05;
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+
+    gain.gain.exponentialRampToValueAtTime(
+      0.0001,
+      ctx.currentTime + 0.25
+    );
+
+    osc.stop(
+      ctx.currentTime + 0.25
+    );
+
+  }catch(e){}
+
 }
 
 // ─── SUMMARY ──────────────────────────────────────────
