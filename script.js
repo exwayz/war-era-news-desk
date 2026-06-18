@@ -3023,11 +3023,12 @@ function buildTitle(event,type,ed) {
 function buildSummary(event,type,ed) {
   const atk=nameCountry(ed.attackerCountry); const def=nameCountry(ed.defenderCountry);
   const reg=nameRegion(ed.defenderRegion)||nameRegion(ed.region)||nameRegion(ed.regionId);
+  const monet=ed.money;
   const cids=collectCountryIds(event,ed);
   const cnames=[...new Set(cids.map(nameCountry).filter(Boolean))];
-  const [c1,c2]=cids.map(nameCountry);
+  const [c1,c2]=cnames;
   const allianceName=ed.allianceName||ed.alliance?.name||ed.allianceName||"the alliance";
-  let monet=ed.money;
+  
 
   switch(type){
     case "countryMoneyTransfer":
