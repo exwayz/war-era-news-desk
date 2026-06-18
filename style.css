@@ -987,6 +987,8 @@ input:focus, select:focus, button:focus-visible {
   margin: 0 0 10px;
   padding-bottom: 7px;
   border-bottom: 1px solid var(--line);
+  position:relative;
+  overflow:visible;
 }
 
 .econ-row {
@@ -1380,4 +1382,208 @@ input:focus, select:focus, button:focus-visible {
   z-index:1000;
 
   pointer-events:none;
+}
+
+.commodity-bars{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.commodity-bar-head{
+  display:flex;
+  justify-content:space-between;
+  font-size:.78rem;
+  margin-bottom:3px;
+}
+
+.commodity-bar-bg{
+  height:8px;
+  border-radius:999px;
+  background:var(--line);
+  overflow:hidden;
+}
+
+.commodity-bar-fill{
+  height:100%;
+  background:linear-gradient(
+    90deg,
+    var(--accent),
+    var(--blue)
+  );
+}
+
+
+.info-tip{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+
+  width:16px;
+  height:16px;
+
+  border-radius:50%;
+  cursor:help;
+
+  font-size:.7rem;
+  font-weight:900;
+
+  color:var(--ink-dim);
+  border:1px solid var(--line);
+
+  position:relative;
+}
+
+.info-tip:hover{
+  color:#ff5555;
+  border-color:#ff5555;
+}
+
+.info-tip:after{
+  content:"Value Score = Sum of (Quantity * Price) across all active orders. The score estimates the total market value currently represented by a commodity in the order book. Commodities with greater trading volume, higher prices, or both will rank higher.";
+
+  position:absolute;
+
+  left:-260px;
+  top:500%;
+
+  transform:translateY(-50%);
+
+  width:260px;
+
+  background:#111;
+  color:#fff;
+
+  padding:10px;
+
+  border-radius:8px;
+
+  opacity:0;
+  visibility:hidden;
+
+  transition:.15s;
+
+  z-index:99999;
+  
+  font-size:.72rem;
+  font-weight:500;
+
+  opacity:0;
+  pointer-events:none;
+
+  transition:.15s;
+}
+
+.info-tip:hover::after{
+  opacity:1;
+  visibility:visible;
+}
+
+.commodity-up{
+  color:#4ade80;
+  font-weight:800;
+  margin-left:6px;
+}
+
+.commodity-down{
+  color:#f87171;
+  font-weight:800;
+  margin-left:6px;
+}
+
+#liveEventToastArea{
+  flex:1;
+
+  position:relative;
+
+  overflow:hidden;
+
+  display:flex;
+  align-items:center;
+
+  margin-left:10px;
+}
+
+.live-event-toast{
+
+  position:absolute;
+
+  left:0;
+  right:0;
+
+  padding:6px 14px;
+
+  border-left:3px solid var(--accent);
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(208,90,64,.18),
+      transparent
+    );
+
+  color:var(--ink);
+
+  font-size:.7rem;
+  font-weight:500;
+
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+
+  opacity:0;
+
+  transform:
+    translateY(24px);
+
+  transition:
+    opacity .35s ease,
+    transform .35s ease;
+}
+
+.live-event-toast.show{
+
+  opacity:1;
+
+  transform:
+    translateY(0);
+}
+
+.live-event-toast.hide{
+
+  opacity:0;
+
+  transform:
+    translateY(-24px);
+}
+
+.market-prices-cell{
+  display:flex;
+  flex-direction:column;
+}
+
+.market-prices-list{
+  flex:1;
+  overflow-y:auto;
+  min-height:0;
+}
+
+.market-prices-chart{
+  flex-shrink:0;
+
+  border-top:1px solid var(--line);
+
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(0,0,0,.15),
+      transparent
+    );
+
+  padding-top:10px;
+
+  position:sticky;
+  bottom:0;
+
+  backdrop-filter:blur(6px);
 }
