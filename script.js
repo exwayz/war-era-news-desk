@@ -3025,27 +3025,24 @@ function buildSummary(event,type,ed) {
   const reg=nameRegion(ed.defenderRegion)||nameRegion(ed.region)||nameRegion(ed.regionId);
   const cids=collectCountryIds(event,ed);
   const cnames=[...new Set(cids.map(nameCountry).filter(Boolean))];
-  const [c1,c2]=cnames;
+  const [c1,c2]=cids.map(nameCountry);
   const allianceName=ed.allianceName||ed.alliance?.name||ed.allianceName||"the alliance";
   let monet=ed.money;
 
   switch(type){
     case "countryMoneyTransfer":
-      if (monet < 10){
-		  if(c1&&c2) return pick(
-		  `${c1} transferred just ${fmtMoney(ed.money)} ₿ to ${c2}, a sum so small that observers are already questioning whether the transaction was intended as assistance or merely a symbolic gesture.`,
-          `The latest financial exchange saw ${c1} send ${fmtMoney(ed.money)} to ${c2}. Analysts agree the paperwork probably cost more than the transfer itself.`,
-          `${c1} sent ${fmtMoney(ed.money)} to ${c2}, a contribution so modest that observers are debating whether it should be classified as foreign aid or a diplomatic joke.`
-          );
-		  break;
-      }else{
-	  	  if(c1&&c2) return pick(
-		  `${c1} has transferred ${fmtMoney(ed.money)} ₿ to ${c2} in an inter-governmental financial transaction.`,
-          `Financial records confirm ${c1} sent ${fmtMoney(ed.money)} ₿ directly to ${c2}.`,
-          `${fmtMoney(ed.money)} ₿ has been moved from ${c1} to ${c2} in an official state transfer.`
-          );
-	  	  break;
-	  }
+	 if(c1&&c2&&monet<10) return pick(
+	    `${c1} transferred just ${fmtMoney(ed.money)} ₿ to ${c2}, a sum so small that observers are already questioning whether the transaction was intended as assistance or merely a symbolic gesture.`,
+        `The latest financial exchange saw ${c1} send ${fmtMoney(ed.money)} to ${c2}. Analysts agree the paperwork probably cost more than the transfer itself.`,
+        `${c1} sent ${fmtMoney(ed.money)} to ${c2}, a contribution so modest that observers are debating whether it should be classified as foreign aid or a diplomatic joke.`
+      );
+		break;
+	  if(c1&&c2) return pick(
+		`${c1} has transferred ${fmtMoney(ed.money)} ₿ to ${c2} in an inter-governmental financial transaction.`,
+        `Financial records confirm ${c1} sent ${fmtMoney(ed.money)} ₿ directly to ${c2}.`,
+        `${fmtMoney(ed.money)} ₿ has been moved from ${c1} to ${c2} in an official state transfer.`
+      );
+	  	break;
     case "allianceFormed":
       if(c1&&c2) return pick(
         `${c1} and ${c2} have entered into a formal military alliance, pledging mutual support.`,
