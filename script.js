@@ -3027,7 +3027,7 @@ function buildSummary(event,type,ed) {
   const cnames=[...new Set(cids.map(nameCountry).filter(Boolean))];
   const [c1,c2]=cnames;
   const allianceName=ed.allianceName||ed.alliance?.name||ed.allianceName||"the alliance";
-  let monet=money(ed.money);
+  let monet=ed.money;
 
   switch(type){
     case "countryMoneyTransfer":
