@@ -2926,7 +2926,7 @@ function buildTitle(event,type,ed) {
   if(event.description) return event.description;
   const atk=nameCountry(ed.attackerCountry); const def=nameCountry(ed.defenderCountry);
   const reg=nameRegion(ed.defenderRegion)||nameRegion(ed.region)||nameRegion(ed.regionId);
-  const cids=collectCountryIds(event,ed);\
+  const cids=collectCountryIds(event,ed);
   const [c1,c2]=cids.map(nameCountry);
   const allianceName=ed.allianceName||ed.alliance?.name||ed.allianceName||"";
 
