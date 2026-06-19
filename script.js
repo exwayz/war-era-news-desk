@@ -1713,6 +1713,7 @@ ${Array.from({length:maxRowsMuGP},(_,i)=>{
 
   const atkHtml = a ? `
     <td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td>
+	<td>
     ${
   makeEntityLink(
     nameMu(a.muId||a.mu)
