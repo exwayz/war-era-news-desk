@@ -1967,7 +1967,7 @@ ${
     `https://app.warera.io/country/${d.countryId||d.country}`
   )
 }
-</tdd
+</td>
     <td>${fmtNum(getPoints(d))}</td>
   `
   :
