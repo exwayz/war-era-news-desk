@@ -1473,7 +1473,6 @@ ${Array.from({length:maxRows},(_,i)=>{
   }
 
   // Top 10 by GP — users
-  
   const atkRankGP = gpUsers
   .filter(r => r._side === "attacker")
   .sort((a,b)=>getPoints(b)-getPoints(a))
@@ -1483,6 +1482,8 @@ const defRankGP = gpUsers
   .filter(r => r._side === "defender")
   .sort((a,b)=>getPoints(b)-getPoints(a))
   .slice(0,10);
+
+ const maxRowsUGP = Math.max(atkRankGP.length, defRankGP.length);
   
   if (gpUsers.length) {
     const sorted = [...gpUsers]
@@ -1516,7 +1517,7 @@ const defRankGP = gpUsers
 
 </thead>
       <tbody>
-${Array.from({length:maxRows},(_,i)=>{
+${Array.from({length:maxRowsUGP},(_,i)=>{
 
   const a = atkRankGP[i];
   const d = defRankGP[i];
