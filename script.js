@@ -1,12 +1,5 @@
-/* =======================================================
-   WAR ERA NEWS DESK — script.js 
-   Full rewrite: scroll fix, journalist summaries for all
-   event types, battle detail XLS export, live damage bars,
-   working jobs (company name + location + filter), market
-   orders, and all journalist copy functions.
-   ======================================================= */
-
 const TRPC_BASE = "https://gateway.warerastats.io/trpc";
+const API2_BASE = "https://api2.warera.io/trpc";
 
 const EVENT_TYPES = [
 "allianceBroken",
@@ -38,7 +31,6 @@ const EVENT_TYPES = [
 
 const OBJECT_ID_RE = /^[a-f\d]{24}$/i;
 
-// ─── STATE ────────────────────────────────────────────
 const S = {
   cursor:null, events:[], articleCursor:null, articles:[],
   isLoading:false, lastFilters:{}, filterTimer:null,
@@ -55,15 +47,16 @@ const S = {
   selectedBattleId:null,
   liveBattleTimer:null,
   battleSearch:"",
-  market:{ econ:null, prices:null, orders:null, priceHistory:[], wageHistory:[] },
+  market:{ econ:null, prices:null, orders:null, commodityOrders:[], equipmentOrders:[], orderView:"commodity", priceHistory:[], wageHistory:[] },
   jobs:[], jobCursor:null,
   jobCountryFilter:"",
   currentTab:"timeline",
+  jobCountryFilter:"",
+  jobWageFilter:0,
 };
 
 const STORE = { apiKey:"wa-nd-apikey", theme:"wa-nd-theme" };
 
-// ─── ELEMENTS ─────────────────────────────────────────
 const E = {
   apiButton: document.getElementById("apiButton"),
   apiKeyModal: document.getElementById("apiKeyModal"),
@@ -140,9 +133,11 @@ const E = {
   tplArticle: document.getElementById("articleCardTemplate"),
   tplBattle: document.getElementById("battleCardTemplate"),
   marketPricesChart: document.getElementById("marketPricesChart"),
+  jobWageFilter: document.getElementById("jobWageFilter"),
+  commodityOrdersBtn: document.getElementById("commodityOrdersBtn"),
+  equipmentOrdersBtn: document.getElementById("equipmentOrdersBtn"),
 };
 
-// ─── NIXIE CLOCK ──────────────────────────────────────
 (function initNixie() {
   const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
   const DAYS   = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
@@ -162,7 +157,6 @@ const E = {
   setInterval(tick, 1000);
 })();
 
-// ─── OSCILLOSCOPE ─────────────────────────────────────
 (function initOsc() {
   const canvas = document.getElementById("oscilloscopeCanvas");
   if (!canvas) return;
@@ -202,7 +196,6 @@ const E = {
   if (!matchMedia("(prefers-reduced-motion:reduce)").matches) requestAnimationFrame(draw);
 })();
 
-// ─── ECG PULSE ────────────────────────────────────────
 (function initEcg() {
   const wrap = document.getElementById("ecgWrap");
   if (!wrap) return;
@@ -274,7 +267,16 @@ const E = {
   setTimeout(()=>{ resize(); addEventListener("resize",()=>setTimeout(resize,100)); requestAnimationFrame(draw); },200);
 })();
 
-// ─── INIT ─────────────────────────────────────────────
+function bootData() {
+  E.globalEventsTitle.classList.add("live");
+  loadEvents(true);
+  loadArticles(true);
+  startAutoRefresh();
+  loadMarketStats();
+  loadBattles();
+  loadJobs();
+}
+
 function init() {
   E.apiKeyInput.value = localStorage.getItem(STORE.apiKey) || "";
   applyTheme(localStorage.getItem(STORE.theme) || "dark");
@@ -283,11 +285,7 @@ function init() {
   bindAll();
 
   if (apiKey()) {
-    E.globalEventsTitle.classList.add("live");
-    loadEvents(true);
-    loadArticles(true);
-    startAutoRefresh();
-    loadMarketStats();
+    bootData();
   } else {
     E.apiButton.classList.add("needs-attention");
     setStatus("Enter your War Era API key to start the live feed.");
@@ -296,16 +294,28 @@ function init() {
 
 const apiKey = () => E.apiKeyInput.value.trim() || localStorage.getItem(STORE.apiKey) || "";
 
-// ─── INJECT JOB COUNTRY FILTER ─────────────────────────
 function injectJobsCountryFilter() {
   const bar = document.querySelector(".jobs-search-bar");
   if (!bar) return;
   const wrap = document.createElement("div");
-  wrap.className = "input-wrap";
-  wrap.style.maxWidth = "240px";
-  wrap.innerHTML = `<input id="jobCountryFilter" type="text" list="jobCountryOptions" placeholder="Filter by country…">
-    <button class="clear-btn" data-clears="jobCountryFilter" type="button">✕</button>
-    <datalist id="jobCountryOptions"></datalist>`;
+
+wrap.className = "input-wrap";
+wrap.style.flex = "1";
+
+wrap.innerHTML = `
+<input
+  id="jobCountryFilter"
+  type="text"
+  list="jobCountryOptions"
+  placeholder="Filter by country…">
+
+<button
+  class="clear-btn"
+  data-clears="jobCountryFilter"
+  type="button">✕</button>
+
+<datalist id="jobCountryOptions"></datalist>
+`;
   bar.appendChild(wrap);
   E.jobCountryFilter = document.getElementById("jobCountryFilter");
   E.jobCountryOptions = document.getElementById("jobCountryOptions");
@@ -321,7 +331,49 @@ function injectJobsCountryFilter() {
   });
 }
 
-// ─── INJECT BATTLE SEARCH BAR ──────────────────────────
+const wageSlider =
+document.getElementById("jobWageFilter");
+
+const wageValue =
+document.getElementById("jobWageValue");
+
+function updateWageSlider() {
+
+  const min =
+    Number(wageSlider.min);
+
+  const max =
+    Number(wageSlider.max);
+
+  const val =
+    Number(wageSlider.value);
+
+  const pct =
+    ((val-min)/(max-min))*100;
+
+  wageSlider.style.background =
+    `linear-gradient(
+      to right,
+      var(--accent) 0%,
+      var(--accent) ${pct}%,
+      var(--surface-hi) ${pct}%,
+      var(--surface-hi) 100%
+    )`;
+
+wageValue.style.left =
+  `calc(${pct}% - 8px)`;
+
+  wageValue.textContent =
+    val.toFixed(3);
+}
+
+updateWageSlider();
+
+wageSlider.addEventListener(
+  "input",
+  updateWageSlider
+);
+
 function injectBattleSearchBar() {
   const col = document.querySelector(".battle-list-col");
   if (!col) return;
@@ -330,8 +382,27 @@ function injectBattleSearchBar() {
   const wrap = document.createElement("div");
   wrap.className = "input-wrap search-bar";
   wrap.style.cssText = "margin:8px 0 4px;";
-  wrap.innerHTML = `<input id="battleSearch" type="text" placeholder="Search by country or region…">
-    <button class="clear-btn" id="clearBattleSearch" type="button">✕</button>`;
+  wrap.className = "sticky-toolbar";
+
+wrap.innerHTML = `
+<div class="input-wrap search-bar">
+  <input
+    id="battleSearch"
+    type="text"
+    placeholder="Search by country or region…">
+
+  <button
+    class="clear-btn"
+    id="clearBattleSearch"
+    type="button">✕</button>
+</div>
+
+<button
+  id="battleLoadMini"
+  class="btn-load-mini">
+  More
+</button>
+`;
   panelHead.insertAdjacentElement("afterend", wrap);
   const inp = document.getElementById("battleSearch");
   const clr = document.getElementById("clearBattleSearch");
@@ -346,7 +417,6 @@ function injectBattleSearchBar() {
     inp.focus();
   });
 }
-
 
 function bindAll() {
   document.querySelectorAll(".clear-btn[data-clears]").forEach(btn=>{
@@ -441,13 +511,95 @@ function bindAll() {
     E.readerModal?.classList.add("hidden");
     E.battleReportModal?.classList.add("hidden");
   });
+  
+  document
+.getElementById("articleLoadMini")
+?.addEventListener("click", () => {
+  E.loadMoreArticlesBtn.click();
+});
+
+const battleMini =
+document.getElementById("battleLoadMini");
+
+if (battleMini) {
+  battleMini.addEventListener("click", () => {
+    E.loadMoreBattlesBtn.click();
+  });
+}
+
+E.jobWageFilter?.addEventListener("input", () => {
+  S.jobWageFilter =
+    Number(E.jobWageFilter.value || 0);
+
+  renderJobs();
+});
+
+document
+.getElementById("wageUp")
+?.addEventListener("click", () => {
+
+  const v =
+    Number(E.jobWageFilter.value || 0);
+
+  E.jobWageFilter.value =
+    (v + 0.01).toFixed(2);
+
+  S.jobWageFilter =
+    Number(E.jobWageFilter.value);
+
+  renderJobs();
+});
+
+document
+.getElementById("wageDown")
+?.addEventListener("click", () => {
+
+  const v =
+    Number(E.jobWageFilter.value || 0);
+
+  E.jobWageFilter.value =
+    Math.max(0, v - 0.01).toFixed(2);
+
+  S.jobWageFilter =
+    Number(E.jobWageFilter.value);
+
+  renderJobs();
+});
+
+E.commodityOrdersBtn?.addEventListener(
+  "click",
+  ()=>{
+    S.market.orderView="commodity";
+
+    E.commodityOrdersBtn.classList.add("active");
+    E.equipmentOrdersBtn.classList.remove("active");
+
+    S.market.orders=S.market.commodityOrders;
+
+    renderMarketOrders();
+  }
+);
+
+E.equipmentOrdersBtn?.addEventListener(
+  "click",
+  ()=>{
+    S.market.orderView="equipment";
+
+    E.equipmentOrdersBtn.classList.add("active");
+    E.commodityOrdersBtn.classList.remove("active");
+
+    S.market.orders=S.market.equipmentOrders;
+
+    renderMarketOrders();
+  }
+);
+
 }
 
 function debounce(fn, ms) {
   let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); };
 }
 
-// ─── TAB SWITCHING ────────────────────────────────────
 function switchTab(tab) {
   S.currentTab = tab;
   E.tabBtns.forEach(b=>b.classList.toggle("active", b.dataset.tab===tab));
@@ -464,7 +616,6 @@ function updateBattleTabPills() {
   E.battleTabHistory?.classList.toggle("active", S.battleMode==="history");
 }
 
-// ─── THEME ────────────────────────────────────────────
 function toggleTheme() { applyTheme(document.documentElement.dataset.theme==="dark"?"light":"dark"); }
 function applyTheme(t) {
   document.documentElement.dataset.theme = t;
@@ -472,7 +623,6 @@ function applyTheme(t) {
   E.themeButton.textContent = t==="dark" ? "Light" : "Dark";
 }
 
-// ─── EVENT TYPES ──────────────────────────────────────
 function populateEventTypes() {
   const frag = document.createDocumentFragment();
   for (const et of EVENT_TYPES) {
@@ -481,7 +631,6 @@ function populateEventTypes() {
   E.eventTypeSelect.append(frag);
 }
 
-// ─── AUTO REFRESH ─────────────────────────────────────
 function startAutoRefresh() {
   clearInterval(S.autoRefreshTimer);
   S.autoRefreshTimer = setInterval(()=>{
@@ -516,7 +665,6 @@ function isTimelineOpen(){
 
 }
 
-// ─── EVENTS — LOAD ────────────────────────────────────
 function scheduleEventsRefresh() {
   clearTimeout(S.filterTimer);
   S.filterTimer = setTimeout(()=>loadEvents(true), 350);
@@ -561,7 +709,6 @@ async function loadEvents(reset) {
   }
 }
 
-// ─── ARTICLES ─────────────────────────────────────────
 async function loadArticles(reset=true) {
   const k = apiKey(); if (!k) return;
   if (reset) { S.articleCursor=null; S.articles=[]; }
@@ -579,7 +726,6 @@ async function loadArticles(reset=true) {
   }
 }
 
-// ─── BATTLES ──────────────────────────────────────────
 function stopBattlePolling() {
   clearInterval(S.liveBattleTimer); S.liveBattleTimer=null;
 }
@@ -691,12 +837,13 @@ function getPoints(r) {
 }
 
 S.lookups.muById = new Map();
+S.lookups.articlesById = new Map();
+S.lookups.partiesById = new Map();
 
 async function loadBattleDetail(battle, bid, silent=false) {
   const k = apiKey(); if(!k) return;
   if (!silent) E.battleDetailPane.innerHTML = `<div style="padding:24px;color:var(--ink-dim)">Loading intelligence report…</div>`;
   try {
-    // Fetch merged side first, fall back to attacker+defender
     const [rUsrMerged, rMuMerged, rCtyMerged, rGpUsrAtk, rGpUsrDef, rGpMuAtk, rGpMuDef, rGpCtyAtk, rGpCtyDef, rOrdAtk, rOrdDef, rDetail] = await Promise.allSettled([
       fetchTrpc("battleRanking.getRanking",{battleId:bid,dataType:"damage",type:"user",side:"merged"},k),
       fetchTrpc("battleRanking.getRanking",{battleId:bid,dataType:"damage",type:"mu",side:"merged"},k),
@@ -781,7 +928,6 @@ let defParticipantCount =
   defParticipantCount;
   
 
-
 const allUsers = [
   ...okArr(rUsrAtk).map(r => ({
     ...r,
@@ -826,7 +972,6 @@ const allMu = [
     _side: "defender"
   }))
 ];
-
 
     const [rCtyAtk, rCtyDef] = await Promise.allSettled([
   fetchTrpc(
@@ -887,7 +1032,6 @@ const allCountry = [
       allCountry = [...okArr(rCtyAtk).map(r=>({...r,_side:"attacker"})),...okArr(rCtyDef).map(r=>({...r,_side:"defender"}))];
     }
 
-    // GP rankings
     const gpUsers = [
       ...okArr(rGpUsrAtk).map(r=>({...r,_side:"attacker"})),
       ...okArr(rGpUsrDef).map(r=>({...r,_side:"defender"})),
@@ -946,27 +1090,18 @@ if (unknownMu.length) {
     })
   );
 }
-console.log("details", bdDetail);
-console.log("User GP", gpUsers);
 
-    // ── FETCH ROUND DATA ──────────────────────────────
-    // Collect all round IDs from the battle detail
     const allRoundIds = [
       ...(Array.isArray(bdDetail.rounds) ? bdDetail.rounds : []),
       ...(Array.isArray(bdDetail.roundsHistory) ? bdDetail.roundsHistory : []),
     ].filter(Boolean);
-	console.log("all rounds ID". allRoundIds);
 
-    // currentRound may be a string ID or object
     const currentRoundId = typeof bdDetail.currentRound === "string"
       ? bdDetail.currentRound
       : bdDetail.currentRound?._id || bdDetail.currentRound?.id || "";
-	console.log("current rounds ID". currentRoundId);
 
-    // Merge all unique round IDs (history first, then current active)
     const uniqueRoundIds = [...new Set([...allRoundIds, currentRoundId].filter(Boolean))];
 
-    // Fetch each round's data in parallel
     const roundsData = (await Promise.allSettled(
   uniqueRoundIds.map(rid =>
     fetchTrpc("round.getById", { roundId: rid }, k)
@@ -991,13 +1126,9 @@ console.log("User GP", gpUsers);
 .filter(Boolean);
 	
 
-
-    // Fetch per-round GP rankings for attacker and defender countries (points by country)
-    // We need the main attacker/defender country GP per round
     const atkCountryId = bdDetail.attacker?.country || bdDetail.attackerCountry || "";
     const defCountryId = bdDetail.defender?.country || bdDetail.defenderCountry || "";
 
-    // For each round, fetch country GP rankings to get attacker/defender points
     const roundGpData = {};
     if (roundsData.length && (atkCountryId || defCountryId)) {
       await Promise.all(roundsData.map(async rd => {
@@ -1018,8 +1149,6 @@ console.log("User GP", gpUsers);
         } catch { roundGpData[rd._id] = { atkGp: 0, defGp: 0 }; }
       }));
     }
-	console.log("round data". roundsData);
-	console.log("rounds GP", roundGpData);
 
     renderBattleDetail(bdDetail, bid, allUsers, allMu, allCountry, gpUsers, gpMu, gpCountry, allOrders, atkParticipantCount, defParticipantCount, roundsData, roundGpData);
   } catch (err) {
@@ -1127,8 +1256,6 @@ let defGp = gpUsers
   let participantsD = defPar || b.defPar || 0;
   let participantsT = participantsA+participantsD;
 
-  // ── Round score from battle data ──────────────────
-  // b.attacker.wonRoundsCount / b.defender.wonRoundsCount
   const atkRoundsWon = Number(b.attacker?.wonRoundsCount ?? b.attackerRoundsWon ?? 0);
   const defRoundsWon = Number(b.defender?.wonRoundsCount ?? b.defenderRoundsWon ?? 0);
   const roundsToWin  = Number(b.roundsToWin ?? 2);
@@ -1147,16 +1274,13 @@ let defGp = gpUsers
 
   const liveTag = isLive ? ` <span style="color:var(--red);font-size:.68rem;animation:livePulse 1.5s infinite;display:inline-block">● LIVE</span>` : "";
 
-  // ── Build round tabs ──────────────────────────────
   const rounds = roundsData || [];
-  // Sort rounds by creation time so Round 1 is first
   const sortedRounds = [...rounds].sort((a,b) => {
     const ta = new Date(a.createdAt||a.startedAt||0).getTime();
     const tb = new Date(b.createdAt||b.startedAt||0).getTime();
     return ta - tb;
   });
   
-  // Build round nav tabs HTML
   const roundTabsHtml = sortedRounds.length > 0 ? `
   <div class="br-round-tabs" id="brRoundTabs_${bid}" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px;">
     ${sortedRounds.map((rd,i)=>{
@@ -1175,13 +1299,9 @@ const roundsByNumber = Object.fromEntries(
 const round1 = roundsByNumber?.[1];
 const round2 = roundsByNumber?.[2];
 
-  // Build per-round GP progress bar section
 function buildRoundGpBar(rd, roundIdx) {
   if (!rd) return "";
 
-  // -----------------------------
-  // SAFE EXTRACTION (LIVE SAFE)
-  // -----------------------------
   const atkPts = rd?.pointsAttacker ?? rd?.attacker?.points ?? 0;
   const defPts = rd?.pointsDefender ?? rd?.defender?.points ?? 0;
 
@@ -1193,9 +1313,6 @@ function buildRoundGpBar(rd, roundIdx) {
   const atkBarPct = Math.round((safeAtk / MAX_GP) * 50);
   const defBarPct = Math.round((safeDef / MAX_GP) * 50);
 
-  // -----------------------------
-  // WINNER LOGIC (FIXED)
-  // -----------------------------
   const rdWinner =
     rd?.wonBy === "attacker"
       ? (atk || "Attacker")
@@ -1203,9 +1320,6 @@ function buildRoundGpBar(rd, roundIdx) {
       ? (def || "Defender")
       : null;
 
-  // -----------------------------
-  // STATE DETECTION (LIVE SAFE)
-  // -----------------------------
   const isRoundActive =
     rd?.isActive === true ||
     rd?._isCurrent === true ||
@@ -1217,9 +1331,6 @@ function buildRoundGpBar(rd, roundIdx) {
     ? `<span style="color:var(--green);font-size:.72rem">🏆 Won by ${rdWinner}</span>`
     : `<span style="color:var(--ink-dim);font-size:.72rem">Ended</span>`;
 
-  // -----------------------------
-  // RENDER
-  // -----------------------------
   return `
   <div class="br-section" style="margin-bottom:14px">
 
@@ -1290,7 +1401,6 @@ function buildRoundGpBar(rd, roundIdx) {
   </div>`;
 }
 
-  // Build battle score display (rounds won)
   const battleScoreHtml = `
   <div style="display:flex;justify-content:center;align-items:center;gap:16px;padding:12px;background:var(--surface-hi);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:12px">
     <div style="text-align:center">
@@ -1342,18 +1452,14 @@ function buildRoundGpBar(rd, roundIdx) {
   </div>
 `;
 	
-  // Battle score (rounds won) always shown
   html += battleScoreHtml;
 
-  // Per-round GP bars — shown for each round section (will be toggled by JS)
   if (sortedRounds.length > 0) {
     html += `<div id="brRoundGpBars_${bid}">`;
     sortedRounds.forEach((rd, i) => {
-      // Default: show only the last (most recent/current) round
       const defaultShow = i === sortedRounds.length - 1;
       html += `<div class="br-round-section" data-round-section="${i}" data-round-bid="${bid}" style="display:${defaultShow?"block":"none"}">${buildRoundGpBar(rd, i)}</div>`;
     });
-    // Overall: hidden by default since we show last round first, but toggled
     html += `<div class="br-round-section" data-round-section="overall" data-round-bid="${bid}" style="display:none"></div>`;
     html += `</div>`;
   }
@@ -1399,7 +1505,6 @@ const defRank = rankUsers
 
 const maxRows = Math.max(atkRank.length, defRank.length);
 
-  // Top 10 by damage — users
   if (rankUsers.length) {
     const sorted = [...rankUsers]
   .sort((a, b) => getValue(b) - getValue(a))
@@ -1472,7 +1577,7 @@ ${Array.from({length:maxRows},(_,i)=>{
   </div>`;
   }
 
-  // Top 10 by GP — users
+  
   const atkRankGP = gpUsers
   .filter(r => r._side === "attacker")
   .sort((a,b)=>getPoints(b)-getPoints(a))
@@ -1482,8 +1587,8 @@ const defRankGP = gpUsers
   .filter(r => r._side === "defender")
   .sort((a,b)=>getPoints(b)-getPoints(a))
   .slice(0,10);
-
- const maxRowsUGP = Math.max(atkRankGP.length, defRankGP.length);
+  
+    const maxRowsUGP = Math.max(atkRankGP.length, defRankGP.length);
   
   if (gpUsers.length) {
     const sorted = [...gpUsers]
@@ -1557,7 +1662,6 @@ ${Array.from({length:maxRowsUGP},(_,i)=>{
   </div>`;
   }
 
-  // Top 10 MU by damage
 if (rankMu.length) {
 
   const atkRankMu = rankMu
@@ -1657,7 +1761,6 @@ ${
 </div>`;
 }
 
-  // Top 10 MU by GP
  if (gpMu.length) {
 
   const atkRankMuGP = gpMu
@@ -1757,7 +1860,6 @@ ${
 </div>`;
 }
 
-  // Top 10 countries by damage
 if (rankCountry.length) {
 
   const atkRankCountry = rankCountry
@@ -1871,8 +1973,6 @@ ${
 </div>`;
 }
 
-  // Top 10 countries by GP
-  // Top 10 countries by GP
 if (gpCountry.length) {
 
   const atkRankCountryGP = gpCountry
@@ -1986,7 +2086,6 @@ ${
 </div>`;
 }
 
-  // Orders
   if (orders.length) {
 	  
 	  const priorityRank = {
@@ -2120,27 +2219,22 @@ const priority = `
 
   });
 
-  // ── Wire up round tab buttons ──────────────────────
   const roundTabContainer = document.getElementById(`brRoundTabs_${bid}`);
   if (roundTabContainer) {
     const allTabBtns = roundTabContainer.querySelectorAll("[data-round-idx]");
     const allSections = E.battleDetailPane.querySelectorAll(`[data-round-section][data-round-bid="${bid}"]`);
 
     function activateRoundTab(idx) {
-      // Update pill active states
       allTabBtns.forEach(btn => {
         const isThis = btn.dataset.roundIdx === String(idx);
         btn.classList.toggle("active", isThis);
       });
-      // Show/hide sections
       allSections.forEach(sec => {
         sec.style.display = sec.dataset.roundSection === String(idx) ? "block" : "none";
       });
     }
 
-    // Default: show last round tab (or Overall if no rounds)
     const defaultIdx = sortedRounds.length > 0 ? sortedRounds.length - 1 : "overall";
-    // Re-set active state: last round pill active, overall pill inactive by default
     allTabBtns.forEach(btn => {
       btn.classList.toggle("active", btn.dataset.roundIdx === String(defaultIdx));
     });
@@ -2209,7 +2303,6 @@ function clearBattleDetail() {
 
 }
 
-// ─── BATTLE XLS EXPORT ────────────────────────────────
 function exportBattleXLS(
   b,
   bid,
@@ -2243,9 +2336,6 @@ function exportBattleXLS(
 
   const title = `${atk} vs ${def}${reg ? " - " + reg : ""}`;
 
-  // -----------------------------
-  // NORMALIZE DATA FIRST
-  // -----------------------------
   const users = rankUsers.map(normalizeRankRow);
   const mus = rankMu.map(normalizeRankRow);
   const countries = rankCountry.map(normalizeRankRow);
@@ -2253,9 +2343,6 @@ function exportBattleXLS(
   const gpMus = gpMu.map(normalizeRankRow);
   const gpCountries = gpCountry.map(normalizeRankRow);
 
-  // -----------------------------
-  // GP MAPS (SAFE)
-  // -----------------------------
   const gpByUser = {};
   gps.forEach(r => {
     const id = r.userId || r.user || "";
@@ -2277,9 +2364,6 @@ function exportBattleXLS(
   const totalDmg =
     users.reduce((s, r) => s + (r.damage || 0), 0) || 1;
 
-  // =====================================================
-  // SHEET 1 — USERS
-  // =====================================================
   const sheet1 = [
     ["Rank", "Fighter", "Side", "Damage", "Ground Points", "Damage %"]
   ];
@@ -2307,9 +2391,6 @@ function exportBattleXLS(
       ]);
     });
 
-  // =====================================================
-  // SHEET 2 — MUs
-  // =====================================================
   const sheet2 = [
     ["Rank", "Military Unit", "Side", "Damage", "Ground Points"]
   ];
@@ -2335,9 +2416,6 @@ function exportBattleXLS(
       ]);
     });
 
-  // =====================================================
-  // SHEET 3 — COUNTRIES
-  // =====================================================
   const sheet3 = [
     ["Rank", "Country", "Side", "Damage", "Ground Points"]
   ];
@@ -2365,9 +2443,6 @@ function exportBattleXLS(
       ]);
     });
 
-  // -----------------------------
-  // EXPORT
-  // -----------------------------
   buildAndDownloadXLS(title, [
     { name: "Fighters", data: sheet1 },
     { name: "Military Units", data: sheet2 },
@@ -2395,7 +2470,6 @@ xmlns:x="urn:schemas-microsoft-com:office:excel">
 <x:ExcelWorksheets>
 `;
 
-  // ── SHEET HEADERS ─────────────────────────────
   for (const s of sheets) {
     html += `
       <x:ExcelWorksheet>
@@ -2416,7 +2490,6 @@ xmlns:x="urn:schemas-microsoft-com:office:excel">
 <body>
 `;
 
-  // ── SHEETS CONTENT ────────────────────────────
   for (const s of sheets) {
 
     if (!s?.data || !Array.isArray(s.data)) {
@@ -2426,7 +2499,6 @@ xmlns:x="urn:schemas-microsoft-com:office:excel">
 
     html += `<table>`;
 
-    // optional caption
     html += `<tr><td colspan="50" style="font-weight:bold;font-size:16px">${escapeXml(s.name)}</td></tr>`;
 
     for (const row of s.data) {
@@ -2469,7 +2541,6 @@ function setBattleStatus(m,t="info") { E.battleListStatus.hidden=false; E.battle
 function clearBattleStatus() { E.battleListStatus.hidden=true; E.battleListStatus.textContent=""; E.battleListStatus.classList.remove("error"); }
 function battleId(b) { return b._id||b.id||b.battleId||""; }
 
-// ─── MARKET STATS (TOPBAR) ────────────────────────────
 const DAY_MS = 86400000;
 
 async function fetchTxLast24h(type, k, maxPages=8) {
@@ -2568,8 +2639,6 @@ setInterval(
 
 const onlyone = 0;
 
-
-// ─── MARKET FULL ──────────────────────────────────────
 async function loadMarketFull(showLoading=true) {
   const k=apiKey(); if(!k) return;
   function setMs(el,msg,err=false) { el.hidden=false; el.textContent=msg; el.classList.toggle("error",err); }
@@ -2586,7 +2655,6 @@ async function loadMarketFull(showLoading=true) {
     fetchTrpc("itemTrading.getPrices",{},k),
   ]);
 
-  // Econ
   try {
     const wages=wagesR.status==="fulfilled"?wagesR.value:[];
     const trades=tradesR.status==="fulfilled"?tradesR.value:[];
@@ -2692,7 +2760,6 @@ wageByH[h].qty += Number(t.quantity || 0);
     clrMs(E.marketEconStatus);
   } catch(e) { setMs(E.marketEconStatus,"Could not load economic data: "+(e.message||""),true); }
 
-  // Prices
   try {
     const prices=unwrap(pricesR.value);
     const arr=(Array.isArray(prices)?prices:Object.entries(prices||{}).map(([k,v])=>({itemCode:k,price:v})))
@@ -2702,7 +2769,7 @@ wageByH[h].qty += Number(t.quantity || 0);
     S.market.priceHistory.push({t:Date.now(),i:pi});
     if(S.market.priceHistory.length>48) S.market.priceHistory.shift();
     E.marketPricesData.innerHTML=arr.slice(0,30).map(item=>{
-      const name=item.itemCode||item.item||item.name||"Unknown";
+	  const name=marketItemName(item.itemCode||item.item||item.name||"Unknown");
       const price=Number(item.price||item.value||0);
       return `<div class="price-row"><span class="price-name">${name}</span><span class="price-val">${fmtMoney(price)} ₿</span></div>`;
     }).join("")||"<p style='color:var(--ink-dim)'>No price data.</p>";
@@ -2715,63 +2782,191 @@ wageByH[h].qty += Number(t.quantity || 0);
     clrMs(E.marketPricesStatus);
   } catch { setMs(E.marketPricesStatus,"Could not load price data.",true); }
 
-  // Orders
-  let allOrders=[];
-  try {
-    const topItems=(S.market.prices||[]).slice(0,10).map(i=>i.itemCode||i.item||i.name).filter(Boolean);
-    if (topItems.length) {
-      const rs=await Promise.allSettled(topItems.map(ic=>fetchTrpc("tradingOrder.getTopOrders",{itemCode:ic,limit:20},k)));
-      for (let i=0;i<rs.length;i++) {
-        if (rs[i].status==="fulfilled") {
-          const d=unwrap(rs[i].value);
-          const arr2 = [
-    ...(Array.isArray(d?.buyOrders) ? d.buyOrders : []),
-    ...(Array.isArray(d?.sellOrders) ? d.sellOrders : []),
-    ...(Array.isArray(d?.items) ? d.items : []),
-    ...(Array.isArray(d?.orders) ? d.orders : [])
-];
-          for (const o of arr2) {
-            const price = Number(o.price??o.pricePerUnit??o.unitPrice??o.value??o.amount??0);
-            const qty   = Number(o.quantity??o.amount??o.count??1);
-            allOrders.push({...o, _itemCode:topItems[i], _price:price, _qty:qty});
+let commodityOrders=[];
+let equipmentOrders=[];
+let allOrders=[];
 
-          }
+try {
+
+  const topItems = (S.market.prices||[])
+    .slice(0,10)
+    .map(i=>i.itemCode||i.item||i.name)
+    .filter(Boolean);
+
+  if (topItems.length) {
+
+    const rs = await Promise.allSettled(
+      topItems.map(ic =>
+        fetchTrpc(
+          "tradingOrder.getTopOrders",
+          {
+            itemCode:ic,
+            limit:20
+          },
+          k
+        )
+      )
+    );
+
+    for (let i=0;i<rs.length;i++) {
+
+      if (rs[i].status==="fulfilled") {
+
+        const d = unwrap(rs[i].value);
+
+        const arr2 = [
+
+          ...(Array.isArray(d?.buyOrders)
+            ? d.buyOrders
+            : []),
+
+          ...(Array.isArray(d?.sellOrders)
+            ? d.sellOrders
+            : []),
+
+          ...(Array.isArray(d?.items)
+            ? d.items
+            : []),
+
+          ...(Array.isArray(d?.orders)
+            ? d.orders
+            : [])
+
+        ];
+
+        for (const o of arr2) {
+
+          const price = Number(
+            o.price ??
+            o.pricePerUnit ??
+            o.unitPrice ??
+            o.value ??
+            o.amount ??
+            0
+          );
+
+          const qty = Number(
+            o.quantity ??
+            o.amount ??
+            o.count ??
+            1
+          );
+
+          commodityOrders.push({
+
+            ...o,
+
+            _itemCode:topItems[i],
+
+            _price:price,
+
+            _qty:qty
+
+          });
+
         }
+
       }
+
     }
-    // If still empty, try fetching itemMarket transactions as fallback
-    if (!allOrders.length) {
-      try {
-        const txR = await fetchTrpc("transaction.getPaginatedTransactions",{limit:20,transactionType:"itemMarket"},k);
-        const txData = unwrap(txR);
-		console.log("order try2", txData);
-        const txItems = Array.isArray(txData)?txData:(txData?.items||[]);
-        allOrders = txItems.map(t=>({
-          _itemCode: t.itemCode||t.item||"?",
-          _price: Number(t.unitPrice||t.price||t.amount||0),
-          _qty: Number(t.quantity||t.amount||1),
-          orderType: t.type||"TRADE",
-          side: "—",
-        }));
-      } catch {}
-    }
-    S.market.orders=allOrders;
-    E.marketOrdersData.innerHTML=allOrders.slice(0,100).map(o=>{
-      const item=o._itemCode||o.itemCode||o.item||o.name||"Item";
-      const qty=o._qty||o.quantity||o.amount||0;
-      const price=o._price;
-      const type=(o.orderType||o.type||o.side||"ORDER").toUpperCase();
-      return `<div class="price-row"><span class="price-name">${item} <small style="color:var(--ink-dim)">${type} ×${fmtNum(qty)}</small></span><span class="price-val">${price>0?fmtMoney(price)+" ₿/u":"—"}</span></div>`;
-    }).join("")||"<p style='color:var(--ink-dim)'>No orders available.</p>";
-    clrMs(E.marketOrdersStatus);
-  } catch(e) { setMs(E.marketOrdersStatus,"Could not load orders: "+(e.message||""),true); }
+
+  }
+
+  try {
+
+    const txR = await fetchTrpc(
+      "transaction.getPaginatedTransactions",
+      {
+        limit:20,
+        transactionType:"itemMarket"
+      },
+      k
+    );
+
+    const txData = unwrap(txR);
+
+    const txItems =
+      Array.isArray(txData)
+        ? txData
+        : (txData?.items || []);
+
+    equipmentOrders = txItems.map(t => ({
+
+      _itemCode:
+        t.itemCode ||
+        t.item ||
+        "?",
+
+      _price:Number(
+        t.money ??
+        t.unitPrice ??
+        t.price ??
+        t.amount ??
+        0
+      ),
+
+      _qty:Number(
+        t.quantity ??
+        t.amount ??
+        1
+      ),
+
+      orderType:
+        t.type ||
+        "TRADE",
+
+      side:"—"
+
+    }));
+
+    equipmentOrders.sort(
+      (a,b)=>
+        Number(b._price||0) -
+        Number(a._price||0)
+    );
+
+  } catch(err){
+
+    console.error(
+      "equipment orders failed",
+      err
+    );
+
+  }
+
+  S.market.commodityOrders =
+    commodityOrders;
+
+  S.market.equipmentOrders =
+    equipmentOrders;
+
+  allOrders =
+    S.market.orderView === "equipment"
+      ? equipmentOrders
+      : commodityOrders;
+
+  S.market.orders = allOrders;
+
+  renderMarketOrders();
+
+  clrMs(E.marketOrdersStatus);
+
+} catch(e){
+
+  setMs(
+    E.marketOrdersStatus,
+    "Could not load orders: " +
+    (e.message||""),
+    true
+  );
+
+}
   
-  //Valuable
   const commodityScores = {};
   
   for (const o of allOrders) {
 
-  const item = o._itemCode || o.itemCode || o.item;
+  const item = marketItemName(o._itemCode || o.itemCode || o.item);
 
   const qty = Number(
     o._qty ||
@@ -2843,6 +3038,58 @@ for(const item of topValuable){
 
   loadMarketStats();
   window.ecgPulse?.(1.5);
+}
+
+function renderMarketOrders(){
+
+  const data =
+    S.market.orderView === "equipment"
+      ? S.market.equipmentOrders
+      : S.market.commodityOrders;
+
+  E.marketOrdersData.innerHTML =
+    data.slice(0,100).map(o=>{
+
+      const item = marketItemName(o._itemCode||o.itemCode ||o.item ||o.name);
+
+      const qty =
+        o._qty ||
+        o.quantity ||
+        o.amount ||
+        0;
+
+      const price =
+        o._price;
+
+      const type =
+        (
+          o.orderType ||
+          o.type ||
+          o.side ||
+          "ORDER"
+        ).toUpperCase();
+
+      return `
+        <div class="price-row">
+          <span class="price-name">
+            ${item}
+            <small style="color:var(--ink-dim)">
+              ${type} ×${fmtNum(qty)}
+            </small>
+          </span>
+
+          <span class="price-val">
+            ${
+              price>0
+              ? fmtMoney(price)+" ₿/u"
+              : "—"
+            }
+          </span>
+        </div>
+      `;
+    }).join("")
+    ||
+    "<p style='color:var(--ink-dim)'>No orders available.</p>";
 }
 
 function commodityBars(data){
@@ -3005,7 +3252,79 @@ for(const item of valuable){
   navigator.clipboard.writeText(r).then(()=>toast("Market report copied."));
 }
 
-// ─── JOBS ─────────────────────────────────────────────
+function marketItemName(code){
+
+  const commodityNames = {
+
+    bread:"Bread",
+    cocain:"Pill",
+    case2:"Elite Case",
+    case1:"Case",
+    fish:"Fish",
+    cookedFish:"Cooked Fish",
+    livestock:"Livestock",
+    grain:"Grain",
+    coca:"Mysterious Plant",
+    steak:"Steak",
+    petroleum:"Petroleum",
+    lead:"Lead",
+    iron:"Iron",
+    limestone:"Limestone",
+    wood:"Wood",
+	paper:"Paper",
+    lightAmmo:"Light Ammo",
+    ammo:"Ammo",
+    heavyAmmo:"Heavy Ammo",
+    oil:"Oil",
+    scraps:"Scraps",
+    concrete:"Concrete",
+    steel:"Steel"
+
+  };
+
+  if(commodityNames[code]){
+    return commodityNames[code];
+  }
+
+  const weaponNames = {
+    knife:"Knife",
+    gun:"Gun",
+    rifle:"Rifle",
+    sniper:"Sniper",
+    tank:"Tank",
+    fighterJet:"Fighter Jet"
+  };
+
+  if(weaponNames[code]){
+    return weaponNames[code];
+  }
+
+  const tiers = {
+    1:"Basic",
+    2:"Reinforced",
+    3:"Advanced",
+    4:"Elite",
+    5:"Legendary",
+    6:"Mythic"
+  };
+
+  const m =
+    code?.match(
+      /^(boots|gloves|helmet|pants|chest)(\d)$/
+    );
+
+  if(m){
+
+    const slot =
+      m[1].charAt(0).toUpperCase() +
+      m[1].slice(1);
+
+    return `${tiers[m[2]]} ${slot}`;
+  }
+
+  return code || "Unknown";
+}
+
 async function loadJobs(reset=true) {
   const k=apiKey(); if(!k) return;
   E.jobsStatus.hidden=false; E.jobsStatus.textContent="Loading job offers…";
@@ -3104,7 +3423,6 @@ function getJobCompanyName(job) {
 function getJobCountryName(job) {
   const c = getJobCompany(job);
   if (!c) {
-    // fallback: job might have direct region
     const regionId = job.regionId||job.region?._id||job.region?.id||job.region||"";
     if (!regionId) return "";
     const region = S.lookups.regionsById.get(String(regionId));
@@ -3133,6 +3451,8 @@ function getJobRegionName(job) {
 function renderJobs() {
   const kw=(E.jobSearch?.value||"").toLowerCase();
   const countrySel = (S.jobCountryFilter||"").toLowerCase();
+  const wageFilter=
+Number(S.jobWageFilter||0);
 
   let jobs = S.jobs.filter(j => {
     if (kw) {
@@ -3145,6 +3465,19 @@ function renderJobs() {
       const jCountry = getJobCountryName(j).toLowerCase();
       if (!jCountry.includes(countrySel)) return false;
     }
+	const wage =
+Number(
+  j.wage ||
+  j.salary ||
+  j.pay ||
+  0
+);
+
+if (
+  wageFilter > 0 &&
+  wage < wageFilter
+)
+  return false;
     return true;
   });
 
@@ -3208,7 +3541,6 @@ function copyJobsReport() {
   navigator.clipboard.writeText(r).then(()=>toast("Jobs report copied."));
 }
 
-// ─── LOOKUPS ──────────────────────────────────────────
 async function ensureLookups(k) {
   if (S.lookupsKey===k) return;
   setStatus("Loading reference data…");
@@ -3258,7 +3590,6 @@ async function resolveUsers(ids, k) {
   }));
 }
 
-// ─── FETCH ────────────────────────────────────────────
 async function fetchTrpc(method, input, k) {
   const url=`${TRPC_BASE}/${method}?input=${encodeURIComponent(JSON.stringify(noUndef(input)))}`;
   const headers = {};
@@ -3292,7 +3623,23 @@ function normalizeEvents(r) {
 function normalizeCursor(r) { const d=unwrap(r); return d?.nextCursor||d?.cursor||d?.next||null; }
 function noUndef(obj) { return Object.fromEntries(Object.entries(obj).filter(([,v])=>v!==undefined)); }
 
-// ─── TIMELINE RENDER ──────────────────────────────────
+async function fetchTrpcApi2(method, input, apiKeyValue) {
+  const payload = encodeURIComponent(JSON.stringify(input || {}));
+
+  const r = await fetch(
+    `${API2_BASE}/${method}?input=${payload}`,
+    {
+      headers: {
+        "X-API-Key": apiKeyValue
+      }
+    }
+  );
+
+  if (!r.ok) throw new Error(`${method} ${r.status}`);
+
+  return r.json();
+}
+
 function renderTimeline() {
   const start=parseLocal(E.startTimeInput.value);
   const end=parseLocal(E.endTimeInput.value);
@@ -3349,7 +3696,6 @@ function makeEventCard(event) {
   return node;
 }
 
-// ─── ARTICLES RENDER ──────────────────────────────────
 function renderArticles() {
   const kw=E.articleSearch.value.trim().toLowerCase();
   const arts=kw?S.articles.filter(a=>(a.title||"").toLowerCase().includes(kw)||(a.content||"").toLowerCase().includes(kw)):S.articles;
@@ -3364,11 +3710,12 @@ function renderArticles() {
     node.querySelector(".ac-open").addEventListener("click",()=>window.open(`https://app.warera.io/article/${a._id||a.id}`,"_blank","noopener"));
     node.querySelector(".ac-read").addEventListener("click",()=>{
       E.readerTitle.textContent=a.title||"Untitled";
-      E.readerAuthor.textContent=`By ${nameUser(a.author)||"Unknown"} | 👁 ${stats.views ?? 0} • ✯ ${stats.score ?? 0} • 🖒 ${stats.likes ?? 0} • 🖓 ${stats.dislikes ?? 0}`;
+      E.readerAuthor.textContent=`By ${nameUser(a.author)||"Unknown"} | 👁 ${stats.views ?? 0} • ✯ ${stats.score ?? 0} • 🖒 ${stats.likes ?? 0} • 🖓 ${stats.dislikes ?? 0} • 🗪 ${stats.comments ?? 0}`;
       E.readerContent.innerHTML=a.content||"<p>No content available.</p>";
       E.readerContent.querySelectorAll("a").forEach(l=>{ l.target="_blank"; l.rel="noopener noreferrer"; });
       E.readerContent.querySelectorAll("iframe").forEach(f=>{ f.style.width="100%"; f.style.aspectRatio="16/9"; f.style.height="auto"; });
       E.readerModal.classList.remove("hidden");
+      resolveContentLinks(E.readerContent);
     });
     E.articleList.append(node);
   }
@@ -3385,7 +3732,6 @@ function renderArticles() {
   E.loadMoreArticlesBtn.hidden=!S.articleCursor;
 }
 
-// ─── EVENT ACTIONS ────────────────────────────────────
 function handleEventAction(e) {
   const btn=e.target.closest(".ec-copy"); if(!btn) return;
   const ev=S.events.find(x=>(x._id||x.id)===btn.dataset.eventId); if(!ev) return;
@@ -3398,7 +3744,6 @@ function handleEventAction(e) {
   navigator.clipboard.writeText(brief).then(()=>toast("News brief copied."));
 }
 
-// ─── EVENT DATA HELPERS ───────────────────────────────
 function evtData(e) { return e.data&&typeof e.data==="object"?e.data:{}; }
 function evtTime(e) { return e.createdAt||e.date||e.time||e.timestamp; }
 function getBid(e) { const d=evtData(e); return e.battleId||e.battle?.id||d.battle||""; }
@@ -3423,8 +3768,279 @@ function fmtBattleName(bid) {
 function nameCountry(id) { if(!id) return ""; return S.lookups.countriesById.get(id)?.name||""; }
 function nameRegion(id) { if(!id) return ""; return S.lookups.regionsById.get(String(id))?.name||""; }
 function nameUser(id) { if(!id) return ""; const u=S.lookups.usersById.get(id); return u?.username||u?.name||""; }
+function nameAlliance(id) { if(!id) return ""; const al=S.lookups.alliancesById.get(id); return al?.name||al?.allianceName||""; }
+function nameArticleTitle(id) { if(!id) return ""; return S.lookups.articlesById.get(id)?.title||""; }
+function nameParty(id) { if(!id) return ""; const p=S.lookups.partiesById.get(id); return p?.name||p?.partyName||""; }
 
-// ─── PICK (non-repeating random) ─────────────────────
+function typeLabel(t) {
+  return {
+    user:"User", country:"Country", region:"Region", mu:"Military Unit",
+    company:"Company", battle:"Battle", alliance:"Alliance",
+    article:"Article", party:"Party",
+  }[t] || (t ? t.charAt(0).toUpperCase()+t.slice(1) : "Entity");
+}
+
+function entityDisplayName(type, id, data) {
+  if (!data) return id ? `${typeLabel(type)} #${String(id).slice(-6)}` : typeLabel(type);
+  switch (type) {
+    case "user": return data.username||data.name||"Unknown User";
+    case "country": return data.name||"Unknown Country";
+    case "region": return data.name||"Unknown Region";
+    case "mu": return data.name||data.muName||data.displayName||data.fullName||"Unknown Unit";
+    case "company": return data.name||data.companyName||"Unknown Company";
+    case "battle": {
+      const atk=nameCountry(data.attacker?.country||data.attackerCountry||data.attacker?.countryId);
+      const def=nameCountry(data.defender?.country||data.defenderCountry||data.defender?.countryId);
+      return (atk&&def) ? `${atk} vs ${def}` : "Battle";
+    }
+    case "alliance": return data.alliance||data.name||data.allianceName||"Alliance";
+    case "article": return data.title||"Untitled Article";
+    case "party": return data.party||data.name||data.partyName||"Party";
+  }
+  return "Entity";
+}
+
+function escapeHtml(s) {
+  return String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+async function resolveEntityByType(type, id, k) {
+  k = k || apiKey();
+  if (!k || !id) return null;
+  try {
+    switch (type) {
+      case "user": {
+        if (S.lookups.usersById.has(id)) return S.lookups.usersById.get(id);
+        const u = unwrap(await fetchTrpc("user.getUserLite", { userId:id }, k));
+        if (u) S.lookups.usersById.set(id,u);
+        return u;
+      }
+      case "country": {
+        await ensureLookups(k);
+        if (S.lookups.countriesById.has(id)) return S.lookups.countriesById.get(id);
+        let c=null;
+        for (const m of ["country.getCountryById","country.getById"]) {
+          try { c = unwrap(await fetchTrpc(m,{countryId:id},k)); if (c) break; } catch {}
+        }
+        if (c) S.lookups.countriesById.set(id,c);
+        return c;
+      }
+      case "region": {
+        await ensureLookups(k);
+        if (S.lookups.regionsById.has(id)) return S.lookups.regionsById.get(id);
+        let r=null;
+        for (const m of ["region.getById","region.getRegionById"]) {
+          try { r = unwrap(await fetchTrpc(m,{regionId:id},k)); if (r) break; } catch {}
+        }
+        if (r) S.lookups.regionsById.set(id,r);
+        return r;
+      }
+      case "mu": {
+        if (S.lookups.muById.has(id)) return S.lookups.muById.get(id);
+        const m = unwrap(await fetchTrpc("mu.getById", { muId:id }, k));
+        if (m) S.lookups.muById.set(id,m);
+        return m;
+      }
+      case "company": {
+        if (S.lookups.companiesById.has(id)) return S.lookups.companiesById.get(id);
+        const c = unwrap(await fetchTrpc("company.getById", { companyId:id }, k));
+        if (c) S.lookups.companiesById.set(id,c);
+        return c;
+      }
+      case "battle": {
+        if (S.lookups.battlesById.has(id)) return S.lookups.battlesById.get(id);
+        const b = unwrap(await fetchTrpc("battle.getById", { battleId:id }, k));
+        if (b) S.lookups.battlesById.set(id,b);
+        return b;
+      }
+      case "alliance": {
+
+  if (S.lookups.alliancesById.has(id))
+    return S.lookups.alliancesById.get(id);
+
+  const alliance = await resolveAlliance(id, k);
+
+  if (alliance)
+    S.lookups.alliancesById.set(id, alliance);
+
+  return alliance;
+}
+      case "article": {
+        if (S.lookups.articlesById.has(id)) return S.lookups.articlesById.get(id);
+        let a=null;
+        for (const m of ["article.getArticleById","article.getById"]) {
+          try { a = unwrap(await fetchTrpc(m,{articleId:id},k)); if (a) break; } catch {}
+        }
+        if (a) S.lookups.articlesById.set(id,a);
+        return a;
+      }
+      case "party": {
+  if (S.lookups.partiesById.has(id))
+    return S.lookups.partiesById.get(id);
+
+  const party = await resolveParty(id, k);
+
+  if (party)
+    S.lookups.partiesById.set(id, party);
+
+  return party;
+}
+    }
+  } catch (e) { console.warn("resolveEntityByType failed", type, id, e); }
+  return null;
+}
+
+async function resolveAlliance(allianceId, k) {
+  try {
+
+    let cursor = null;
+
+    while (true) {
+
+      const input = {
+        limit: 100
+      };
+
+      if (cursor)
+        input.cursor = cursor;
+
+      const res = unwrap(
+        await fetchTrpcApi2(
+          "alliance.getManyPaginated",
+          input,
+          k
+        )
+      );
+
+      const alliances =
+        res?.items ||
+        res?.alliances ||
+        res?.data ||
+        [];
+
+      const found = alliances.find(
+        a =>
+          a._id === allianceId ||
+          a.id === allianceId ||
+          a.allianceId === allianceId
+      );
+
+      if (found)
+        return found;
+
+      if (!res?.nextCursor)
+        break;
+
+      cursor = res.nextCursor;
+    }
+
+  } catch (err) {
+    console.error("resolveAlliance", err);
+  }
+
+  return null;
+}
+
+async function resolveParty(partyId, k) {
+  try {
+
+    let cursor = null;
+
+    while (true) {
+
+      const input = {
+        limit: 100
+      };
+
+      if (cursor)
+        input.cursor = cursor;
+
+      const res = unwrap(
+        await fetchTrpcApi2(
+          "party.getManyPaginated",
+          input,
+          k
+        )
+      );
+
+      const parties =
+        res?.items ||
+        res?.parties ||
+        res?.data ||
+        [];
+
+      const found = parties.find(
+        p =>
+          p._id === partyId ||
+          p.id === partyId ||
+          p.partyId === partyId
+      );
+
+      if (found)
+        return found;
+
+      if (!res?.nextCursor)
+        break;
+
+      cursor = res.nextCursor;
+    }
+
+  } catch (err) {
+    console.error("resolveParty", err);
+  }
+
+  return null;
+}
+
+async function resolveContentLinks(container) {
+  if (!container) return;
+  const k = apiKey(); if (!k) return;
+  const spans = [...container.querySelectorAll("span[data-content-link]")];
+  if (!spans.length) return;
+
+  const parsed = [];
+  for (const span of spans) {
+    const type = span.dataset.contentType||"";
+    let info=null;
+    try { info = JSON.parse(span.dataset.contentData||"{}"); } catch { info=null; }
+    const id = info?.[type+"Id"] || info?.id || "";
+    if (!type || !id) continue;
+    span.classList.add("entity-resolving");
+    span.textContent = "…";
+    parsed.push({ span, type, id, info });
+  }
+  if (!parsed.length) return;
+
+  const uniqueKeys = [...new Set(parsed.map(p=>p.type+":"+p.id))];
+  await Promise.all(uniqueKeys.map(key=>{
+    const [type,id] = key.split(":");
+    return resolveEntityByType(type,id,k);
+  }));
+
+  const getData = (type,id) => {
+    switch(type) {
+      case "user": return S.lookups.usersById.get(id);
+      case "country": return S.lookups.countriesById.get(id);
+      case "region": return S.lookups.regionsById.get(id);
+      case "mu": return S.lookups.muById.get(id);
+      case "company": return S.lookups.companiesById.get(id);
+      case "battle": return S.lookups.battlesById.get(id);
+      case "alliance": return S.lookups.alliancesById.get(id);
+      case "article": return S.lookups.articlesById.get(id);
+      case "party": return S.lookups.partiesById.get(id);
+    }
+    return null;
+  };
+
+  for (const {span,type,id,info} of parsed) {
+    const data = getData(type,id);
+    const name = entityDisplayName(type,id,data);
+    const url = info?.fullMatch || `https://app.warera.io/${type}/${id}`;
+    span.classList.remove("entity-resolving");
+    span.innerHTML = `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="entity-link">${escapeHtml(name)}</a>`;
+  }
+}
+
 const __pm=new Map();
 function pick(...choices) {
   if(choices.length<=1) return choices[0]||"";
@@ -3434,7 +4050,6 @@ function pick(...choices) {
   __pm.set(k,chosen); return chosen;
 }
 
-// ─── TITLE ─────────────────────────────────────────── 
 function buildTitle(event,type,ed) {
   if(event.title) return event.title;
   if(event.message) return event.message;
@@ -3567,7 +4182,7 @@ function showLiveEventToast(event){
     "live-event-toast";
  toast.innerHTML = `
   <span style="color:#f87171;flex-shrink:0">
-    NEW
+
   </span>
   <span class="toast-title">
     ${title}
@@ -3638,7 +4253,6 @@ function playPing(){
 
 }
 
-// ─── SUMMARY ──────────────────────────────────────────
 function buildSummary(event,type,ed) {
   const atk=nameCountry(ed.attackerCountry); const def=nameCountry(ed.defenderCountry);
   const reg=nameRegion(ed.defenderRegion)||nameRegion(ed.region)||nameRegion(ed.regionId);
@@ -3886,7 +4500,6 @@ function buildLink(event,ed) {
   return "";
 }
 
-// ─── FORMATTERS ───────────────────────────────────────
 function fmtType(v) {
   const map = {
     peaceMade:"Peace Made", battleEnded:"Battle Ended", warEnded:"War Ended",
@@ -3926,18 +4539,177 @@ function fmtDate(v) {
 
 function parseLocal(v) { if(!v) return null; const d=new Date(v); return isNaN(d.getTime())?null:d; }
 
-// ─── STATUS ───────────────────────────────────────────
 function setStatus(msg,type="info") { E.statusBox.hidden=false; E.statusBox.textContent=msg; E.statusBox.classList.toggle("error",type==="error"); }
 function clearStatus() { E.statusBox.hidden=true; E.statusBox.textContent=""; E.statusBox.classList.remove("error"); }
 function setArticleStatus(msg,type="info") { if(!E.articleStatusBox) return; E.articleStatusBox.hidden=false; E.articleStatusBox.textContent=msg; E.articleStatusBox.classList.toggle("error",type==="error"); }
 function clearArticleStatus() { if(!E.articleStatusBox) return; E.articleStatusBox.hidden=true; E.articleStatusBox.textContent=""; E.articleStatusBox.classList.remove("error"); }
 
-// ─── TOAST ────────────────────────────────────────────
 function toast(msg) {
   document.querySelectorAll(".toast").forEach(t=>t.remove());
   const el=document.createElement("div"); el.className="toast"; el.textContent=msg;
   document.body.append(el); setTimeout(()=>el.remove(),2800);
 }
 
-// ─── BOOT ─────────────────────────────────────────────
-init();
+function initIntro(onReady) {
+  const overlay = document.getElementById("introOverlay");
+  if (!overlay) { onReady(); return; }
+
+  const mapCanvas   = document.getElementById("introMapCanvas");
+  const titleEl     = document.getElementById("introTitle");
+  const eyebrowEl   = document.getElementById("introEyebrow");
+  const taglineEl   = document.getElementById("introTagline");
+  const apiBox      = document.getElementById("introApiBox");
+  const apiInput    = document.getElementById("introApiKeyInput");
+  const saveBtn     = document.getElementById("introSaveBtn");
+  const infoTip     = document.getElementById("introInfoTip");
+  const introStatus = document.getElementById("introStatus");
+  const loadingWrap = document.getElementById("introLoading");
+  const loadingFill = document.getElementById("introLoadingFill");
+  const loadingText = document.getElementById("introLoadingText");
+
+  const ctx = mapCanvas.getContext("2d");
+  let mw, mh;
+  function resizeMap(){ mw = mapCanvas.width = innerWidth; mh = mapCanvas.height = innerHeight; }
+  resizeMap();
+  addEventListener("resize", resizeMap);
+
+  const hotspots = Array.from({ length: 9 }, () => ({
+    x: Math.random(),
+    y: Math.random() * 0.62 + 0.16,
+    delay: Math.random() * 3,
+  }));
+
+  let mapRunning = true;
+  function drawMap(ts) {
+    if (!mapRunning) return;
+    requestAnimationFrame(drawMap);
+    ctx.clearRect(0, 0, mw, mh);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(208,90,64,0.10)";
+    for (let i = 0; i <= 20; i++) {
+      const x = (mw / 20) * i;
+      ctx.beginPath();
+      for (let y = 0; y <= mh; y += 12) {
+        const xo = x + Math.sin((y / mh) * Math.PI) * 16;
+        y === 0 ? ctx.moveTo(xo, y) : ctx.lineTo(xo, y);
+      }
+      ctx.stroke();
+    }
+    for (let i = 0; i <= 11; i++) {
+      const y = (mh / 11) * i;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(mw, y); ctx.stroke();
+    }
+    const t = (ts || 0) * 0.001;
+    for (const h of hotspots) {
+      const px = h.x * mw, py = h.y * mh;
+      const phase = (t + h.delay) % 3;
+      const r = phase * 24;
+      const alpha = Math.max(0, 1 - phase / 3);
+      ctx.beginPath();
+      ctx.arc(px, py, r, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(208,90,64,${alpha * 0.55})`;
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(px, py, 2.4, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(208,90,64,0.92)";
+      ctx.fill();
+    }
+  }
+  requestAnimationFrame(drawMap);
+
+  function closeOverlay() {
+    overlay.classList.add("closing");
+    setTimeout(() => {
+      mapRunning = false;
+      overlay.remove();
+    }, 750);
+  }
+
+  function pollUntilReady(extraDelay) {
+    let dataReady = false;
+    let pct = 5;
+    loadingFill.style.width = pct + "%";
+    const fillTimer = setInterval(() => {
+      pct = Math.min(92, pct + (Math.random() * 9 + 3));
+      loadingFill.style.width = pct + "%";
+    }, 220);
+    const poll = setInterval(() => {
+      if (S.events.length || S.market.econ || S.jobs.length) dataReady = true;
+    }, 200);
+    const hardStop = setTimeout(() => { dataReady = true; }, 7000);
+    const minTimer = setTimeout(function tryFinish() {
+      if (dataReady) {
+        clearInterval(poll);
+        clearInterval(fillTimer);
+        clearTimeout(hardStop);
+        loadingFill.style.width = "100%";
+        loadingText.textContent = "Wire connected.";
+        setTimeout(closeOverlay, 320);
+      } else {
+        setTimeout(tryFinish, 150);
+      }
+    }, extraDelay);
+  }
+
+  const hasKey = !!(localStorage.getItem(STORE.apiKey) || "").trim();
+
+  requestAnimationFrame(() => overlay.classList.add("show"));
+  setTimeout(() => eyebrowEl.classList.add("in"), 200);
+  setTimeout(() => titleEl.classList.add("in"), 500);
+  setTimeout(() => taglineEl.classList.add("in"), 1300);
+
+  if (hasKey) {
+    onReady();
+    setTimeout(() => {
+      loadingWrap.hidden = false;
+      requestAnimationFrame(() => loadingWrap.classList.add("in"));
+      pollUntilReady(2400);
+    }, 1700);
+  } else {
+    setTimeout(() => {
+      titleEl.classList.add("shrink");
+      eyebrowEl.classList.add("fade-out");
+      taglineEl.classList.add("fade-out");
+    }, 2400);
+    setTimeout(() => {
+      apiBox.hidden = false;
+      requestAnimationFrame(() => apiBox.classList.add("in"));
+    }, 3000);
+
+    infoTip?.addEventListener("mouseenter", () => infoTip.classList.add("hover"));
+    infoTip?.addEventListener("mouseleave", () => infoTip.classList.remove("hover"));
+
+    function glitchPulse() {
+      titleEl.classList.add("glitching");
+      clearTimeout(apiInput._gt);
+      apiInput._gt = setTimeout(() => titleEl.classList.remove("glitching"), 650);
+    }
+    apiInput?.addEventListener("focus", glitchPulse);
+    apiInput?.addEventListener("input", glitchPulse);
+
+    saveBtn?.addEventListener("click", () => {
+      const key = (apiInput.value || "").trim();
+      if (!key) {
+        introStatus.hidden = false;
+        introStatus.textContent = "Please paste a valid API key.";
+        apiBox.classList.add("shake");
+        setTimeout(() => apiBox.classList.remove("shake"), 420);
+        return;
+      }
+      titleEl.classList.remove("glitching");
+      apiBox.classList.remove("in");
+      apiBox.classList.add("tv-off");
+      setTimeout(() => {
+        apiBox.hidden = true;
+        localStorage.setItem(STORE.apiKey, key);
+        onReady();
+        loadingWrap.hidden = false;
+        requestAnimationFrame(() => loadingWrap.classList.add("in"));
+        pollUntilReady(900);
+      }, 520);
+    });
+  }
+}
+
+initIntro(init);
