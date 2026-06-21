@@ -12,6 +12,53 @@
 </head>
 <body>
 
+<!-- INTRO / BROADCAST SPLASH -->
+<div id="introOverlay" class="intro-overlay">
+  <canvas id="introMapCanvas"></canvas>
+  <div class="intro-vignette"></div>
+  <div class="intro-content">
+    <p class="intro-eyebrow" id="introEyebrow">War Era Journalist Tool</p>
+    <h1 class="intro-title" id="introTitle">
+      <span class="intro-title-word">News</span>
+      <span class="intro-title-word">Desk</span>
+    </h1>
+    <p class="intro-tagline" id="introTagline">Witness. Record. Remember.</p>
+	
+	<div class="intro-api-box" id="introApiBox" hidden>
+	
+	<div class="intro-api-head">
+        <h2>War Era API Key</h2>
+        <span class="intro-info-tip" id="introInfoTip">ⓘ
+          <span class="intro-tooltip">
+            1. Open app.warera.io<br>
+            2. Click on your profile pic<br>
+            3. Select Settings ⚙️ which is under Companies<br>
+            4. Scroll down until you find API TOKENS<br>
+            5. Click the CREATE TOKEN button<br>
+            6. Create a token name then click CREATE<br>
+            7. Click the copy icon then paste it here.
+          </span>
+        </span>
+      </div>
+
+    
+      
+      <p class="intro-api-msg">Enter your API Key to access the live data</p>
+      <div class="intro-input-wrap">
+        <input id="introApiKeyInput" type="password" autocomplete="off" placeholder="Paste API key here">
+      </div>
+      <button id="introSaveBtn" type="button" class="intro-save-btn">Save &amp; Connect</button>
+      <p class="intro-status" id="introStatus" hidden></p>
+    </div>
+	
+
+    <div class="intro-loading" id="introLoading" hidden>
+      <div class="intro-loading-bar"><div class="intro-loading-fill" id="introLoadingFill"></div></div>
+      <p class="intro-loading-text" id="introLoadingText">Connecting to the wire&hellip;</p>
+    </div>
+  </div>
+</div>
+
 <!-- OSCILLOSCOPE BACKGROUND -->
 <canvas id="oscilloscopeCanvas" aria-hidden="true"></canvas>
 
@@ -61,7 +108,7 @@
 
   <!-- Controls -->
   <div class="topbar-actions">
-    <a class="tool-link" href="https://lundgrenwarera.github.io/warera-writer/" target="_blank" rel="noopener">✍ Writer</a>
+    <a class="tool-link" href="https://lundgrenwarera.github.io/warera-writer/" target="_blank" rel="noopener">✍🏼 Writer</a>
     <button class="icon-button" id="themeButton" type="button" title="Switch theme">Light</button>
     <button class="icon-button" id="refreshButton" type="button" title="Refresh">&#8635;</button>
     <button class="icon-button" id="apiButton" type="button" title="API Key">🔑</button>
@@ -131,10 +178,16 @@
             <h2>📰 Articles</h2>
             <p id="articleFeedMeta" class="meta-text">Ready.</p>
           </div>
-          <div class="input-wrap search-bar">
-            <input id="articleSearch" type="text" placeholder="Search articles…">
-            <button class="clear-btn" data-clears="articleSearch" type="button">✕</button>
-          </div>
+          <div class="sticky-toolbar">
+  <div class="input-wrap search-bar">
+    <input id="articleSearch" type="text" placeholder="Search articles…">
+    <button class="clear-btn" data-clears="articleSearch" type="button">✕</button>
+  </div>
+
+  <button id="articleLoadMini" class="btn-load-mini">
+    More
+  </button>
+</div>
           <div id="articleStatusBox" class="status-msg" hidden></div>
           <div id="articleList" class="card-list"></div>
           <button id="loadMoreArticlesButton" class="btn-load" hidden>Load More</button>
@@ -222,12 +275,24 @@
   </div>
 </div>
       <div class="glass-panel market-cell">
-        <h3 class="cell-title">🔝 Top Trading Orders</h3>
+        <h3 class="cell-title market-orders-title">
+  <span>🔝 Top Trading Orders</span>
+
+  <span class="market-order-switch">
+    <button id="commodityOrdersBtn" class="market-order-btn active" title="Commodities">
+      🥖
+    </button>
+
+    <button id="equipmentOrdersBtn" class="market-order-btn" title="Equipments">
+      👢
+    </button>
+  </span>
+</h3>
         <div id="marketOrdersStatus" class="status-msg" hidden></div>
         <div id="marketOrdersData"></div>
       </div>
 	  <div class="glass-panel market-cell">
-		<h3 class="cell-title">🏆 Most Valuable Commodities 
+		<h3 class="cell-title">🏆 Most Valuable Items
 		<span class="info-tip">ⓘ</span></h3>
 		<div id="marketValuableStatus" class="status-msg" hidden></div>
 		<div id="marketValuableData"></div>
@@ -249,6 +314,21 @@
         <input id="jobSearch" type="text" placeholder="Filter by company or skill…">
         <button class="clear-btn" data-clears="jobSearch" type="button">✕</button>
       </div>
+	  <div class="input-wrap wage-filter">
+
+  <input id="jobWageFilter"
+         type="range"
+         step="0.01"
+         min="0.096"
+		 max="0.16"
+         title="Min wage (input numbers from 0.096 to 0.16, sorted highest first)">
+		 
+		 <span id="jobWageValue">Min wage (input numbers from 0.096 to 0.16, sorted highest first)</span>
+
+  <button class="clear-btn"
+          data-clears="jobWageFilter"
+          type="button">⟳</button>
+  </div>
     </div>
     <div id="jobsStatus" class="status-msg" hidden></div>
     <div id="jobsList" class="jobs-grid"></div>
