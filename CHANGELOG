@@ -6,6 +6,57 @@ The format is inspired by Keep a Changelog and follows Semantic Versioning princ
 
 ---
 
+##[1.0.0] - 2026-06-23
+
+###Added
+
+*ES Module architecture — full modularization of the codebase into independent module groups.
+*Dedicated module directories: core, timeline, battles, market, jobs, ui, visuals, audio, intro.
+*SFX system with 5 distinct sounds: click, read, copy, intro, api_saved.
+*Settings modal with SFX volume slider and persistent localStorage configuration.
+*Click-to-begin gate on the intro overlay ensuring reliable intro audio playback on first visit.
+*Mobile responsive breakpoints at 1100px, 860px, 760px, and 420px.
+*safe-area-inset support for notched and rounded-display devices.
+*CSS organization — monolithic style.css split into variables, base, layout, components, visuals, intro, and responsive.
+
+###Improved
+
+*Codebase maintainability — monolithic script.js refactored into 30+ self-contained ES modules.
+*CSS maintainability — single stylesheet split into 7 focused files with clear responsibilities.
+*Audio reliability — intro.mp3 now plays in exact sync with the title reveal animation, respecting browser autoplay policy.
+*Pulsating animation keyframes restored — 8 missing @keyframes (livePulse, liveRing, pulseBadge, modalIn, sweep, flashPop, toastIn, badgePulse) re-added to base.css after CSS split.
+*Touch target sizing restored to compact original values (28–34px) — global 44px minimum removed from desktop.
+*Date picker cleanliness — removed misaligned clear buttons from startTimeInput and endTimeInput.
+*Removed all BGM code and associated controls from settings modal and module imports.
+
+###Technical
+
+*Modular architecture:
+  -js/core/: api, constants, dom, resolver, state, storage, utils
+  -js/timeline/: timeline, articles, events, filters
+  -js/battles/: battles, battleDetail, companies
+  -js/market/: market, economy, orders, valuable
+  -js/jobs/: jobs, jobDetail, companies
+  -js/ui/: toast, tabs, theme
+  -js/visuals/: clock, oscilloscope, ecg
+  -js/intro/: intro
+  -js/audio/: audio
+  -js/main.js as single entry point.
+*CSS into: variables.css, base.css, layout.css, components.css, visuals.css, intro.css, responsive.css.
+*AudioManager singleton with clone-on-play pattern for overlapping SFX and localStorage volume persistence.
+*SFX click delegation — single document-level handler routing to playClick/playRead/playCopy based on target.closest() selectors.
+*Removed console.log from tabs.js, 8 unused imports across 6 files, dead getItemCount function, 5 empty stub export files.
+*Cancelled requestAnimationFrame loop in intro.js closeOverlay to free retained canvas context memory.
+*Performance: will-change on animated/hover elements, content-visibility on inactive tab panels, passive resize listeners.
+
+###UX
+
+*Intro audio now reliably plays on first visit — click-to-begin prompt ensures user gesture before animation and audio start.
+*Auditory feedback across all clickable elements with context-sensitive sounds for read and copy actions.
+*Settings accessible via gear icon in top bar with instant SFX volume adjustment.
+*Cleaner mobile experience with proper breakpoints and safe-area support.
+
+
 ##[0.4.4-beta] - 2026-06-22
 
 ###Added
