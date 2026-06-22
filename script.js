@@ -30,6 +30,7 @@ const EVENT_TYPES = [
 ];
 
 const OBJECT_ID_RE = /^[a-f\d]{24}$/i;
+let unseenTimelineEvents = 0;
 
 const S = {
   cursor:null, events:[], articleCursor:null, articles:[],
@@ -47,7 +48,7 @@ const S = {
   selectedBattleId:null,
   liveBattleTimer:null,
   battleSearch:"",
-  market:{ econ:null, prices:null, orders:null, commodityOrders:[], equipmentOrders:[], orderView:"commodity", priceHistory:[], wageHistory:[] },
+  market:{ econ:null, prices:null, orders:null, commodityOrders:[], equipmentOrders:[], orderView:"commodity", priceHistory:[], wageHistory:[], topValuable:[] },
   jobs:[], jobCursor:null,
   jobCountryFilter:"",
   currentTab:"timeline",
@@ -160,40 +161,180 @@ const E = {
 (function initOsc() {
   const canvas = document.getElementById("oscilloscopeCanvas");
   if (!canvas) return;
+
   const ctx = canvas.getContext("2d");
+
   let W, H;
+
   const waves = [
-    { freq:0.004, amp:0.06, speed:0.012, phase:0,   lw:1.5, alpha:0.45 },
-    { freq:0.007, amp:0.035,speed:0.02,  phase:1.2, lw:0.8, alpha:0.25 },
-    { freq:0.0028,amp:0.08, speed:0.008, phase:2.5, lw:1.0, alpha:0.20 },
+    {
+      center: 0.22,
+      freq: 0.005,
+      amp: 0.08,
+      speed: 0.03,
+      phase: 0,
+      lw: 1.2,
+      alpha: 0.18
+    },
+    {
+      center: 0.38,
+      freq: 0.0038,
+      amp: 0.12,
+      speed: 0.02,
+      phase: 1.7,
+      lw: 1.6,
+      alpha: 0.32
+    },
+    {
+      center: 0.50,
+      freq: 0.0045,
+      amp: 0.15,
+      speed: 0.04,
+      phase: 0.8,
+      lw: 2.2,
+      alpha: 0.55
+    },
+    {
+      center: 0.64,
+      freq: 0.0035,
+      amp: 0.11,
+      speed: 0.025,
+      phase: 2.1,
+      lw: 1.5,
+      alpha: 0.28
+    },
+    {
+      center: 0.80,
+      freq: 0.0055,
+      amp: 0.07,
+      speed: 0.03,
+      phase: 3.2,
+      lw: 1.0,
+      alpha: 0.15
+    }
   ];
-  function resize() { W = canvas.width = innerWidth; H = canvas.height = innerHeight; }
+
+  function resize() {
+    W = canvas.width = innerWidth;
+    H = canvas.height = innerHeight;
+  }
+
   function draw(ts) {
+
     requestAnimationFrame(draw);
-    ctx.clearRect(0,0,W,H);
-    const dark = document.documentElement.dataset.theme !== "light";
-    const gc = dark ? "rgba(208,90,64,0.04)" : "rgba(163,59,40,0.03)";
-    const lc = dark ? "rgba(208,90,64," : "rgba(163,59,40,";
-    ctx.save(); ctx.strokeStyle = gc; ctx.lineWidth = 0.5;
-    for (let i=1;i<24;i++){ ctx.beginPath();ctx.moveTo(W/24*i,0);ctx.lineTo(W/24*i,H);ctx.stroke(); }
-    for (let i=1;i<14;i++){ ctx.beginPath();ctx.moveTo(0,H/14*i);ctx.lineTo(W,H/14*i);ctx.stroke(); }
+
+    const dark =
+      document.documentElement.dataset.theme !== "light";
+
+    const gridColor = dark
+      ? "rgba(208,90,64,0.035)"
+      : "rgba(163,59,40,0.025)";
+
+    const lineBase = dark
+      ? "rgba(208,90,64,"
+      : "rgba(163,59,40,";
+
+    ctx.clearRect(0, 0, W, H);
+
+    /* GRID */
+    ctx.save();
+    ctx.strokeStyle = gridColor;
+    ctx.lineWidth = 0.5;
+
+    for (let i = 1; i < 24; i++) {
+      ctx.beginPath();
+      ctx.moveTo(W / 24 * i, 0);
+      ctx.lineTo(W / 24 * i, H);
+      ctx.stroke();
+    }
+
+    for (let i = 1; i < 14; i++) {
+      ctx.beginPath();
+      ctx.moveTo(0, H / 14 * i);
+      ctx.lineTo(W, H / 14 * i);
+      ctx.stroke();
+    }
+
     ctx.restore();
+
     const t = ts * 0.001;
+
     for (const w of waves) {
-      const ph = w.phase + t * w.speed;
-      ctx.beginPath(); ctx.save();
-      ctx.strokeStyle = lc + w.alpha + ")"; ctx.lineWidth = w.lw;
-      for (let x=0;x<=W;x+=2) {
-        const a = x * w.freq + ph;
-        const tri = (2/Math.PI)*Math.asin(Math.sin(a*Math.PI));
-        const y = H/2 + (Math.sin(a)*0.3+tri*0.7)*w.amp*H;
-        x===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+
+      const phase =
+        w.phase +
+        t * w.speed;
+
+      const pulse =
+        1 +
+        Math.sin(t * 0.22 + w.phase) * 0.15;
+
+      const amp =
+        w.amp *
+        pulse;
+
+      const baseY =
+        H * w.center +
+        Math.sin(t * 0.08 + w.phase) * 10;
+
+      ctx.beginPath();
+
+      ctx.strokeStyle =
+        lineBase + w.alpha + ")";
+
+      ctx.lineWidth =
+        w.lw;
+
+      for (let x = 0; x <= W; x += 2) {
+
+        const a =
+          x * w.freq +
+          phase;
+
+        const tri =
+          (2 / Math.PI) *
+          Math.asin(
+            Math.sin(a * Math.PI)
+          );
+
+        const signal =
+          tri * 0.75 +
+          Math.sin(a) * 0.25;
+
+        const y =
+          baseY +
+          signal *
+          amp *
+          H;
+
+        if (x === 0)
+          ctx.moveTo(x, y);
+        else
+          ctx.lineTo(x, y);
       }
-      ctx.stroke(); ctx.restore();
+
+      ctx.stroke();
+
+      /* glow */
+      ctx.save();
+      ctx.globalAlpha = w.alpha * 0.18;
+      ctx.lineWidth = w.lw * 4;
+      ctx.stroke();
+      ctx.restore();
     }
   }
-  resize(); addEventListener("resize", resize);
-  if (!matchMedia("(prefers-reduced-motion:reduce)").matches) requestAnimationFrame(draw);
+
+  resize();
+  addEventListener("resize", resize);
+
+  if (
+    !matchMedia(
+      "(prefers-reduced-motion:reduce)"
+    ).matches
+  ) {
+    requestAnimationFrame(draw);
+  }
+
 })();
 
 (function initEcg() {
@@ -273,7 +414,6 @@ function bootData() {
   loadArticles(true);
   startAutoRefresh();
   loadMarketStats();
-  loadBattles();
   loadJobs();
 }
 
@@ -283,6 +423,7 @@ function init() {
   populateEventTypes();
   injectJobsCountryFilter();
   bindAll();
+  isTimelineOpen();
 
   if (apiKey()) {
     bootData();
@@ -430,7 +571,7 @@ function bindAll() {
 
   E.tabBtns.forEach(btn=>{
     btn.addEventListener("click",()=>switchTab(btn.dataset.tab));
-  });
+});
 
   E.themeButton.addEventListener("click", toggleTheme);
   E.refreshButton.addEventListener("click",()=>{ loadEvents(true); loadArticles(true); });
@@ -604,6 +745,10 @@ function switchTab(tab) {
   S.currentTab = tab;
   E.tabBtns.forEach(b=>b.classList.toggle("active", b.dataset.tab===tab));
   E.tabPanels.forEach(p=>p.classList.toggle("active", p.id==="tab-"+tab));
+  if(tab === "timeline"){ 
+	clearTimelineBadge();
+	isTimelineOpen();
+  }
   const k = apiKey();
   if (!k) return;
   if (tab==="battles" && S.battles.length===0) loadBattles(true);
@@ -659,9 +804,17 @@ async function silentRefreshEvents() {
 
 function isTimelineOpen(){
 
-  return document
-    .getElementById("tab-timeline")
-    ?.classList.contains("active");
+  const open =
+    document
+      .getElementById("tab-timeline")
+      ?.classList.contains("active");
+
+  console.log(
+    "Timeline Open:",
+    open
+  );
+
+  return open;
 
 }
 
@@ -2540,7 +2693,7 @@ xmlns:x="urn:schemas-microsoft-com:office:excel">
 function setBattleStatus(m,t="info") { E.battleListStatus.hidden=false; E.battleListStatus.textContent=m; E.battleListStatus.classList.toggle("error",t==="error"); }
 function clearBattleStatus() { E.battleListStatus.hidden=true; E.battleListStatus.textContent=""; E.battleListStatus.classList.remove("error"); }
 function battleId(b) { return b._id||b.id||b.battleId||""; }
-
+// sini1
 const DAY_MS = 86400000;
 
 async function fetchTxLast24h(type, k, maxPages=8) {
@@ -2620,16 +2773,35 @@ async function loadMarketStats() {
     if (tradesR.status==="fulfilled"&&tradesR.value.length) {
       E.statTradeVol.textContent=fmtMoney(tradesR.value.reduce((s,t)=>s+txAmt(t),0))+" ₿";
     }
-    if (pricesR.status==="fulfilled") {
-      const prices=unwrap(pricesR.value);
-      const arr=Array.isArray(prices)?prices:Object.entries(prices||{}).map(([k,v])=>({itemCode:k,price:v}));
-      if (arr.length) {
-        const top=[...arr].sort((a,b)=>Number(b.price||b.value||0)-Number(a.price||a.value||0))[0];
-        E.statTopItem.textContent=(top.itemCode||top.item||top.name||"—")+": "+fmtMoney(top.price||top.value||0);
-      }
-    }
+    if (S.market.topValuable?.length) {
+  const top = S.market.topValuable[0];
+
+  E.statTopItem.textContent =
+    `${top.item}:  ${formatShortNumber(top.value)}`;
+}
   } catch {}
   
+}
+
+function formatShortNumber(num) {
+  const n = Number(num);
+  if (!isFinite(n)) return "0";
+
+  const abs = Math.abs(n);
+
+  if (abs >= 1e9) {
+    return (n / 1e9).toFixed(2).replace(/\.00$/, "") + "B";
+  }
+
+  if (abs >= 1e6) {
+    return (n / 1e6).toFixed(2).replace(/\.00$/, "") + "M";
+  }
+
+  if (abs >= 1e3) {
+    return (n / 1e3).toFixed(2).replace(/\.00$/, "") + "K";
+  }
+
+  return n.toFixed(2).replace(/\.00$/, "");
 }
 
 setInterval(
@@ -2996,6 +3168,7 @@ try {
 	const topValuable = Object.values(commodityScores)
 	.sort((a,b)=>b.value-a.value)
 	.slice(0,20);
+	S.market.topValuable = topValuable;
 	
 	const prevScores = S.market.prevCommodityScores || {};
 
@@ -3026,6 +3199,7 @@ for(const item of topValuable){
 }
 	
 	E.marketValuableData.innerHTML = commodityBars(topValuable);
+	console.log(topValuable);
 	
 	S.market.prevCommodityScores = {};
 
@@ -3039,6 +3213,7 @@ for(const item of topValuable){
   loadMarketStats();
   window.ecgPulse?.(1.5);
 }
+//sini2
 
 function renderMarketOrders(){
 
@@ -4151,7 +4326,19 @@ function buildTitle(event,type,ed) {
 
 function showLiveEventToast(event){
 
-  if(isTimelineOpen()) return;
+  if(isTimelineOpen()){
+
+    unseenTimelineEvents = 0;
+
+    updateTimelineBadge();
+
+    return;
+
+  }
+  
+  unseenTimelineEvents++;
+
+  updateTimelineBadge();
 
   const area =
     document.getElementById(
@@ -4181,12 +4368,10 @@ function showLiveEventToast(event){
   toast.className =
     "live-event-toast";
  toast.innerHTML = `
-  <span style="color:#f87171;flex-shrink:0">
+  <span class = "toast-title" style="color:#f87171;flex-shrink:0">
+	LATEST EVENT HAS BEEN REGISTERED
+  </span>
 
-  </span>
-  <span class="toast-title">
-    ${title}
-  </span>
 `;
 
   area.appendChild(toast);
@@ -4250,6 +4435,40 @@ function playPing(){
     );
 
   }catch(e){}
+
+}
+
+function clearTimelineBadge(){
+
+  unseenTimelineEvents = 0;
+
+  updateTimelineBadge();
+
+}
+
+function updateTimelineBadge(){
+
+  const badge =
+    document.getElementById(
+      "timelineBadge"
+    );
+
+  if(!badge) return;
+
+  if(unseenTimelineEvents <= 0){
+
+    badge.hidden = true;
+
+    return;
+
+  }
+
+  badge.hidden = false;
+
+  badge.textContent =
+    unseenTimelineEvents > 99
+      ? "99+"
+      : unseenTimelineEvents;
 
 }
 
