@@ -2,9 +2,18 @@
 <html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#090c10">
   <title>War Era · News Desk</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/visuals.css">
+  <link rel="stylesheet" href="css/intro.css">
+  <link rel="stylesheet" href="css/responsive.css">
   <link rel="icon" sizes="16x16" href="assets/icons/favicon-16x16.png">
     <link rel="icon" sizes="32x32" href="assets/icons/favicon-32x32.png">
     <link rel="icon" sizes="48x48" href="assets/icons/favicon-48x48.png">
@@ -23,6 +32,8 @@
       <span class="intro-title-word">Desk</span>
     </h1>
     <p class="intro-tagline" id="introTagline">Witness. Record. Remember.</p>
+	
+	<p class="intro-click-prompt" id="introClickPrompt">Click anywhere to begin</p>
 	
 	<div class="intro-api-box" id="introApiBox" hidden>
 	
@@ -74,7 +85,7 @@
   <h1 class="brand-title">
     News Desk
 
-    <span class="brand-info">
+    <span class="brand-info" tabindex="0">
       ⓘ
 
       <div class="brand-tooltip">
@@ -166,7 +177,7 @@
   <div class="topbar-actions">
     <a class="tool-link" href="https://lundgrenwarera.github.io/warera-writer/" target="_blank" rel="noopener">✍🏼 Writer</a>
     <button class="icon-button" id="themeButton" type="button" title="Switch theme">Light</button>
-    <button class="icon-button" id="refreshButton" type="button" title="Refresh">&#8635;</button>
+    <button class="icon-button" id="settingsButton" type="button" title="Settings">&#9881;</button>
     <button class="icon-button" id="apiButton" type="button" title="API Key">🔑</button>
   </div>
 
@@ -210,17 +221,11 @@
           <div class="filter-row">
             <div class="filter-group">
               <label for="startTimeInput">From</label>
-              <div class="input-wrap">
-                <input id="startTimeInput" type="datetime-local">
-                <button class="clear-btn" data-clears="startTimeInput" type="button">✕</button>
-              </div>
+              <input id="startTimeInput" type="datetime-local">
             </div>
             <div class="filter-group">
               <label for="endTimeInput">To</label>
-              <div class="input-wrap">
-                <input id="endTimeInput" type="datetime-local">
-                <button class="clear-btn" data-clears="endTimeInput" type="button">✕</button>
-              </div>
+              <input id="endTimeInput" type="datetime-local">
             </div>
           </div>
           <div class="btn-row">
@@ -350,7 +355,7 @@
 	  <div class="glass-panel market-cell">
 		<h3 class="cell-title mvicell-title">
 		<span>💎 Most Valuable Items</span>
-		<span class="info-tip">ⓘ</span>
+		<span class="info-tip" tabindex="0">ⓘ</span>
 		</h3>
 		<div id="marketValuableStatus" class="status-msg" hidden></div>
 		<div id="marketValuableData"></div>
@@ -368,7 +373,7 @@
       </div>
     </div>
     <div class="jobs-search-bar">
-      <div class="input-wrap" style="max-width:380px">
+      <div class="input-wrap">
         <input id="jobSearch" type="text" placeholder="Filter by company or skill…">
         <button class="clear-btn" data-clears="jobSearch" type="button">✕</button>
       </div>
@@ -407,6 +412,21 @@
       <button class="clear-btn" id="clearApiKeyBtn" type="button">✕</button>
     </div>
     <button id="saveApiKeyButton" class="btn-primary" style="width:100%">Save &amp; Connect</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SETTINGS MODAL
+════════════════════════════════════════════ -->
+<div id="settingsModal" class="overlay hidden">
+  <div class="modal-card">
+    <h2>&#9881; Settings</h2>
+    <div class="settings-group">
+      <label for="sfxVolumeSlider">SFX Volume</label>
+      <input type="range" id="sfxVolumeSlider" min="0" max="100" value="100">
+      <span id="sfxVolumeValue">100%</span>
+    </div>
+    <button class="btn-primary" id="closeSettingsBtn" style="width:100%">Done</button>
   </div>
 </div>
 
@@ -494,13 +514,6 @@
   </article>
 </template>
 
-<script>
-(function(){
-  var s = document.createElement('script');
-  s.src = 'script.js';
-  s.defer = true;
-  document.head.appendChild(s);
-})();
-</script>
+<script type="module" src="js/main.js"></script>
 </body>
 </html>
