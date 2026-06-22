@@ -23,8 +23,8 @@
   --red:    #f87171;
 
   --blur: blur(14px);
-  --radius: 10px;
-  --radius-sm: 6px;
+  --radius: 0px;
+  --radius-sm: 0px;
   --shadow: 0 8px 40px rgba(0,0,0,.55), 0 2px 10px rgba(0,0,0,.3);
   --shadow-hover: 0 16px 60px rgba(0,0,0,.7);
 
@@ -96,7 +96,9 @@ header, nav.tab-nav, main, .overlay { position: relative; z-index: 1; }
   -webkit-backdrop-filter: var(--blur);
   box-shadow: 0 2px 20px rgba(0,0,0,.3);
   flex-wrap: nowrap;
-  overflow: hidden;
+  overflow-x: visible;
+  overflow-y: visible;
+}
 }
 
 /* Brand */
@@ -296,7 +298,8 @@ h1 {
   padding: 6px 12px 0;
   background: transparent;
   border-bottom: 1px solid var(--line);
-  overflow-x: auto;
+  overflow-x: visible;
+  overflow-y: visible;
 }
 
 .tab-btn {
@@ -331,7 +334,7 @@ h1 {
 .shell {
   padding: 10px 12px 12px;
   height: calc(100vh - var(--topbar-h) - var(--tab-h) - 7px);
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
 }
@@ -439,7 +442,7 @@ input:focus, select:focus, button:focus-visible {
   cursor: pointer;
   font-size: .72rem;
   padding: 2px 4px;
-  border-radius: 4px;
+  border-radius: 0;
   opacity: 0;
   pointer-events: none;
   transition: opacity .15s;
@@ -561,7 +564,7 @@ input:focus, select:focus, button:focus-visible {
 .ec-type {
   display: inline-flex;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: 0px;
   background: var(--accent-soft);
   color: var(--accent);
   font-size: .68rem;
@@ -654,7 +657,7 @@ input:focus, select:focus, button:focus-visible {
 .ac-cat {
   display: inline-flex;
   padding: 2px 7px;
-  border-radius: 999px;
+  border-radius: 0px;
   background: var(--accent-soft);
   color: var(--accent);
   font-size: .66rem;
@@ -788,7 +791,7 @@ input:focus, select:focus, button:focus-visible {
   align-items: center;
   padding: 2px 7px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 0px;
   font-size: .7rem;
   color: var(--ink-dim);
 }
@@ -1137,7 +1140,7 @@ input:focus, select:focus, button:focus-visible {
   align-items: center;
   justify-content: center;
   background: rgba(0,0,0,.65);
-  z-index: 9999;
+  z-index: 100000;
   backdrop-filter: blur(6px);
   padding: 20px;
 }
@@ -1150,7 +1153,7 @@ input:focus, select:focus, button:focus-visible {
   padding: 22px;
   background: var(--surface-solid);
   border: 1px solid var(--line-solid);
-  border-radius: 14px;
+  border-radius: 0px;
   box-shadow: 0 20px 60px rgba(0,0,0,.5);
   animation: modalIn .18s ease-out;
 }
@@ -1168,7 +1171,7 @@ input:focus, select:focus, button:focus-visible {
   height: min(88vh, 900px);
   background: var(--surface-solid);
   border: 1px solid var(--line-solid);
-  border-radius: 14px;
+  border-radius: 0px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1399,7 +1402,7 @@ input:focus, select:focus, button:focus-visible {
 
 .commodity-bar-bg{
   height:8px;
-  border-radius:999px;
+  border-radius:0px;
   background:var(--line);
   overflow:hidden;
 }
@@ -1478,6 +1481,20 @@ input:focus, select:focus, button:focus-visible {
   opacity:1;
   visibility:visible;
 }
+
+.mvicell-title {
+  display: flex;
+  align-items: center;
+}
+
+.mvicell-title span:first-child {
+  flex: 0 1 auto;
+}
+
+.mvicell-title .info-tip {
+  margin-left: auto;
+}
+
 
 .commodity-up{
   color:#4ade80;
@@ -1827,7 +1844,7 @@ input:focus, select:focus, button:focus-visible {
 #jobWageFilter{
   appearance:none;
   height:6px;
-  border-radius:999px;
+  border-radius:0px;
   outline:none;
 }
 
@@ -2235,4 +2252,213 @@ input:focus, select:focus, button:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .intro-title.glitching { animation: none; }
   .intro-title-word { animation: none !important; opacity: 1; transform: none; filter: none; }
+}
+
+.tab-btn{
+  position:relative;
+}
+
+.timeline-badge{
+  position:absolute;
+
+  top:4px;
+  left:4px;
+
+  min-width:18px;
+  height:18px;
+
+  padding:0 5px;
+
+  border-radius:999px;
+
+  background:#ef4444;
+  color:#fff;
+
+  font-size:.7rem;
+  font-weight:800;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  box-shadow:
+    0 0 8px rgba(239,68,68,.7);
+
+  animation:
+    badgePulse 1.5s infinite;
+}
+
+@keyframes badgePulse{
+  0%{
+    transform:scale(1);
+  }
+
+  50%{
+    transform:scale(1.12);
+  }
+
+  100%{
+    transform:scale(1);
+  }
+}
+
+.timeline-badge[hidden]{
+  display:none !important;
+}
+
+
+
+.brand-title{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  position:relative;
+}
+
+.brand-info{
+  position:relative;
+
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+
+  width:18px;
+  height:18px;
+
+  cursor:help;
+
+  font-size:.8rem;
+  font-weight:900;
+
+  color:var(--ink-dim);
+
+  transition:
+    color .2s ease,
+    transform .2s ease,
+    text-shadow .2s ease;
+}
+
+.brand-info:hover{
+  color:var(--accent);
+
+  transform:scale(1.08);
+
+  text-shadow:
+    0 0 6px var(--accent),
+    0 0 12px var(--accent),
+    0 0 18px var(--accent);
+}
+
+.brand-tooltip{
+  position:absolute;
+
+  top: calc(100% + 8px);
+  left: 0;
+
+  transform: translateY(10px);
+
+  width:360px;
+
+background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(255,255,255,.015) 0px,
+      rgba(255,255,255,.015) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    var(--surface);
+
+  backdrop-filter:none;
+  border:1px solid var(--line-solid);
+  border-radius:0px;
+
+  padding:14px;
+
+  box-shadow:
+    0 10px 30px rgba(0,0,0,.45);
+
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+
+  transition:
+    opacity .18s ease,
+    transform .18s ease;
+
+  z-index:999999;
+}
+
+.brand-info:hover .brand-tooltip{
+  opacity:1;
+  visibility:visible;
+
+  transform: translateY(0);
+}
+
+.tooltip-title{
+  color:var(--accent);
+
+  font-size:.78rem;
+  font-weight:900;
+
+  text-transform:uppercase;
+  letter-spacing:.08em;
+
+  margin-bottom:10px;
+  padding-bottom:8px;
+
+  border-bottom:1px solid var(--line);
+}
+
+.tooltip-body{
+  font-size:.75rem;
+  line-height:1.55;
+
+  color:var(--ink);
+}
+
+.tooltip-body p{
+  margin:0 0 10px;
+}
+
+.tooltip-body p:last-child{
+  margin-bottom:0;
+}
+
+}
+
+.topbar{
+  overflow: visible !important;
+  position: relative;
+  z-index: 10000;
+}
+
+.topbar-brand{
+  overflow: visible !important;
+}
+
+header{
+  overflow: visible !important;
+  position: relative;
+  z-index: 10000;
+}
+
+.glass-panel,
+.event-card,
+.article-card,
+.battle-card,
+.job-card,
+.market-cell,
+.brand-tooltip{
+
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(255,255,255,.015) 0px,
+      rgba(255,255,255,.015) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    var(--surface);
 }
