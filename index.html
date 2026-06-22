@@ -68,11 +68,67 @@
 <header class="topbar">
 
   <!-- Brand -->
-  <div class="topbar-brand">
-    <p class="eyebrow">War Era Journalist Tool</p>
-    <h1>News Desk</h1>
-    <p class="author-credit">by <a href="https://app.warera.io/user/69bd432766cd740733175da7" target="_blank" rel="noopener">rooster</a></p>
-  </div>
+<div class="topbar-brand">
+  <p class="eyebrow">War Era Journalist Tool</p>
+
+  <h1 class="brand-title">
+    News Desk
+
+    <span class="brand-info">
+      ⓘ
+
+      <div class="brand-tooltip">
+        <div class="tooltip-title">
+          News Desk Intelligence Suite
+        </div>
+
+        <div class="tooltip-body">
+
+          <p>
+            Powered by:
+            <br>
+            gateway.warerastats.io/trpc/
+            <br>
+            api2.warera.io/trpc/
+          </p>
+
+          <p>
+            News Desk aggregates publicly
+            available game intelligence,
+            market activity, military data,
+            and economic indicators to
+            support journalism, reporting,
+            and strategic analysis.
+          </p>
+
+          <p>
+            No personal user information
+            is collected, stored, or
+            transmitted by this tool.
+          </p>
+
+          <p>
+            Built to promote credibility,
+            transparency, and informed
+            reporting across the
+            War Era community.
+          </p>
+
+        </div>
+      </div>
+
+    </span>
+  </h1>
+
+  <p class="author-credit">
+    by
+    <a href="https://app.warera.io/user/69bd432766cd740733175da7"
+       target="_blank"
+       rel="noopener">
+      rooster
+    </a>
+  </p>
+</div>
 
   <!-- ECG heartbeat -->
   <div class="ecg-wrap" id="ecgWrap" aria-hidden="true"></div>
@@ -94,7 +150,7 @@
       <span class="market-value" id="statTradeVol">—</span>
     </div>
     <div class="market-divider"></div>
-    <div class="market-stat" title="Top commodity by price">
+    <div class="market-stat" title="Top commodity by value on the market">
       <span class="market-label">Top Item</span>
       <span class="market-value" id="statTopItem">—</span>
     </div>
@@ -118,7 +174,7 @@
 
 <!-- TAB NAVIGATION -->
 <nav class="tab-nav" role="tablist">
-  <button class="tab-btn active" data-tab="timeline" role="tab" aria-selected="true">📡 Timeline</button>
+  <button class="tab-btn active" data-tab="timeline" id="timelineTabBtn" role="tab" aria-selected="true">📡 Timeline<span id="timelineBadge" class="timeline-badge" hidden> 0 </span></button>
   <button class="tab-btn" data-tab="battles" role="tab" aria-selected="false">⚔ Battles</button>
   <button class="tab-btn" data-tab="market" role="tab" aria-selected="false">📈 Market</button>
   <button class="tab-btn" data-tab="jobs" role="tab" aria-selected="false">💼 Jobs</button>
@@ -292,8 +348,10 @@
         <div id="marketOrdersData"></div>
       </div>
 	  <div class="glass-panel market-cell">
-		<h3 class="cell-title">🏆 Most Valuable Items
-		<span class="info-tip">ⓘ</span></h3>
+		<h3 class="cell-title mvicell-title">
+		<span>💎 Most Valuable Items</span>
+		<span class="info-tip">ⓘ</span>
+		</h3>
 		<div id="marketValuableStatus" class="status-msg" hidden></div>
 		<div id="marketValuableData"></div>
 	  </div>
