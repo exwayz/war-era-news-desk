@@ -6,6 +6,39 @@ The format is inspired by Keep a Changelog and follows Semantic Versioning princ
 
 ---
 
+##[0.4.4-beta] - 2026-06-22
+
+###Added
+
+*News Desk Information & Attribution tooltip integrated directly into the main newsroom title.
+*Dedicated transparency panel describing project purpose, data sourcing, and newsroom principles.
+*Attribution and infrastructure acknowledgement for:
+	-https://api2.warera.io/trpc/
+	-https://gateway.warerastats.io/trpc/
+*Expanded transparency messaging emphasizing credibility, journalism, and responsible data usage.
+*Enhanced newsroom branding and informational accessibility through contextual hover-based documentation.
+
+###Improved
+
+*Refined newsroom header presentation with integrated information access directly beside the News Desk title.
+*Improved tooltip layering and rendering behavior to ensure visibility above panels, navigation elements, and scrolling containers.
+*Enhanced tooltip readability through dedicated newsroom-styled presentation.
+*Refined visual hierarchy of newsroom metadata and project attribution.
+
+###Technical
+
+*Implemented standalone newsroom information tooltip architecture.
+*Improved z-index and overflow handling across header and navigation layers.
+*Added reusable tooltip rendering patterns for future informational UI elements.
+*Refined header component structure to better support future newsroom branding features.
+
+###UX
+
+*Users can now quickly understand the purpose, data sources, and operational principles of News Desk without leaving the application.
+*Improved transparency regarding data collection practices and third-party integrations.
+*Reduced ambiguity regarding the project's relationship with War Era services and statistics providers.
+
+
 ##[0.4.3-beta] - 2026-06-19
 
 ###Added
