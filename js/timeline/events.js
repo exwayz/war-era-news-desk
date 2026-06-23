@@ -1,5 +1,5 @@
 import { S } from "../core/state.js";
-import { fmtMoney, pick } from "../core/utils.js";
+import { fmtMoney, pick, marketItemName } from "../core/utils.js";
 
 export function evtData(e) { return e.data&&typeof e.data==="object"?e.data:{}; }
 export function evtTime(e) { return e.createdAt||e.date||e.time||e.timestamp; }
@@ -100,7 +100,7 @@ export function buildTitle(event,type,ed) {
       break;
     }
     case "depositDiscovered": {
-      const res=ed.itemCode||"resource";
+      const res=marketItemName(ed.itemCode)||"resource";
       return reg?`${res} deposit discovered in ${reg}`:`${res} deposit discovered`;
     }
     case "systemRevolt": return reg?`Revolt erupts in ${reg}`:"Automatic revolt";
@@ -284,7 +284,7 @@ export function buildSummary(event,type,ed) {
       );
       break;
     case "depositDiscovered": {
-      const res=ed.itemCode||"resource";
+      const res=marketItemName(ed.itemCode)||"resource";
       if(reg) return pick(
         `Survey teams have confirmed the discovery of a new ${res} deposit in ${reg}, potentially boosting the local economy.`,
         `Authorities in ${reg} have announced the discovery of a ${res} deposit, attracting attention from resource companies.`
