@@ -220,6 +220,12 @@ export async function loadBattleDetail(battle, bid, silent=false) {
 function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpMu, gpCountry, orders, atkPar, defPar, roundsData, roundGpData) {
   const atk = nameCountry(b.attacker?.country||b.attackerCountry||b.attacker?.countryId);
   const def = nameCountry(b.defender?.country||b.defenderCountry||b.defender?.countryId);
+  const atkId = b.attacker?.country||b.attackerCountry||b.attacker?.countryId;
+  const defId = b.defender?.country||b.defenderCountry||b.defender?.countryId;
+  const atkCode = (S.lookups.countriesById.get(atkId)?.code||"").toLowerCase();
+  const defCode = (S.lookups.countriesById.get(defId)?.code||"").toLowerCase();
+  const atkFlag = atkCode ? `<img src="https://flagcdn.com/${atkCode}.svg" alt="" style="width:28px;height:28px;object-fit:cover;display:block">` : "";
+  const defFlag = defCode ? `<img src="https://flagcdn.com/${defCode}.svg" alt="" style="width:28px;height:28px;object-fit:cover;display:block">` : "";
   const reg = nameRegion(b.defender?.region||b.defenderRegion||b.region);
   const isLive = !b.endedAt || b.isActive===true || b.active===true;
   const started = b.createdAt||b.startedAt||"";
@@ -313,19 +319,23 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
   }
 
   const battleScoreHtml = `
-  <div style="display:flex;justify-content:center;align-items:center;gap:16px;padding:12px;background:var(--surface-hi);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:12px">
-    <div style="text-align:center">
-      <div style="font-size:2rem;font-weight:900;color:var(--blue);line-height:1">${atkRoundsWon}</div>
-      <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;color:var(--ink-dim);margin-top:2px">${atk||"Attacker"}</div>
+  <div style="display:grid;grid-template-columns:28px 1fr 28px;align-items:center;gap:12px;padding:12px;background:var(--surface-hi);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:12px">
+    <div>${atkFlag}</div>
+    <div style="display:flex;justify-content:center;align-items:center;gap:16px">
+      <div style="text-align:center">
+        <div style="font-size:2rem;font-weight:900;color:var(--blue);line-height:1">${atkRoundsWon}</div>
+        <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;color:var(--ink-dim);margin-top:2px">${atk||"Attacker"}</div>
+      </div>
+      <div style="text-align:center;color:var(--ink-dim)">
+        <div style="font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em">Battle Score</div>
+        <div style="font-size:.66rem;margin-top:2px">First to ${roundsToWin} rounds wins</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:2rem;font-weight:900;color:var(--red);line-height:1">${defRoundsWon}</div>
+        <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;color:var(--ink-dim);margin-top:2px">${def||"Defender"}</div>
+      </div>
     </div>
-    <div style="text-align:center;color:var(--ink-dim)">
-      <div style="font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em">Battle Score</div>
-      <div style="font-size:.66rem;margin-top:2px">First to ${roundsToWin} rounds wins</div>
-    </div>
-    <div style="text-align:center">
-      <div style="font-size:2rem;font-weight:900;color:var(--red);line-height:1">${defRoundsWon}</div>
-      <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;color:var(--ink-dim);margin-top:2px">${def||"Defender"}</div>
-    </div>
+    <div>${defFlag}</div>
   </div>`;
 
   let html = `<div class="br-section">
