@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#090c10">
+  <title>War Era · News Desk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Ubuntu+Sans:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/visuals.css">
+  <link rel="stylesheet" href="css/intro.css">
+  <link rel="stylesheet" href="css/responsive.css">
+  <link rel="stylesheet" href="css/rankings.css">
+  <link rel="preconnect" href="https://gateway.warerastats.io">
+  <link rel="preconnect" href="https://api2.warera.io">
+  <link rel="preconnect" href="https://flagcdn.com">
+  <link rel="icon" sizes="16x16" href="assets/icons/favicon-16x16.png">
+    <link rel="icon" sizes="32x32" href="assets/icons/favicon-32x32.png">
+    <link rel="icon" sizes="48x48" href="assets/icons/favicon-48x48.png">
+    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+</head>
+<body>
+
+<!-- INTRO / BROADCAST SPLASH -->
+<div id="introOverlay" class="intro-overlay">
+  <canvas id="introMapCanvas"></canvas>
+  <div class="intro-vignette"></div>
+  <div class="intro-content">
+    <p class="intro-eyebrow" id="introEyebrow">War Era Journalist Tool</p>
+    <h1 class="intro-title" id="introTitle">
+      <span class="intro-title-word">News</span>
+      <span class="intro-title-word">Desk</span>
+    </h1>
+    <p class="intro-tagline" id="introTagline">Witness. Record. Remember.</p>
+	
+	
+	<div class="intro-api-box" id="introApiBox" hidden>
+	
+	<div class="intro-api-head">
+        <h2>War Era API Key</h2>
+        <span class="intro-info-tip" id="introInfoTip">ⓘ
+          <span class="intro-tooltip">
+            1. Open app.warera.io<br>
+            2. Click on your profile pic<br>
+            3. Select Settings ⚙️ which is under Companies<br>
+            4. Scroll down until you find API TOKENS<br>
+            5. Click the CREATE TOKEN button<br>
+            6. Create a token name then click CREATE<br>
+            7. Click the copy icon then paste it here.
+          </span>
+        </span>
+      </div>
+
+    
+      
+      <p class="intro-api-msg">Enter your API Key to access the live data</p>
+      <div class="intro-input-wrap">
+        <input id="introApiKeyInput" type="password" autocomplete="off" placeholder="Paste API key here">
+      </div>
+      <button id="introSaveBtn" type="button" class="intro-save-btn">Save &amp; Connect</button>
+      <p class="intro-status" id="introStatus" hidden></p>
+    </div>
+	
+
+    <div class="intro-loading" id="introLoading" hidden>
+      <div class="intro-loading-bar"><div class="intro-loading-fill" id="introLoadingFill"></div></div>
+      <p class="intro-loading-text" id="introLoadingText">Connecting to the wire&hellip;</p>
+    </div>
+  </div>
+</div>
+
+<!-- OSCILLOSCOPE BACKGROUND -->
+<canvas id="oscilloscopeCanvas" aria-hidden="true"></canvas>
+
+<!-- ═══════════════════════════════════════════
+     TOPBAR
+════════════════════════════════════════════ -->
+<header class="topbar">
+
+  <!-- Brand -->
+<div class="topbar-brand">
+  <p class="eyebrow">War Era Journalist Tool</p>
+
+  <h1 class="brand-title">
+    News Desk
+
+    <span class="brand-info" tabindex="0">
+      ⓘ
+
+      <div class="brand-tooltip">
+        <div class="tooltip-title">
+          News Desk Intelligence Suite
+        </div>
+
+        <div class="tooltip-body">
+
+          <p>
+            Powered by:
+            <br>
+            gateway.warerastats.io/trpc/
+            <br>
+            api2.warera.io/trpc/
+          </p>
+
+          <p>
+            News Desk aggregates publicly
+            available game intelligence,
+            market activity, military data,
+            and economic indicators to
+            support journalism, reporting,
+            and strategic analysis.
+          </p>
+
+          <p>
+            No personal user information
+            is collected, stored, or
+            transmitted by this tool.
+          </p>
+
+          <p>
+            Built to promote credibility,
+            transparency, and informed
+            reporting across the
+            War Era community.
+          </p>
+
+        </div>
+      </div>
+
+    </span>
+  </h1>
+
+  <p class="author-credit">
+    by
+    <a href="https://app.warera.io/user/69bd432766cd740733175da7"
+       target="_blank"
+       rel="noopener">
+      rooster
+    </a>
+  </p>
+</div>
+
+  <!-- ECG heartbeat -->
+  <div class="ecg-wrap" id="ecgWrap" aria-hidden="true"></div>
+
+  <!-- Market stats strip -->
+  <div class="market-strip" id="marketStrip">
+    <div class="market-stat" title="Average wage last 24h">
+      <span class="market-label">Avg Wage</span>
+      <span class="market-value" id="statAvgWage">—</span>
+    </div>
+    <div class="market-divider"></div>
+    <div class="market-stat" title="Average last 24h">
+      <span class="market-label">Avg Payroll</span>
+      <span class="market-value" id="statTotalWage">—</span>
+    </div>
+    <div class="market-divider"></div>
+    <div class="market-stat" title="Trade volume last 24h">
+      <span class="market-label">Trade Vol</span>
+      <span class="market-value" id="statTradeVol">—</span>
+    </div>
+    <div class="market-divider"></div>
+    <div class="market-stat" title="Top commodity by value on the market">
+      <span class="market-label">Top Item</span>
+      <span class="market-value" id="statTopItem">—</span>
+    </div>
+  </div>
+
+  <!-- Nixie clock -->
+  <div class="nixie-clock" id="nixieClock" aria-label="Current time">
+    <div class="nixie-date" id="nixieDate"></div>
+    <div class="nixie-time" id="nixieTime"></div>
+  </div>
+
+  <!-- Controls -->
+  <div class="topbar-actions">
+    <a class="tool-link" href="https://lundgrenwarera.github.io/warera-writer/" target="_blank" rel="noopener">✍🏼 Writer</a>
+    <button class="icon-button" id="themeButton" type="button" title="Switch theme">Light</button>
+    <button class="icon-button" id="settingsButton" type="button" title="Settings">&#9881;</button>
+    <button class="icon-button" id="apiButton" type="button" title="API Key">🔑</button>
+  </div>
+
+</header>
+
+<!-- TAB NAVIGATION -->
+<nav class="tab-nav" role="tablist">
+  <button class="tab-btn active" data-tab="timeline" id="timelineTabBtn" role="tab" aria-selected="true">📡 Timeline<span id="timelineBadge" class="timeline-badge" hidden> 0 </span></button>
+  <button class="tab-btn" data-tab="battles" role="tab" aria-selected="false">⚔ Battles</button>
+  <button class="tab-btn" data-tab="market" role="tab" aria-selected="false">📈 Market</button>
+  <button class="tab-btn" data-tab="jobs" role="tab" aria-selected="false">💼 Jobs</button>
+  <button class="tab-btn" data-tab="rankings" role="tab" aria-selected="false">🏆 Rankings</button>
+  <div id="liveEventToastArea"></div>
+</nav>
+
+<!-- ═══════════════════════════════════════════
+     MAIN
+════════════════════════════════════════════ -->
+<main class="shell">
+
+  <!-- ── TIMELINE TAB ── -->
+  <div class="tab-panel active" id="tab-timeline" role="tabpanel">
+    <div class="timeline-grid">
+
+      <!-- LEFT: Filters + Articles -->
+      <div class="tl-left">
+        <aside class="glass-panel filters">
+          <div class="filter-row">
+            <div class="filter-group">
+              <label for="countryInput">Country</label>
+              <div class="input-wrap">
+                <input id="countryInput" type="text" list="countryOptions" placeholder="Optional">
+                <button class="clear-btn" data-clears="countryInput" type="button">✕</button>
+              </div>
+              <datalist id="countryOptions"></datalist>
+            </div>
+            <div class="filter-group">
+              <label for="eventTypeSelect">Event Type</label>
+              <select id="eventTypeSelect"><option value="">All types</option></select>
+            </div>
+          </div>
+          <div class="filter-row">
+            <div class="filter-group">
+              <label for="startTimeInput">From</label>
+              <input id="startTimeInput" type="datetime-local">
+            </div>
+            <div class="filter-group">
+              <label for="endTimeInput">To</label>
+              <input id="endTimeInput" type="datetime-local">
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn-primary" id="applyFiltersButton">⟳ Refresh Timeline</button>
+            <button class="btn-secondary" id="clearFiltersButton">Clear</button>
+          </div>
+        </aside>
+
+        <section class="glass-panel scroll-panel articles-panel">
+          <div class="panel-head">
+            <h2>📰 Articles</h2>
+            <p id="articleFeedMeta" class="meta-text">Ready.</p>
+          </div>
+          <div class="sticky-toolbar">
+  <div class="input-wrap search-bar">
+    <input id="articleSearch" type="text" placeholder="Search articles…">
+    <button class="clear-btn" data-clears="articleSearch" type="button">✕</button>
+  </div>
+
+  <button id="articleLoadMini" class="btn-load-mini">
+    More
+  </button>
+</div>
+          <div id="articleStatusBox" class="status-msg" hidden></div>
+          <div id="articleList" class="card-list"></div>
+          <button id="loadMoreArticlesButton" class="btn-load" hidden>Load More</button>
+        </section>
+      </div>
+
+      <!-- RIGHT: Events Feed -->
+      <div class="tl-right">
+        <section class="glass-panel scroll-panel events-panel">
+          <div class="panel-head">
+            <div>
+              <h2><span id="globalEventsTitle">Global Events</span></h2>
+              <p id="feedMeta" class="meta-text">Ready to fetch.</p>
+            </div>
+          </div>
+          <div id="statusBox" class="status-msg" hidden></div>
+          <div id="eventList" class="card-list"></div>
+          <button id="loadMoreButton" class="btn-load" hidden>Load More</button>
+        </section>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── BATTLES TAB ── -->
+  <div class="tab-panel" id="tab-battles" role="tabpanel">
+    <div class="battles-layout">
+
+      <!-- Battle list pane -->
+      <div class="battle-list-col glass-panel scroll-panel">
+        <div class="panel-head">
+          <h2>⚔ Battles</h2>
+          <div class="tab-pill-group">
+            <button class="pill-btn" id="battleTabLive">🔴 Live</button>
+            <button class="pill-btn active" id="battleTabHistory">History</button>
+            <button class="btn-icon-sm" id="battleRefreshBtn" title="Refresh">⟳</button>
+          </div>
+        </div>
+        <div id="battleListStatus" class="status-msg" hidden></div>
+        <div id="battleList" class="card-list"></div>
+        <button id="loadMoreBattlesButton" class="btn-load" hidden>Load More</button>
+      </div>
+
+      <!-- Battle detail pane -->
+      <div class="battle-detail-col glass-panel scroll-panel" id="battleDetailPane">
+        <div class="detail-placeholder">
+          <span class="placeholder-icon">⚔</span>
+          <p>Select a battle to view the intelligence report</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MARKET TAB ── -->
+  <div class="tab-panel" id="tab-market" role="tabpanel">
+    <div class="market-toolbar panel-head">
+      <h2>📈 Market Intelligence <p class="live-indicator live-dot">◉</p></h2>
+      <div class="btn-row">
+        <button class="btn-primary" id="marketRefreshBtn">⟳ Refresh</button>
+		<button class="btn-secondary" id="marketOpenBtn">🛒 Go To Market</button>
+        <button class="btn-secondary" id="copyMarketReportBtn">📋 Copy Report</button>
+      </div>
+    </div>
+    <div class="market-grid">
+      <div class="glass-panel market-cell">
+        <h3 class="cell-title">💰 Economic Overview </h3>
+        <div id="marketEconStatus" class="status-msg" hidden></div>
+        <div id="marketEconData"></div>
+		
+      </div>
+       <div class="glass-panel market-cell market-prices-cell">
+  <h3 class="cell-title">📦 Commodity Prices</h3>
+
+  <div id="marketPricesStatus"
+       class="status-msg"
+       hidden>
+  </div>
+
+  <div id="marketPricesData"
+       class="market-prices-list">
+  </div>
+
+  <div id="marketPricesChart"
+       class="market-prices-chart">
+  </div>
+</div>
+      <div class="glass-panel market-cell">
+        <h3 class="cell-title market-orders-title">
+  <span>🔝 Top Trading Orders</span>
+
+  <span class="market-order-switch">
+    <button id="commodityOrdersBtn" class="market-order-btn active" title="Commodities">
+      🥖
+    </button>
+
+    <button id="equipmentOrdersBtn" class="market-order-btn" title="Equipments">
+      👢
+    </button>
+  </span>
+</h3>
+        <div id="marketOrdersStatus" class="status-msg" hidden></div>
+        <div id="marketOrdersData"></div>
+      </div>
+	  <div class="glass-panel market-cell">
+		<h3 class="cell-title mvicell-title">
+		<span>💎 Most Valuable Items</span>
+		<span class="info-tip" tabindex="0">ⓘ</span>
+		</h3>
+		<div id="marketValuableData"></div>
+	  </div>
+    </div>
+  </div>
+
+  <!-- ── JOBS TAB ── -->
+  <div class="tab-panel" id="tab-jobs" role="tabpanel">
+    <div class="market-toolbar panel-head">
+      <h2>💼 Job Market</h2>
+      <div class="btn-row">
+        <button class="btn-primary" id="jobsRefreshBtn">⟳ Refresh</button>
+        <button class="btn-secondary" id="copyJobsReportBtn">📋 Copy Report</button>
+      </div>
+    </div>
+    <div class="jobs-search-bar">
+      <div class="input-wrap">
+        <input id="jobSearch" type="text" placeholder="Filter by company or skill…">
+        <button class="clear-btn" data-clears="jobSearch" type="button">✕</button>
+      </div>
+	  <div class="input-wrap wage-filter">
+
+  <input id="jobWageFilter"
+         type="range"
+         step="0.01"
+         min="0.096"
+		 max="0.16"
+         title="Min wage (input numbers from 0.096 to 0.16, sorted highest first)">
+		 
+		 <span id="jobWageValue">Min wage (input numbers from 0.096 to 0.16, sorted highest first)</span>
+
+  <button class="clear-btn"
+          data-clears="jobWageFilter"
+          type="button">⟳</button>
+  </div>
+    </div>
+    <div id="jobsStatus" class="status-msg" hidden></div>
+    <div id="jobsList" class="jobs-grid"></div>
+      <button id="loadMoreJobsButton" class="btn-load" hidden>Load More</button>
+    </div>
+
+  </div>
+
+  <!-- ── RANKINGS TAB ── -->
+  <div class="tab-panel" id="tab-rankings" role="tabpanel">
+    <div class="market-toolbar panel-head">
+      <h2>🏆 Rankings</h2>
+      <div class="tab-pill-group">
+        <button class="pill-btn active" data-rank-cat="weekly">Weekly Damages</button>
+        <button class="pill-btn" data-rank-cat="users">Users</button>
+        <button class="pill-btn" data-rank-cat="mu">MUs</button>
+        <button class="pill-btn" data-rank-cat="countries">Countries</button>
+        <button class="pill-btn" data-rank-cat="alliances">Alliances</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" id="rankingsRefreshBtn">⟳ Refresh</button>
+        <button class="btn-secondary" id="copyRankingsReportBtn">📋 Copy Report</button>
+      </div>
+    </div>
+    <p id="rankingsStatus" class="status-msg" hidden></p>
+    <div id="rankingsGrid" class="rk-grid"></div>
+  </div>
+
+  </main>
+
+<!-- ═══════════════════════════════════════════
+     API KEY MODAL
+════════════════════════════════════════════ -->
+<div id="apiKeyModal" class="overlay hidden">
+  <div class="modal-card">
+    <h2>War Era API Key</h2>
+    <p>Enter your API key to access the live data feed.</p>
+    <div class="input-wrap">
+      <input id="apiKeyInput" type="password" autocomplete="off" placeholder="Paste API key here">
+      <button class="clear-btn" id="clearApiKeyBtn" type="button">✕</button>
+    </div>
+    <button id="saveApiKeyButton" class="btn-primary" style="width:100%">Save &amp; Connect</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SETTINGS MODAL
+════════════════════════════════════════════ -->
+<div id="settingsModal" class="overlay hidden">
+  <div class="modal-card">
+    <h2>&#9881; Settings</h2>
+    <div class="settings-group">
+      <label for="sfxVolumeSlider">SFX Volume</label>
+      <input type="range" id="sfxVolumeSlider" min="0" max="100" value="100">
+      <span id="sfxVolumeValue">100%</span>
+    </div>
+    <button class="btn-primary" id="closeSettingsBtn" style="width:100%">Done</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     ARTICLE READER MODAL
+════════════════════════════════════════════ -->
+<div id="articleReaderModal" class="overlay hidden">
+  <div class="reader-window">
+    <div class="reader-head">
+      <div class="reader-head-info">
+        <h2 id="readerTitle"></h2>
+        <div id="readerAuthor" class="reader-byline"></div>
+      </div>
+      <div class="reader-head-actions">
+        <button id="copyArticleBtn" class="btn-reader-action">📋 Copy</button>
+        <button id="closeReader" class="btn-reader-close">✕</button>
+      </div>
+    </div>
+    <div id="readerContent" class="reader-body"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     BATTLE REPORT MODAL
+════════════════════════════════════════════ -->
+<div id="battleReportModal" class="overlay hidden">
+  <div class="reader-window reader-window--wide">
+    <div class="reader-head">
+      <div class="reader-head-info">
+        <h2 id="battleReportTitle">Battle Intelligence Report</h2>
+        <div id="battleReportMeta" class="reader-byline"></div>
+      </div>
+      <div class="reader-head-actions">
+		<button id="openBattlePageBtn" class="btn-reader-action">⚔ Open Battle</button>
+        <button id="copyBattleReportBtn" class="btn-reader-action">📋 Copy Report</button>
+        <button id="closeBattleReport" class="btn-reader-close">✕</button>
+      </div>
+    </div>
+    <div id="battleReportContent" class="reader-body battle-report-body"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     TEMPLATES
+════════════════════════════════════════════ -->
+<template id="eventCardTemplate">
+  <article class="event-card">
+    <div class="ec-main">
+      <span class="ec-type"></span>
+      <h3 class="ec-title"></h3>
+      <p class="ec-summary"></p>
+      <dl class="ec-details"></dl>
+      <div class="ec-actions">
+        <a class="ec-link" target="_blank" rel="noopener">Open in War Era</a>
+        <button class="ec-copy" type="button">📋 Copy Brief</button>
+      </div>
+    </div>
+    <time class="ec-time"></time>
+  </article>
+</template>
+
+<template id="articleCardTemplate">
+  <article class="article-card">
+    <span class="ac-cat"></span>
+    <h3 class="ac-title"></h3>
+    <div class="ac-meta"></div>
+    <div class="ac-stats"></div>
+    <div class="ac-actions">
+      <button class="ac-open">Open</button>
+      <button class="ac-read">Read</button>
+    </div>
+  </article>
+</template>
+
+<template id="battleCardTemplate">
+  <article class="battle-card">
+    <div class="bc-dot"></div>
+    <div class="bc-main">
+      <span class="bc-label"></span>
+      <h3 class="bc-title"></h3>
+      <p class="bc-meta"></p>
+      <div class="bc-chips"></div>
+    </div>
+    <button class="bc-select" type="button">View Report</button>
+  </article>
+</template>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
