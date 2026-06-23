@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="css/visuals.css">
   <link rel="stylesheet" href="css/intro.css">
   <link rel="stylesheet" href="css/responsive.css">
+  <link rel="stylesheet" href="css/rankings.css">
   <link rel="icon" sizes="16x16" href="assets/icons/favicon-16x16.png">
     <link rel="icon" sizes="32x32" href="assets/icons/favicon-32x32.png">
     <link rel="icon" sizes="48x48" href="assets/icons/favicon-48x48.png">
@@ -189,6 +190,7 @@
   <button class="tab-btn" data-tab="battles" role="tab" aria-selected="false">⚔ Battles</button>
   <button class="tab-btn" data-tab="market" role="tab" aria-selected="false">📈 Market</button>
   <button class="tab-btn" data-tab="jobs" role="tab" aria-selected="false">💼 Jobs</button>
+  <button class="tab-btn" data-tab="rankings" role="tab" aria-selected="false">🏆 Rankings</button>
   <div id="liveEventToastArea"></div>
 </nav>
 
@@ -395,10 +397,29 @@
     </div>
     <div id="jobsStatus" class="status-msg" hidden></div>
     <div id="jobsList" class="jobs-grid"></div>
-    <button id="loadMoreJobsButton" class="btn-load" hidden>Load More</button>
+      <button id="loadMoreJobsButton" class="btn-load" hidden>Load More</button>
+    </div>
+
   </div>
 
-</main>
+  <!-- ── RANKINGS TAB ── -->
+  <div class="tab-panel" id="tab-rankings" role="tabpanel">
+    <div class="market-toolbar panel-head">
+      <h2>🏆 Rankings</h2>
+      <div class="tab-pill-group">
+        <button class="pill-btn active" data-rank-cat="weekly">Weekly Damages</button>
+        <button class="pill-btn" data-rank-cat="users">Users</button>
+        <button class="pill-btn" data-rank-cat="mu">MUs</button>
+        <button class="pill-btn" data-rank-cat="countries">Countries</button>
+        <button class="pill-btn" data-rank-cat="alliances">Alliances</button>
+      </div>
+      <button class="btn-secondary" id="copyRankingsReportBtn">📋 Copy Report</button>
+    </div>
+    <p id="rankingsStatus" class="status-msg" hidden></p>
+    <div id="rankingsGrid" class="rk-grid"></div>
+  </div>
+
+  </main>
 
 <!-- ═══════════════════════════════════════════
      API KEY MODAL
