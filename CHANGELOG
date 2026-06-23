@@ -10,6 +10,16 @@ The format is inspired by Keep a Changelog and follows Semantic Versioning princ
 
 ###Added
 
+*Rankings tab with 5 category views: Weekly Damages, Users, MUs, Countries, Alliances.
+*Category selector pills switching between ranking views without page reload.
+*4-panel grid layout per category, each panel displaying a ranked leaderboard (top 50 entries).
+*Avatar support for Users, Military Units, and Alliances via media.warera.io avatar URLs.
+*Country flag display from local assets/flags/ directory, keyed by ISO shortCode.
+*Fallback initial-letter avatar when no image is available for an entity.
+*Automatic entity resolution — fetches unknown user/MU/country/alliance profiles on demand.
+*Dual-API redundancy — ranking.getRanking endpoint fetched from both gateway.warerastats.io and api2.warera.io.
+*Rankings module directory: js/rankings/rankings.js.
+*Dedicated rankings stylesheet: css/rankings.css with responsive grid breakpoints.
 *ES Module architecture — full modularization of the codebase into independent module groups.
 *Dedicated module directories: core, timeline, battles, market, jobs, ui, visuals, audio, intro.
 *SFX system with 5 distinct sounds: click, read, copy, intro, api_saved.
