@@ -9,7 +9,7 @@
   <title>War Era · News Desk</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Ubuntu+Sans:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Ubuntu+Sans:wght@400;500;700;800;900&family=Caesar+Dressing&family=Kode+Mono:wght@400..700&family=Lacquer&family=Pixelify+Sans:wght@400..700&family=Skranji:wght@400;700&family=Texturina:opsz,wght@12..72,400..900&family=Tiny5&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/variables.css">
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/layout.css">
@@ -18,6 +18,8 @@
   <link rel="stylesheet" href="css/intro.css">
   <link rel="stylesheet" href="css/responsive.css">
   <link rel="stylesheet" href="css/rankings.css">
+  <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/writer.css">
   <link rel="preconnect" href="https://gateway.warerastats.io">
   <link rel="preconnect" href="https://api2.warera.io">
   <link rel="preconnect" href="https://flagcdn.com">
@@ -181,13 +183,16 @@
 
   <!-- Controls -->
   <div class="topbar-actions">
-    <a class="tool-link" href="https://lundgrenwarera.github.io/warera-writer/" target="_blank" rel="noopener">✍🏼 Writer</a>
+    <button class="tool-link" id="writerBtn" type="button">✍🏼 Writer</button>
     <button class="icon-button" id="themeButton" type="button" title="Switch theme">Light</button>
     <button class="icon-button" id="settingsButton" type="button" title="Settings">&#9881;</button>
     <button class="icon-button" id="apiButton" type="button" title="API Key">🔑</button>
   </div>
 
 </header>
+
+<div class="body-content">
+<div class="app-main">
 
 <!-- TAB NAVIGATION -->
 <nav class="tab-nav" role="tablist">
@@ -404,7 +409,7 @@
       <button id="loadMoreJobsButton" class="btn-load" hidden>Load More</button>
     </div>
 
-  </div>
+  
 
   <!-- ── RANKINGS TAB ── -->
   <div class="tab-panel" id="tab-rankings" role="tabpanel">
@@ -427,6 +432,200 @@
   </div>
 
   </main>
+</div> <!-- /app-main -->
+
+
+<div class="writer-panel">
+  <div class="writer-tabnav">
+    <div class="writer-title-group">
+      <span class="writer-title">Writer</span>
+      <span class="writer-powered">powered by: <a href="https://quilljs.com/" target="_blank" rel="noopener">Quill</a></span>
+    </div>
+    <div class="writer-btn-group">
+      <button class="btn-primary writer-action-btn" id="copyWriterHtmlBtn">Copy HTML</button>
+      <a class="btn-secondary writer-action-btn" id="openWarEraEditorBtn" href="https://app.warera.io/news/write" target="_blank" rel="noopener">Open War Era Editor</a>
+      <button class="btn-secondary writer-action-btn" id="userManualBtn">User Manual</button>
+      <a class="writer-action-btn btn-lundgren" id="lundgrenWriterBtn" href="https://lundgrenwarera.github.io/warera-writer/" target="_blank" rel="noopener">Lundgren's Writer</a>
+    </div>
+    <div id="liveEventToastArea"></div>
+  </div>
+  <div class="writer-shell">
+    <div class="writer-left">
+      <div class="writer-drafts" id="writerDrafts">
+        <div class="writer-section-head">
+          <span>Drafts</span>
+          <button class="btn-icon-sm" id="addDraftBtn" title="Save Draft" style="min-width:auto;min-height:auto;padding:2px 8px">+</button>
+        </div>
+        <div class="writer-drafts-list" id="writerDraftsList"></div>
+      </div>
+      <div class="writer-assistance" id="writerAssistance">
+        <div class="writer-section-head">
+          <span>Assistance</span>
+          <label class="toggle-label"><input type="checkbox" id="assistToggle" checked> On</label>
+        </div>
+        <div id="writerAssistContent"></div>
+		  <div class="wr-assist-body" id="wrAssistBody">
+          <div class="wr-assist-stat"><span class="wr-assist-label">Words</span><span class="wr-assist-value" id="wrAssistWords">0</span></div>
+          <div class="wr-assist-stat"><span class="wr-assist-label">Characters</span><span class="wr-assist-value" id="wrAssistChars">0</span></div>
+          <div class="wr-assist-stat"><span class="wr-assist-label">Sentences</span><span class="wr-assist-value" id="wrAssistSentences">0</span></div>
+          <div class="wr-assist-stat"><span class="wr-assist-label">Syllables</span><span class="wr-assist-value" id="wrAssistSyllables">0</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="writer-editor-area">
+      <div class="writer-toolbar" id="writerToolbar">
+        <div id="writerToolbarInner">
+          <span class="ql-formats">
+            <select class="ql-header" title="Heading">
+              <option value="1">H1</option>
+              <option value="2">H2</option>
+              <option value="3">H3</option>
+              <option selected>Normal</option>
+            </select>
+          </span>
+          <span class="ql-formats">
+            <button class="ql-bold" title="Bold"><b>B</b></button>
+            <button class="ql-italic" title="Italic"><i>I</i></button>
+            <button class="ql-underline" title="Underline"><u>U</u></button>
+            <button class="ql-strike" title="Strikethrough"><s>S</s></button>
+          </span>
+          <span class="ql-formats">
+            <select class="ql-color" title="Text color">
+              <option value=""></option>
+              <option value="#e60000"></option>
+              <option value="#ff9900"></option>
+              <option value="#ffff00"></option>
+              <option value="#008a00"></option>
+              <option value="#0066cc"></option>
+              <option value="#9933ff"></option>
+              <option value="#ffffff"></option>
+              <option value="#facccc"></option>
+              <option value="#ffebcc"></option>
+              <option value="#ffffcc"></option>
+              <option value="#cce8cc"></option>
+              <option value="#cce0f5"></option>
+              <option value="#ebd6ff"></option>
+              <option value="#bbbbbb"></option>
+              <option value="#f06666"></option>
+              <option value="#ffc266"></option>
+              <option value="#ffff66"></option>
+              <option value="#66b966"></option>
+              <option value="#66a3e0"></option>
+              <option value="#c285ff"></option>
+              <option value="#888888"></option>
+              <option value="#a10000"></option>
+              <option value="#b26b00"></option>
+              <option value="#b2b200"></option>
+              <option value="#006100"></option>
+              <option value="#0047b2"></option>
+              <option value="#6b24b2"></option>
+              <option value="#444444"></option>
+              <option value="#5c0000"></option>
+              <option value="#663d00"></option>
+              <option value="#666600"></option>
+              <option value="#003700"></option>
+              <option value="#002966"></option>
+              <option value="#3d1466"></option>
+            </select>
+            <select class="ql-background" title="Highlight">
+              <option value=""></option>
+              <option value="#fef08a"></option>
+              <option value="#bef264"></option>
+              <option value="#7dd3fc"></option>
+              <option value="#fca5a5"></option>
+            </select>
+          </span>
+          <span class="ql-formats">
+            <button class="ql-code" title="Inline code"><code>{ }</code></button>
+            <button class="ql-code-block" title="Code block"><code>C</code></button>
+            <button class="ql-blockquote" title="Blockquote">&#x275D;</button>
+          </span>
+          <span class="ql-formats">
+            <button class="ql-list" value="ordered" title="Ordered list">1.</button>
+            <button class="ql-list" value="bullet" title="Bullet list">&#x2022;</button>
+          </span>
+          <span class="ql-formats">
+            <select class="ql-align" title="Alignment">
+              <option value="" selected>&#x2190;</option>
+              <option value="center">&#x2194;</option>
+              <option value="right">&#x2192;</option>
+              <option value="justify">&#x2261;</option>
+            </select>
+          </span>
+          <span class="ql-formats">
+            <select class="ql-font" title="Font">
+              <option value="" selected>Default</option>
+              <option value="times-new-roman">Times</option>
+              <option value="arial">Arial</option>
+              <option value="helvetica">Helvetica</option>
+              <option value="courier-new">Courier</option>
+              <option value="georgia">Georgia</option>
+              <option value="verdana">Verdana</option>
+              <option value="monospace">Mono</option>
+              <option value="caesar-dressing">Caesar</option>
+              <option value="kode-mono">Kode</option>
+              <option value="lacquer">Lacquer</option>
+              <option value="pixelify-sans">Pixel</option>
+              <option value="skranji">Skranji</option>
+              <option value="texturina">Textura</option>
+              <option value="tiny5">Tiny5</option>
+            </select>
+          </span>
+          <span class="ql-formats">
+            <button class="ql-link" title="Insert link">&#x1F517;</button>
+            <button class="ql-image" title="Insert image">&#x1F5BC;</button>
+          </span>
+          <span class="ql-formats">
+            <button class="ql-indent" value="-1" title="Decrease indent">&#x25C0;</button>
+            <button class="ql-indent" value="+1" title="Increase indent">&#x25B6;</button>
+          </span>
+          <span class="ql-formats">
+            <button class="ql-clean" title="Remove formatting">&#x2715;</button>
+          </span>
+          <span class="ql-formats">
+            <button class="ql-undo" title="Undo">&#x21B6;</button>
+            <button class="ql-redo" title="Redo">&#x21B7;</button>
+          </span>
+          <span class="ql-formats">
+            <button class="ql-hr" title="Horizontal rule">&#x2014;</button>
+          </span>
+          <span class="ql-formats">
+            <button class="ql-youtube" title="Insert YouTube video">&#x25B6;</button>
+            <button class="ql-tiktok" title="Insert TikTok video">&#x266C;</button>
+          </span>
+          <span class="ql-formats">
+            <button class="ql-find" title="Find &amp; replace">&#x1F50D;</button>
+            <button class="ql-clear" title="Clear all">&#x1F5D1;</button>
+          </span>
+        </div>
+      </div>
+      <div id="floatToolbar" class="float-toolbar"></div>
+      <input class="writer-title-input" id="writerTitleInput" type="text" placeholder="Article title…">
+      <div class="writer-editor" id="writerEditor"></div>
+      <div class="writer-statusbar">
+        <span id="writerWordCount">0 words</span>
+        <span id="writerSaveStatus"></span>
+      </div>
+    </div>
+    <div class="writer-right">
+      <div class="writer-helper-apps" id="writerHelperApps">
+        <div class="writer-section-head"><span>Helpers</span></div>
+        <div id="writerAssistContent"></div>
+		  <div class="wr-assist-body" id="wrAssistBody">
+          <div class="wr-assist-stat"><span class="wr-assist-label">Reading Ease</span><span class="wr-assist-value" id="wrAssistEase">—</span></div>
+          <div class="wr-assist-stat"><span class="wr-assist-label">Grade Level</span><span class="wr-assist-value" id="wrAssistGrade">—</span></div>
+          <div class="wr-assist-stat"><span class="wr-assist-label">Difficulty</span><span class="wr-assist-value" id="wrAssistDiff">—</span></div>
+          <div class="wr-assist-stat"><span class="wr-assist-label">Potential Issues</span><span class="wr-assist-value" id="wrAssistIssues" title="">—</span></div>
+        </div>
+      </div>
+      <div class="writer-image-library" id="writerImageLibrary">
+        <div class="writer-section-head"><span>Image Library</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div> <!-- /body-content -->
 
 <!-- ═══════════════════════════════════════════
      API KEY MODAL
@@ -497,6 +696,41 @@
   </div>
 </div>
 
+<div id="userManualModal" class="overlay hidden">
+  <div class="modal-card user-manual-card">
+    <h2 style="margin:0 0 6px;font-size:1.1rem">Writer User Manual</h2>
+    <div class="user-manual-body">
+      <p><strong>Toolbar limitations:</strong> The toolbar buttons (bold, italic, underline, etc.) <em>cannot</em> format already-selected text. Toggle buttons apply the style only <strong>before</strong> you start typing — the transformation applies to the next characters you type, not to existing selected text.</p>
+      <p><strong>What the toolbar can do:</strong> Paragraph styles (<code>H1</code>, <code>H2</code>, <code>H3</code>, <code>Normal</code>) and <strong>Font</strong> selection work on existing blocks regardless.</p>
+      <p><strong>How to publish:</strong> Click <strong>Copy HTML</strong>. Open War Era news editor. Paste into the body. War Era's editor preserves the formatting.</p>
+      <p><strong>Entity @mentions:</strong> Type <code>@</code> followed by a name (e.g. <code>@r</code>) to search for War Era entities (countries, regions, companies, military units, battles, alliances, users, articles). The popup filters as you type — spaces are allowed, so <code>@United States</code> works. Use <kbd>Tab</kbd> or <kbd>Enter</kbd> to select the highlighted item, or click it with the mouse. Once resolved, the entity is cached so subsequent lookups are instant. You can also paste a War Era URL directly into the editor — it will resolve into an <code>@mention</code> automatically.</p>
+      <p><strong>Keyboard shortcuts (recommended):</strong> Select (block) text, then press:</p>
+      <table class="shortcut-table">
+        <tr><td class="sc-cat" colspan="2">Formatting</td></tr>
+        <tr><td>Bold</td><td class="sc-key"><kbd>Ctrl</kbd>+<kbd>B</kbd></td></tr>
+        <tr><td>Inline code</td><td class="sc-key"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>I</kbd></td></tr>
+        <tr><td>Underline</td><td class="sc-key"><kbd>Ctrl</kbd>+<kbd>U</kbd></td></tr>
+        <tr><td>Strikethrough</td><td class="sc-key"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd></td></tr>
+        <tr><td>Code block</td><td class="sc-key"><kbd>Ctrl</kbd>+<kbd>G</kbd></td></tr>
+        <tr><td>Blockquote</td><td class="sc-key"><kbd>Ctrl</kbd>+<kbd>Q</kbd></td></tr>
+        <tr><td>Ordered list</td><td class="sc-key"><kbd>Ctrl</kbd>+<kbd>1</kbd></td></tr>
+        <tr><td>Bulleted list</td><td class="sc-key"><kbd>Ctrl</kbd>+<kbd>O</kbd></td></tr>
+        <tr><td>Align left</td><td class="sc-key"><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>L</kbd></td></tr>
+        <tr><td>Align center</td><td class="sc-key"><kbd>Ctrl</kbd>+<kbd>E</kbd></td></tr>
+        <tr><td>Align right</td><td class="sc-key"><kbd>Ctrl</kbd>+<kbd>R</kbd></td></tr>
+        <tr><td>Align justify</td><td class="sc-key"><kbd>Ctrl</kbd>+<kbd>J</kbd></td></tr>
+        <tr><td>Horizontal rule</td><td class="sc-key"><kbd>Ctrl</kbd>+<kbd>H</kbd></td></tr>
+        <tr><td>Insert YouTube</td><td class="sc-key"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Y</kbd></td></tr>
+        <tr><td class="sc-cat" colspan="2">Helper Apps</td></tr>
+        <tr><td>Sticky note</td><td class="sc-key"><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>N</kbd></td></tr>
+        <tr><td>Calculator</td><td class="sc-key"><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>C</kbd></td></tr>
+        <tr><td>Translator</td><td class="sc-key"><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>T</kbd></td></tr>
+      </table>
+    </div>
+    <button class="btn-primary" id="closeUserManualBtn" style="width:100%;margin-top:8px">Got it</button>
+  </div>
+</div>
+
 <!-- ═══════════════════════════════════════════
      TEMPLATES
 ════════════════════════════════════════════ -->
@@ -542,6 +776,7 @@
   </article>
 </template>
 
+<script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
 <script type="module" src="js/main.js"></script>
 </body>
 </html>
