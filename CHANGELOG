@@ -8,14 +8,84 @@ The format is inspired by Keep a Changelog and follows Semantic Versioning princ
 
 ##[1.0.1] - 2026-06-25
 
+###Added
+
+*Writer Editor (`js/writer/writer.js`) — full Quill 1.3.6 editor with @mention entity search, image library (100 most recent from War Era), paste URL auto-resolution, draft save/load/delete system, keyboard shortcuts (Ctrl+B/I/U/S, Enter/Shift+Enter), character/word count, placeholder text, "powered by Quill" subtitle.
+*User Manual modal — toolbar limitations, @mention instructions, publishing steps, complete keyboard shortcut reference table.
+*Lundgren's Writer link button — Swedish blue/yellow styling, opens lundgrenwarera.github.io.
+*Copy output format alignment with Lundgren's Writer — `ql-align` classes converted to inline `style="text-align:..."`, `tiptap-block` on `<p>`, `tiptap-image` on `<img>`, `tiptap-code-block` on `<pre>`, `tight`/`data-tight` on lists, YouTube iframes wrapped in `<div data-youtube-video="">`, inline styles stripped from `<hr>`.
+*Capture/PNG report system (`js/core/captureReport.js`) — html2canvas-based structured HTML table capture for battle (3 PNGs: fighters, MU, countries), market (1 PNG), jobs (1 PNG), rankings (5 PNGs). Watermark compositing, multi-page splitting (1200px/page), timestamped filenames (`_YYYYMMDD_HHmmss`), battle slugs.
+*Audio system (`js/audio/audio.js`) — 4 context-sensitive sounds: `playCapture()`, `playCopy()`, `playClick()`, `playRead()`. AudioManager singleton with clone-on-play pattern and localStorage volume persistence.
+*Profile system (`js/user/profile.js`) — single-input registration resolves via `user.getUserLite`, stores resolved profile (avatar, username, user ID, level, MU, country, party) in localStorage. Avatar or 👤 on settings button. Delete user removes all stored data.
+*Profile highlighter (`js/core/profileHighlighter.js`) — `highlightUserData()` scans DOM for `.rk-name`, `.rk-row`, `.ac-meta`, `.bc-meta`, `.bc-chip`, `.ec-summary`, `.rk-cell-title`, `.rk-val`, `.ec-details` matching resolved username/MU/country/party; adds `.hl-user` red/accent class.
+*Community Wall (`js/community/wall.js`) — message posting, paginated loading (12/page), upvoting (SHA-256 hash dedup), deletion, sort by newest/top. Prohibited-words filter (~25 terms) + URL blocking with character normalization.
+*Community guidelines modal — full policy text in `js/community/policy.js`.
+*Supabase backend — `messages` table with RLS policies, `post_message` PostgreSQL function (`SECURITY DEFINER`) enforcing 5 posts/week per API key atomically. `SUPABASE_URL` and `SUPABASE_ANON_KEY` in `js/core/constants.js`.
+*Supabase schema (`supabase-schema.sql`) — full table definition, RLS policies, `post_message` function for one-click DB setup.
+*Rate limiting — 5 posts/week per API key via Supabase RPC, enforced at database level (not bypassable).
+*Upvote locking — one upvote per API key per message, SHA-256 hashed `upvoters` array, 409 on duplicate.
+*Pagination — 12 messages per page, "Load More" button, `hasMoreMessages()` check against total count.
+*Ended-battle filters — DMG sort (desc), Date sort (desc), date-range filter, `battleDamageCache` pre-fetched via `battleRanking.getRanking` in parallel chunks of 10.
+*Timeline filter relocation — filters moved from `tl-left` aside into `tl-right` panel-head compact bar; event-limit input (default 50).
+*Copy timeline button — copies visible events as `[timestamp] Title\nSummary`.
+*Copy battle list button — copies filtered/sorted ended battles.
+*Copy article button — copies articles with `[timestamp] Category — 👤author — ☆score — Title` format.
+*Article filters — Date/Score sort toggle, From/To datetime filter.
+*Endpoint Explorer (`endpoint-explorer/`) — standalone TRPC API discovery tool with parameter builder and response viewer.
+*`package.json` and `.node-version` — Node `start` script and version pin for Render compatibility.
+
+###Improved
+
+*Settings modal redesigned to profile modal — registration form + resolved profile display (48×48 avatar, clickable username, user ID, level, MU, country, party). SFX slider retained. "No personal information collected" notice added.
+*Wall card layout — compact 120px height, same styling as job cards, `.wall-grid` (auto-fill 280px, `align-content: start`), responsive → 1 column on mobile.
+*Wall cards author auto-filled from registered profile username.
+*Battle capture layout — ATTACKER/DEFENDER subheader row (colspan=3) above column headers, Damage table stacked above Ground Points table per page.
+*Market capture layout — three sections: Economic Overview, Top 10 Commodity Prices (via `marketItemName()`), Most 10 Valuable Commodities.
+*Rankings capture layout — 4 sub-category tables arranged 2×2 grid, 10 rows each, 5 separate PNGs.
+*Spacing controls removed — `applyLineSpacing`/`applyParaSpacing` functions, spacing select injection, and related CSS deleted.
+*Image library click listener — moved from `renderImageLibrary` (stacked per-call) to `initImageLibrary` (once), fixing double-image insertion.
+*Commodity name resolution — uses existing `marketItemName()` from utils.js for capture reports.
+*`server.js` hardened — reads `process.env.PORT`, defaults to 8020, added rate limiting and pagination before Supabase switch.
+
 ###Fixed
 
 *Battle total damage underreporting — `renderBattleDetail` was summing only top-10 fighter damages per side, giving ~106M for a battle with ~853M actual total. Changed to read `b.attacker?.damages` + `b.defender?.damages` (battle-level totals from `battle.getById`) first, falling back to rank sum only when those are unavailable.
 *Damage share percentage now based on correct per-side totals.
+*Paste URL resolution — space-before-mention eating fixed, trailing URL digits stripped.
+*Message duplication on tab switch — `page` renamed to `currentPage` to avoid stale state.
+*Date field name — `msg.createdAt` corrected to `msg.created_at` for Supabase schema.
+*Missing imports in `market.js` — `formatShortNumber`, `marketItemName`, `commodityBars`, `miniChart` added.
+*Double-declarations in `jobs.js` — `ensureLookups`, `resolveCompaniesForJobs`, `getJobCompanyName`, `getJobCountryName`, `getJobRegionName` removed from false `companies.js` import.
+*Editor scrollbar — flush against right edge, padding/margin removed.
 
 ###Technical
 
-*One-line fix in `js/battles/battleDetail.js:235-236` — `let atkDmg = b.attacker?.damages ?? ...` / `let defDmg = b.defender?.damages ?? ...`.
+*Quill 1.3.6 keyboard shortcuts via `quill.keyboard.addBinding()`. Capture-phase keydown listener for @mention popup to prevent Quill default Enter/Tab.
+*`handleQuillPaste` — scans all War Era URLs in pasted text, resolves last-to-first without placeholder flicker. `resolvePastedUrls` triggered via `pendingPasteUrlCheck` flag in `text-change` handler.
+*`copyWriterHtml` — builds wrapper `<div class="tiptap-editor">`, applies all format transforms, copies via `navigator.clipboard.writeText`.
+*Entity resolution fallback chain — `resolvePastedUrls` tries gateway → api2 → in-memory `mentionCache`.
+*`mentionCache` — module-level Map seeded on every `insertMention`/`insertMentionAtCaret`/paste resolution.
+*`captureHTML()` — offscreen render → html2canvas canvas → multi-page PNG split + watermark compositing. Dynamic import to avoid circular dependency in battle handlers.
+*`pageOpen()`/`pageClose()`/`section()`/`flexRow()`/`flexCol()`/`tableBlock()`/`ts()` helper functions in `captureReport.js`.
+*html2canvas loaded from CDN (`jsdelivr.net/npm/html2canvas@1.4.1`) as global script.
+*Supabase RPC called via `POST /rest/v1/rpc/post_message` with `p_author`, `p_text`, `p_posted_by` params.
+*SHA-256 hashing via `crypto.subtle.digest("SHA-256", ...)` for `posted_by` and `upvoters` tracking.
+*`fetchTrpc` sends input as URL query param (`?input=${encodeURIComponent(JSON.stringify(input))}`), not POST body.
+*`unwrap(r)` response extractor — `r[0]?.result?.data?.json ?? ...`.
+*`S.lookups.*ById` Maps in `resolver.js` cache resolved entities; `resolveEntityByType` uses gateway only.
+*CSS organization — `.battle-filter-row`, `.article-filter-row`, `.tl-filter-bar` with compact uniform inputs; `.wall-grid`, `.wall-card`, `.wall-card-text` (flex:1, clamped 3 lines), `.hl-user`.
+*Responsive breakpoints — wall grid collapses to 1 column on mobile.
+*`server.js` still serves static files locally (port `process.env.PORT || 8020`); API routes unused after Supabase switch.
+*`database/messages.json` no longer used — all data in Supabase.
+
+###UX
+
+*Writer editor with real-time word/character count, placeholder guidance, and visual feedback.
+*Battle damage reports now show correct totals (853M instead of 106M for large battles).
+*Registered users see their name, MU, country, party highlighted in red across rankings, battles, articles, and battle details.
+*Community Wall with modern card layout, intuitive post/upvote/read workflow, and clear rate-limit enforcement feedback.
+*All four Writer action buttons same width via flex group for consistent appearance.
+*Cleaner timeline with compact filter bar, eliminating the left-aside layout.
 
 
 ##[1.0.0] - 2026-06-23
