@@ -322,6 +322,7 @@
         <button class="btn-primary" id="marketRefreshBtn">⟳ Refresh</button>
 		<button class="btn-secondary" id="marketOpenBtn">🛒 Go To Market</button>
         <button class="btn-secondary" id="copyMarketReportBtn">📋 Copy Report</button>
+        <button class="btn-secondary" id="captureMarketReportBtn">📸 Report</button>
       </div>
     </div>
     <div class="market-grid">
@@ -381,6 +382,7 @@
       <div class="btn-row">
         <button class="btn-primary" id="jobsRefreshBtn">⟳ Refresh</button>
         <button class="btn-secondary" id="copyJobsReportBtn">📋 Copy Report</button>
+        <button class="btn-secondary" id="captureJobsReportBtn">📸 Report</button>
       </div>
     </div>
     <div class="jobs-search-bar">
@@ -425,6 +427,7 @@
       <div class="btn-row">
         <button class="btn-primary" id="rankingsRefreshBtn">⟳ Refresh</button>
         <button class="btn-secondary" id="copyRankingsReportBtn">📋 Copy Report</button>
+        <button class="btn-secondary" id="captureRankingsReportBtn">📸 Report</button>
       </div>
     </div>
     <p id="rankingsStatus" class="status-msg" hidden></p>
@@ -690,6 +693,7 @@
       <div class="reader-head-actions">
 		<button id="openBattlePageBtn" class="btn-reader-action">⚔ Open Battle</button>
         <button id="copyBattleReportBtn" class="btn-reader-action">📋 Copy Report</button>
+        <button id="captureBattleReportBtn" class="btn-reader-action">📸 Capture</button>
         <button id="closeBattleReport" class="btn-reader-close">✕</button>
       </div>
     </div>
@@ -778,6 +782,7 @@
 </template>
 
 <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script type="module" src="js/main.js"></script>
 </body>
 </html>
