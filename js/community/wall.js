@@ -121,20 +121,18 @@ export async function postMessage(author, text) {
 
   try {
     const postedBy = await sha256(key);
-    const res = await fetch(buildUrl(), {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/post_message`, {
       method: "POST",
       headers: supabaseHeaders(),
       body: JSON.stringify({
-        author: author.trim().slice(0, 40),
-        text: text.trim().slice(0, 500),
-        created_at: Date.now(),
-        upvotes: 0,
-        upvoters: [],
-        posted_by: postedBy,
+        p_author: author.trim().slice(0, 40),
+        p_text: text.trim().slice(0, 500),
+        p_posted_by: postedBy,
       }),
     });
     if (!res.ok) return { error: "Failed to post" };
     const msg = await res.json();
+    if (msg.error) return { error: msg.error };
     cachedMessages.unshift(msg);
     totalMessages++;
     return { success: true, message: msg };
