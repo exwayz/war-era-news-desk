@@ -6,6 +6,18 @@ The format is inspired by Keep a Changelog and follows Semantic Versioning princ
 
 ---
 
+##[1.0.1] - 2026-06-25
+
+###Fixed
+
+*Battle total damage underreporting — `renderBattleDetail` was summing only top-10 fighter damages per side, giving ~106M for a battle with ~853M actual total. Changed to read `b.attacker?.damages` + `b.defender?.damages` (battle-level totals from `battle.getById`) first, falling back to rank sum only when those are unavailable.
+*Damage share percentage now based on correct per-side totals.
+
+###Technical
+
+*One-line fix in `js/battles/battleDetail.js:235-236` — `let atkDmg = b.attacker?.damages ?? ...` / `let defDmg = b.defender?.damages ?? ...`.
+
+
 ##[1.0.0] - 2026-06-23
 
 ###Added
