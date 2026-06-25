@@ -176,6 +176,7 @@ h1 {
 }
 
 .tab-btn {
+  flex: 1;
   height: var(--tab-h);
   padding: 0 18px;
   border: 1px solid transparent;
