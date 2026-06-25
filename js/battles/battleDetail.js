@@ -232,8 +232,8 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
   const ended = b.endedAt||"";
   const winner = b.winner||(b.wonBy==="attacker"?atk:b.wonBy==="defender"?def:null);
 
-  let atkDmg = rankUsers.filter(r => r._side === "attacker").reduce((s, r) => s + getValue(r), 0);
-  let defDmg = rankUsers.filter(r => r._side === "defender").reduce((s, r) => s + getValue(r), 0);
+  let atkDmg = b.attacker?.damages ?? rankUsers.filter(r => r._side === "attacker").reduce((s, r) => s + getValue(r), 0);
+  let defDmg = b.defender?.damages ?? rankUsers.filter(r => r._side === "defender").reduce((s, r) => s + getValue(r), 0);
   let totalDmg = atkDmg+defDmg||b.totalDamage||b.damage||0;
   let atkGp = gpUsers.filter(r => r._side === "attacker").reduce((s, r) => s + getPoints(r), 0);
   let defGp = gpUsers.filter(r => r._side === "defender").reduce((s, r) => s + getPoints(r), 0);
