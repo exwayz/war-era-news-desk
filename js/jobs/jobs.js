@@ -5,6 +5,7 @@ import { fmtMoney, fmtNum } from "../core/utils.js";
 
 import { toast } from "../ui/toast.js";
 import * as cap from "../core/captureReport.js";
+import { highlightUserData } from "../core/profileHighlighter.js";
 import { ensureLookups } from "../timeline/filters.js";
 import { nameCountry, nameRegion } from "../battles/companies.js";
 
@@ -143,6 +144,7 @@ export function renderJobs() {
 
     E.jobsList.append(card);
   }
+  highlightUserData();
 }
 
 export function copyJobsReport() {

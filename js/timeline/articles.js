@@ -4,6 +4,7 @@ import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
 import { fmtDate } from "../core/utils.js";
 import { resolveUsers } from "./filters.js";
 import { resolveContentLinks } from "../core/resolver.js";
+import { highlightUserData } from "../core/profileHighlighter.js";
 
 export function setArticleStatus(msg,type="info") { if(!E.articleStatusBox) return; E.articleStatusBox.hidden=false; E.articleStatusBox.textContent=msg; E.articleStatusBox.classList.toggle("error",type==="error"); }
 export function clearArticleStatus() { if(!E.articleStatusBox) return; E.articleStatusBox.hidden=true; E.articleStatusBox.textContent=""; E.articleStatusBox.classList.remove("error"); }
@@ -77,6 +78,7 @@ export function renderArticles() {
     E.articleFeedMeta.addEventListener("animationend",()=>E.articleFeedMeta.classList.remove("loaded"),{once:true});
   }
   E.loadMoreArticlesBtn.hidden=!S.articleCursor;
+  highlightUserData();
 }
 
 export async function copyArticles() {

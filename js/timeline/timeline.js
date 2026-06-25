@@ -8,6 +8,7 @@ import { loadArticles } from "./articles.js";
 import { evtData, evtTime, buildTitle, buildSummary, buildDetails, buildLink, fmtType } from "./events.js";
 import { toast, setStatus, clearStatus } from "../ui/toast.js";
 import { isTimelineOpen, updateTimelineBadge } from "../ui/tabs.js";
+import { highlightUserData } from "../core/profileHighlighter.js";
 
 export function scheduleEventsRefresh() {
   clearTimeout(S.filterTimer);
@@ -134,6 +135,7 @@ export function renderTimeline() {
   E.loadMoreBtn.hidden=!S.cursor;
   E.feedMeta.textContent=`${visible.length} shown — ${S.events.length} loaded.`;
   clearStatus();
+  highlightUserData();
 }
 
 function makeEventCard(event) {

@@ -3,6 +3,7 @@ import { E } from "../core/dom.js";
 import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
 import { fmtDate, fmtNum, escapeXml } from "../core/utils.js";
 import { toast } from "../ui/toast.js";
+import { highlightUserData } from "../core/profileHighlighter.js";
 
 
 export function stopBattlePolling() {
@@ -120,6 +121,7 @@ export function renderBattleList() {
   const frag=document.createDocumentFragment();
   for (const b of list) frag.append(makeBattleCard(b));
   E.battleList.append(frag);
+  highlightUserData();
 }
 
 import { nameCountry, nameRegion } from "./companies.js";

@@ -4,6 +4,7 @@ import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
 import { fmtMoney, fmtNum, formatShortNumber, marketItemName, commodityBars, miniChart } from "../core/utils.js";
 import { toast } from "../ui/toast.js";
 import * as cap from "../core/captureReport.js";
+import { highlightUserData } from "../core/profileHighlighter.js";
 
 export async function fetchTxLast24h(type, k, maxPages=8) {
   const cutoff=Date.now()-86400000;
@@ -201,6 +202,7 @@ export async function loadMarketFull(showLoading=true) {
 
   loadMarketStats();
   if (window.ecgPulse) window.ecgPulse(1.5);
+  highlightUserData();
 }
 
 export function renderMarketOrders(){

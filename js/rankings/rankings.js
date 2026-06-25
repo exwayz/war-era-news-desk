@@ -3,6 +3,7 @@ import { apiKey, fetchTrpc, fetchTrpcApi2, unwrap } from "../core/api.js";
 import { fmtNum } from "../core/utils.js";
 import { toast } from "../ui/toast.js";
 import * as cap from "../core/captureReport.js";
+import { highlightUserData } from "../core/profileHighlighter.js";
 
 const CATEGORIES = {
   weekly: {
@@ -225,6 +226,7 @@ function renderCategory(catKey) {
     renderCellList(entry, cell.querySelector(".rk-list"));
     grid.append(cell);
   });
+  highlightUserData();
 }
 
 let _loading = false;
