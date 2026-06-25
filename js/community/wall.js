@@ -83,7 +83,7 @@ export async function loadMessages(sort, page) {
     const messages = await dataRes.json();
     const total = parseInt(countRes.headers.get("content-range")?.split("/")[1] || "0", 10);
 
-    cachedMessages = page === 1 ? messages : cachedMessages.concat(messages);
+    cachedMessages = currentPage === 1 ? messages : cachedMessages.concat(messages);
     totalMessages = total;
     return { messages: cachedMessages, total: totalMessages, page: currentPage };
   } catch {
@@ -92,9 +92,10 @@ export async function loadMessages(sort, page) {
 }
 
 export async function loadMoreMessages() {
+  const prevLen = cachedMessages.length;
   const nextPage = currentPage + 1;
   const result = await loadMessages(currentSort, nextPage);
-  return { ...result, loaded: result.messages.length - (cachedMessages.length - (nextPage - 1) * PAGE_SIZE) };
+  return { ...result, loaded: cachedMessages.length - prevLen };
 }
 
 export function getCachedMessages() {
