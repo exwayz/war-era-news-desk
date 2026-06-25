@@ -1,0 +1,9 @@
+{
+  "name": "war-era-news-desk",
+  "version": "1.0.0",
+  "description": "War Era News Desk",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
