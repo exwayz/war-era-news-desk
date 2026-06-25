@@ -376,7 +376,7 @@ function bindAll() {
       const msg = getMessageById(id);
       if (!msg) return;
       E.wallReadAuthor.textContent = msg.author;
-      E.wallReadTime.textContent = new Date(msg.createdAt).toLocaleString();
+      E.wallReadTime.textContent = new Date(msg.created_at).toLocaleString();
       E.wallReadMessage.textContent = msg.text;
       E.wallReadUpvoteCount.textContent = msg.upvotes || 0;
       E.wallReadUpvote.dataset.wallId = id;
