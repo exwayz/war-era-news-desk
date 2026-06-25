@@ -22,12 +22,13 @@ export function battleId(b) { return b._id||b.id||b.battleId||""; }
 export async function fetchBattleDamage(battleId) {
   const k = apiKey(); if (!k) return 0;
   try {
-    const result = await fetchTrpc("battleRanking.getRanking", { battleId, dataType:"damage", type:"user", side:"merged" }, k);
+    const result = await fetchTrpc("battle.getById", { battleId }, k);
     const data = unwrap(result);
-    const items = Array.isArray(data) ? data : (data?.items||data?.users||[]);
-    if (!items.length) return 0;
-    const total = items.reduce((s, r) => s + Number(r?.value ?? r?.damage ?? r?.totalDamage ?? 0), 0);
-    S.battleDamageCache.set(battleId, total);
+    if (!data) return 0;
+    const atkDmg = Number(data.attacker?.damages ?? 0);
+    const defDmg = Number(data.defender?.damages ?? 0);
+    const total = atkDmg + defDmg;
+    if (total > 0) S.battleDamageCache.set(battleId, total);
     return total;
   } catch { return 0; }
 }
