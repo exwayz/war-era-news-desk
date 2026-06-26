@@ -26,6 +26,8 @@ Transform the Market tab into an Economic Intelligence Platform with a server-si
 - **Insert target safe guard** added to `renderExecutiveDashboard`.
 - **Spec compliance — Formula + Variables**: Every intelligence card now shows its formula (`F: ...`) and variables used (`V: ...`) in compact `.analytics-meta` lines.
 - **Spec compliance — Market Intelligence Score**: Relabeled "Health Score" → "Market Intelligence Score" on executive dashboard.
+- **Visual — Glasspane styling**: Analytics cards (`.analytics-card`, `.analytics-exec-card`, `.analytics-assess-card`) now match the four original panels — same `backdrop-filter: blur(14px)`, `rgba(18,24,32,0.72)` bg, box-shadow, hover effect, and the 1px repeating-linear-gradient stripe overlay.
+- **Visual — Ubuntu Sans**: `.analytics-meta` now uses `Ubuntu Sans` font to differentiate the intelligence metadata from the main Inter body text.
 
 ### Remaining / Next
 1. **Hard-refresh page** and verify analytics section is now visible below the four existing cards

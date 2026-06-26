@@ -118,10 +118,6 @@ function card(title, category, body, opts = {}) {
 
 export function renderExecutiveDashboard(a) {
   const { p, d, econClass, healthScore, warnings } = a;
-  if (!p) {
-    document.querySelector(".analytics-section")?.remove();
-    return;
-  }
 
   let section = document.querySelector(".analytics-section");
   if (!section) {
