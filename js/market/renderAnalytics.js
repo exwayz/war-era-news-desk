@@ -154,7 +154,7 @@ export function renderExecutiveDashboard(a) {
         <span class="exec-value" style="color:${econClass?.color || "var(--ink-dim)"}">${econClass?.label || "N/A"}</span>
       </div>
       <div class="exec-summary-row">
-        <span class="exec-label">Health Score</span>
+        <span class="exec-label">Market Intelligence Score</span>
         <span class="exec-value">${healthScore ? healthScore.score + "/100 · " + healthScore.level : "N/A"}</span>
       </div>
       <div class="exec-summary-row">
@@ -190,7 +190,9 @@ export function renderExecutiveDashboard(a) {
     pct: d?.wageMom,
     trend: trend(d?.wageMom),
     trendColor: d?.wageMom > 0 ? "var(--green)" : d?.wageMom < 0 ? "var(--red)" : "var(--ink-dim)",
-    extra: `<div class="analytics-meta">Payroll: ${fmtMoney(p.P)} BTC · Hits: ${fmtNum(p.H)} · Txns: ${fmtNum(p.Tw)}</div>
+    extra: `<div class="analytics-meta">F: Pw = P ÷ H</div>
+      <div class="analytics-meta">V: totalPayroll, totalQuantity</div>
+      <div class="analytics-meta">Payroll: ${fmtMoney(p.P)} BTC · Hits: ${fmtNum(p.H)} · Txns: ${fmtNum(p.Tw)}</div>
       ${p.wageMin != null ? `<div class="analytics-meta">Wage range: ${fmtMoney(p.wageMin, 3)} → ${fmtMoney(p.wageMax, 3)} BTC/hit</div>` : ""}
       ${p.topWage ? `<div class="analytics-meta">Top offer: ${fmtMoney(p.topWage, 3)} BTC/hit</div>` : ""}`,
     chart: miniHistory(S.market.wageHistory.map(w => w.avg), "var(--blue)"),
@@ -202,7 +204,9 @@ export function renderExecutiveDashboard(a) {
     pct: d?.tradeMom,
     trend: trend(d?.tradeMom),
     trendColor: d?.tradeMom > 0 ? "var(--green)" : d?.tradeMom < 0 ? "var(--red)" : "var(--ink-dim)",
-    extra: `<div class="analytics-meta">Transactions: ${fmtNum(p.Tt)} · Avg: ${fmtMoney(d?.tradeEfficiency || 0)} BTC/trade</div>`,
+    extra: `<div class="analytics-meta">F: Tv = Σ(trade.amount)</div>
+      <div class="analytics-meta">V: tradeVol, tradeCount</div>
+      <div class="analytics-meta">Transactions: ${fmtNum(p.Tt)} · Avg: ${fmtMoney(d?.tradeEfficiency || 0)} BTC/trade</div>`,
     chart: miniHistory(S.market.tradeVolHistory, "var(--green)"),
     interpretation: d?.tradeMom != null ? `Trade ${d.tradeMom > 2 ? "expanding" : d.tradeMom < -2 ? "contracting" : "stable"} ${fmtPct(d.tradeMom)}.` : "",
   }));
@@ -212,7 +216,9 @@ export function renderExecutiveDashboard(a) {
     pct: d?.priceMom,
     trend: trend(d?.priceMom),
     trendColor: d?.priceMom > 0 ? "var(--red)" : d?.priceMom < 0 ? "var(--green)" : "var(--ink-dim)",
-    extra: `<div class="analytics-meta">Basket: avg of top 10 commodity prices</div>
+    extra: `<div class="analytics-meta">F: Basket = Σ(Top10 Pi) ÷ 10</div>
+      <div class="analytics-meta">V: prices array, totalCommodityValue</div>
+      <div class="analytics-meta">Basket: avg of top 10 commodity prices</div>
       ${p.Vc > 0 ? `<div class="analytics-meta">Total commodity value: ${fmtMoney(p.Vc)} BTC</div>` : ""}`,
     chart: miniHistory(S.market.basketHistory, "var(--purple)"),
     interpretation: d?.priceMom != null ? `Basket ${d.priceMom > 2 ? "rising" : d.priceMom < -2 ? "falling" : "stable"} ${fmtPct(d.priceMom)}.` : "",
@@ -223,7 +229,9 @@ export function renderExecutiveDashboard(a) {
     pct: d?.ppMom,
     trend: trend(d?.ppMom),
     trendColor: d?.ppMom > 0 ? "var(--green)" : d?.ppMom < 0 ? "var(--red)" : "var(--ink-dim)",
-    extra: `<div class="analytics-meta">Avg wage ÷ basket price</div>`,
+    extra: `<div class="analytics-meta">F: PP = Pw ÷ Basket</div>
+      <div class="analytics-meta">V: avgWage, commodityBasket</div>
+      <div class="analytics-meta">Avg wage ÷ basket price</div>`,
     chart: miniHistory(S.market.ppHistory, "var(--accent)"),
     interpretation: d?.ppMom != null
       ? d.ppMom > 2 ? "Workers gaining purchasing power." : d.ppMom < -2 ? "Purchasing power declining." : "Purchasing power stable."
@@ -232,7 +240,9 @@ export function renderExecutiveDashboard(a) {
 
   cards.push(card("Market Concentration", "Derived Indicator", "", {
     value: d?.hhi != null ? d.hhi.toFixed(0) : "N/A",
-    extra: `<div class="analytics-meta">Herfindahl-Hirschman Index (0–10000)</div>
+    extra: `<div class="analytics-meta">F: HHI = Σ(share²) × 10000</div>
+      <div class="analytics-meta">V: commodity values, totalCommodityValue</div>
+      <div class="analytics-meta">Herfindahl-Hirschman Index (0–10000)</div>
       <div class="analytics-meta">${d?.hhi != null ? (d.hhi > 2500 ? "Highly concentrated" : d.hhi > 1500 ? "Moderately concentrated" : "Competitive market") : ""}</div>`,
     chart: miniHistory(S.market.hhiHistory, "var(--yellow)"),
     interpretation: d?.hhi != null ? `HHI ${d.hhi.toFixed(0)} ${d.hhiMom != null ? (d.hhiMom > 0 ? "increasing" : "decreasing") : ""}.` : "",
@@ -242,7 +252,9 @@ export function renderExecutiveDashboard(a) {
     value: d?.circulation != null ? (d.circulation * 100).toFixed(1) + "%" : "N/A",
     pct: d?.tradeMom,
     trend: trend(d?.tradeMom),
-    extra: `<div class="analytics-meta">Trade volume ÷ (payroll + trade volume)</div>
+    extra: `<div class="analytics-meta">F: Circ = Tv ÷ (P + Tv)</div>
+      <div class="analytics-meta">V: tradeVol, totalPayroll</div>
+      <div class="analytics-meta">Trade volume ÷ (payroll + trade volume)</div>
       <div class="analytics-meta">${d?.circulation != null ? (d.circulation > 0.5 ? "Trade-driven economy" : "Wage-driven economy") : ""}</div>`,
     chart: miniHistory(S.market.circulationHistory, "var(--orange)"),
     interpretation: d?.circulation != null
@@ -252,7 +264,9 @@ export function renderExecutiveDashboard(a) {
 
   cards.push(card("Trade Efficiency", "Derived Indicator", "", {
     value: d?.tradeEfficiency != null ? fmtMoney(d.tradeEfficiency) + " BTC/trade" : "N/A",
-    extra: `<div class="analytics-meta">Total trade volume ÷ transaction count</div>`,
+    extra: `<div class="analytics-meta">F: Eff = Tv ÷ Tt</div>
+      <div class="analytics-meta">V: tradeVol, tradeCount</div>
+      <div class="analytics-meta">Total trade volume ÷ transaction count</div>`,
     chart: miniHistory(S.market.tradeEfficiencyHistory, "var(--cyan, #06b6d4)"),
     interpretation: d?.tradeEfficiency != null
       ? `Avg ${fmtMoney(d.tradeEfficiency)} BTC per trade.`
@@ -261,10 +275,12 @@ export function renderExecutiveDashboard(a) {
 
   cards.push(card(`Labour Market`, "Derived Indicator", "", {
     value: p.Javg != null ? fmtMoney(p.Javg, 3) + " BTC/hit (avg offer)" : "Job offers N/A",
-    extra: p.Jmin != null
+    extra: `<div class="analytics-meta">F: Javg = Σ(job.wage) ÷ count</div>
+      <div class="analytics-meta">V: job wages, avgWage</div>
+      ${p.Jmin != null
       ? `<div class="analytics-meta">Offer range: ${fmtMoney(p.Jmin, 3)} → ${fmtMoney(p.Jmax, 3)} BTC/hit</div>
          ${p.Pw > 0 ? `<div class="analytics-meta">Market wage vs offers: ${fmtMoney(p.Pw - (p.Javg || 0), 3)} BTC/hit</div>` : ""}`
-      : `<div class="analytics-meta">Open job offers: ${fmtNum(S.jobs.length)}</div>`,
+      : `<div class="analytics-meta">Open job offers: ${fmtNum(S.jobs.length)}</div>`}`,
     interpretation: p.Javg != null
       ? (p.Pw > p.Javg ? "Market wages above offers — worker-friendly." : "Offers competitive with market rates.")
       : "",
