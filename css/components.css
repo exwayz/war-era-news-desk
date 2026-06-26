@@ -590,6 +590,10 @@
 }
 .analytics-assess-item strong { color: var(--accent); }
 
+/* ── MARKET VIEW TOGGLE ──────────────────────────── */
+#tab-market.view-analytics .market-grid { display: none; }
+#tab-market.view-overview .analytics-section { display: none; }
+
 /* ── JOB CARD ───────────────────────────────────────── */
 .job-card {
   padding: 14px;

@@ -16,7 +16,7 @@ import { toast, setStatus } from "./ui/toast.js";
 import { evtData, evtTime, buildTitle, buildSummary } from "./timeline/events.js";
 import { loadBattles, stopBattlePolling, updateBattleTabPills } from "./battles/battles.js";
 import { injectBattleSearchBar } from "./battles/companies.js";
-import { loadMarketFull, loadMarketStats, copyMarketReport, captureMarketReport, renderMarketOrders } from "./market/market.js";
+import { loadMarketFull, loadMarketStats, copyMarketReport, captureMarketReport, renderMarketOrders, initMarketView } from "./market/market.js";
 import { loadJobs, renderJobs, copyJobsReport, captureJobsReport } from "./jobs/jobs.js";
 import { initIntro } from "./intro/intro.js";
 import { initRankings, copyRankingsReport, captureRankingsReport, refreshRankings } from "./rankings/rankings.js";
@@ -447,6 +447,7 @@ function bindAll() {
   if (battleMini) { battleMini.addEventListener("click", () => { E.loadMoreBattlesBtn.click(); }); }
 
   initRankings();
+  initMarketView();
 
   E.jobWageFilter?.addEventListener("input", () => {
     S.jobWageFilter = Number(E.jobWageFilter.value || 0);

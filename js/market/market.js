@@ -174,7 +174,9 @@ export async function loadMarketFull(showLoading=true) {
         }
       }
       const a = calculateAnalytics();
-      renderExecutiveDashboard(a);
+      if (document.querySelector(".analytics-section")) {
+        renderExecutiveDashboard(a);
+      }
       updateHistories(a.p, a.d);
     }).catch(()=>{});
   } catch(e) { setMs(E.marketEconStatus,"Could not load economic data: "+(e.message||""),true); }
@@ -280,8 +282,44 @@ export async function loadMarketFull(showLoading=true) {
   loadMarketStats();
   if (window.ecgPulse) window.ecgPulse(1.5);
   highlightUserData();
-  const analytics = calculateAnalytics();
-  renderExecutiveDashboard(analytics);
+  loadMarketView(_marketView);
+}
+
+let _marketView = "overview";
+
+export function loadMarketView(view) {
+  _marketView = view;
+  const panel = document.getElementById("tab-market");
+  panel.classList.remove("view-overview", "view-analytics");
+  panel.classList.add("view-" + view);
+  if (view === "analytics") {
+    let section = document.querySelector(".analytics-section");
+    if (!section) {
+      section = document.createElement("div");
+      section.className = "analytics-section";
+      section.innerHTML = `<div class="market-card analytics-exec-card" style="grid-column:1/-1">
+        <div class="market-card-header"><span class="market-card-title">Executive Economic Dashboard</span></div>
+        <div class="analytics-exec-body"></div>
+      </div>
+      <div class="analytics-cards-grid"></div>`;
+      const insertTarget = document.querySelector(".market-grid");
+      if (insertTarget) insertTarget.after(section);
+    }
+    const analytics = calculateAnalytics();
+    renderExecutiveDashboard(analytics);
+  }
+}
+
+export function initMarketView() {
+  document.querySelectorAll("[data-market-view]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const view = btn.dataset.marketView;
+      document.querySelectorAll("[data-market-view]").forEach(b =>
+        b.classList.toggle("active", b === btn));
+      loadMarketView(view);
+    });
+  });
+  loadMarketView("overview");
 }
 
 function fmtTime(iso) {

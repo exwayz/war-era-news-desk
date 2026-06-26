@@ -120,17 +120,7 @@ export function renderExecutiveDashboard(a) {
   const { p, d, econClass, healthScore, warnings } = a;
 
   let section = document.querySelector(".analytics-section");
-  if (!section) {
-    section = document.createElement("div");
-    section.className = "analytics-section";
-    section.innerHTML = `<div class="market-card analytics-exec-card" style="grid-column:1/-1">
-      <div class="market-card-header"><span class="market-card-title">Executive Economic Dashboard</span></div>
-      <div class="analytics-exec-body"></div>
-    </div>
-    <div class="analytics-cards-grid"></div>`;
-    const insertTarget = document.querySelector(".market-grid");
-    if (insertTarget) insertTarget.after(section); else return;
-  }
+  if (!section) return;
 
   const srv = document.querySelector(".analytics-section");
   const execBody = srv.querySelector(".analytics-exec-body");

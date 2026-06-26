@@ -28,6 +28,7 @@ Transform the Market tab into an Economic Intelligence Platform with a server-si
 - **Spec compliance — Market Intelligence Score**: Relabeled "Health Score" → "Market Intelligence Score" on executive dashboard.
 - **Visual — Glasspane styling**: Analytics cards (`.analytics-card`, `.analytics-exec-card`, `.analytics-assess-card`) now match the four original panels — same `backdrop-filter: blur(14px)`, `rgba(18,24,32,0.72)` bg, box-shadow, hover effect, and the 1px repeating-linear-gradient stripe overlay.
 - **Visual — Ubuntu Sans**: `.analytics-meta` now uses `Ubuntu Sans` font to differentiate the intelligence metadata from the main Inter body text.
+- **Pill-toggle views**: Added `data-market-view` pill buttons ("Overview" / "Full Analytics") matching the rankings tab pattern. Analytics section is lazy-created on first switch to avoid displacing the four original cells. CSS classes `view-overview` / `view-analytics` toggle `display: none` on `.market-grid` / `.analytics-section`.
 
 ### Remaining / Next
 1. **Hard-refresh page** and verify analytics section is now visible below the four existing cards
@@ -44,7 +45,7 @@ Transform the Market tab into an Economic Intelligence Platform with a server-si
 - **Fallback chain**: `fetchFromServer` → gateway (if server 503/timed out). Analytics runs on gateway data; server-enhanced totals overwrite econ fields after response.
 - **Data mapping**: Server overwrites `S.market.econ.totalPayroll`, `.tradeVol`, `.wageCount`, `.tradeCount`, `.avgWage`, `.wageMin`, `.wageMax`, `.topOffer` after initial gateway load.
 - **`updateHistories`** only runs in the server callback (or timeout fallback), never inside `calculateAnalytics()`, ensuring history entries match displayed analytics values.
-- **Analytics section** is placed as sibling AFTER `.market-grid` (not child), with `overflow-y: auto` on `tab-panel.active`. Removed `content-visibility: auto` from `.tab-panel` base class (inactive tabs already use `display: none`).
+- **View switching**: Market tab uses `<button data-market-view>` pills to toggle between "Overview" (four original cells) and "Full Analytics" (intelligence cards). CSS classes `view-overview` / `view-analytics` on `#tab-market` toggle `display: none` via sibling selectors. Analytics section is lazy-created on first switch to "analytics" via `loadMarketView()`. `renderExecutiveDashboard()` no longer auto-creates the section — only updates it if it exists. Server callback guards its render call with `if (document.querySelector(".analytics-section"))`.
 
 ### Key Files
 | File | Purpose |
