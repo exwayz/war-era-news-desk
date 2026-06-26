@@ -5,48 +5,55 @@ Transform the Market tab into an Economic Intelligence Platform with a server-si
 
 ## Progress
 
-### Done
+### Done (Session 1 — Server + Analytics Engine)
 - **Server-side accumulator** on Belmo (`newsdesk-server-4942.onbelmo.uk`): Node.js Express server polls api2.warera.io directly via POST, cursor-loop pagination with 340ms pacing, in-memory cache. Exposes `GET /api/market-stats` and `GET /api/health`.
-- **Cursor-based early-stop (v3)**: `fetchTxPages` now filters items within the loop using a 24h cutoff and breaks when the window is passed (items are newest-first). No hard MAX_PAGES cap; `MAX_SAFETY_PAGES=5000` is a safety guard. This eliminated the 28+ min worst-case fetch while ensuring all 24h data is captured.
-- **Verified 24h data** (from server at 2026-06-26T11:41Z):
-  - Wages: 552,441 ₿ (153,301 txns, 1,533 pages)
-  - Trade: 2,419,002 ₿ (66,994 txns, 670 pages)
-  - Cycle time: ~10.4 min
-- **analytics.js**: Calculation engine — `ensureHistories`, `aggregateDatasets`, `calculatePrimary` (P, H, Tw, Tv, Tt, Pw, Basket, Vc, Javg/Jmin/Jmax), `calculateStats` (price mean/median/stddev/CV), `calculateDerived` (circulation, purchasing power, HHI, trade efficiency, momenta, MA5), `classifyEconomy` (5-status classifier), `calculateHealthScore` (0–100 composite), `generateWarnings` (8 warning types), `generateAssessment` (synthetic intelligence text), `updateHistories` (max 48 entries), `getPrevious`.
-- **renderAnalytics.js**: `multiChart` (4-series normalized SVG), `renderExecutiveDashboard` (executive dashboard card + 8 intelligence cards + warnings + assessment), `card` helper, `miniHistory` sparkline wrapper.
-- **market.js**: Integrates `calculateAnalytics()` + `renderExecutiveDashboard()` at end of `loadMarketFull`; extends `copyMarketReport` with dashboard/warnings/assessment.
-- **state.js**: Added 7 history arrays to `S.market`.
-- **api.js/constants.js**: `fetchFromServer`, `MARKET_SERVER_URL`.
-- **CSS**: Full suite of `analytics-*` classes in `components.css`, responsive grid in `responsive.css`.
-- **All code pushed** to both repos: `newsdesk` (frontend) and `newsdesk-server`.
-- **Bugfix (session 2)**: Moved `updateHistories` out of `calculateAnalytics()` to prevent momentum 0% bug when `copyMarketReport()` re-runs analytics. Added `insertTarget` safe guard in `renderExecutiveDashboard`. Added `.analytics-section` margin-top CSS.
-- **Edge case audit (session 2)**: Verified all code paths for null econ, empty histories, no jobs, server down, stale server data — all handled gracefully.
-- **Verified second server cycle**: 553,965 ₿ wages (153,732 txns), 2,424,532 ₿ trade (67,171 txns).
+- **Cursor-based early-stop (v3)**: `fetchTxPages` filters items within the loop using a 24h cutoff (newest-first), breaks when the window is passed. `MAX_SAFETY_PAGES=5000` as guard only.
+- **Verified 24h data**: Wages 552–553K BTC (153K txns), Trade ~2.42M BTC (67K txns), cycle ~10.4 min.
+- **analytics.js**: `ensureHistories`, `aggregateDatasets`, `calculatePrimary`, `calculateStats`, `calculateDerived`, `classifyEconomy`, `calculateHealthScore`, `generateWarnings`, `generateAssessment`, `updateHistories` (max 48), `getPrevious`.
+- **renderAnalytics.js**: `multiChart` (4-series normalized SVG), `renderExecutiveDashboard`, `card` helper, `miniHistory` wrapper.
+- **market.js**: Integrates analytics at end of `loadMarketFull`; `copyMarketReport` extended.
+- **state.js**: 7 history arrays. **api.js/constants.js**: `fetchFromServer`, `MARKET_SERVER_URL`.
+- **CSS**: Full `analytics-*` suite in `components.css`, responsive grid in `responsive.css`.
+- **Push to both repos**.
+
+### Done (Session 2 — Bugfixes + Spec Compliance)
+- **Bugfix — momentum 0%**: Moved `updateHistories` out of `calculateAnalytics()` so `copyMarketReport()` gets correct previous values. Caller controls history append.
+- **Bugfix — server data didn't reach analytics**: `fetchFromServer` callback (fire-and-forget) re-runs `calculateAnalytics()`, `renderExecutiveDashboard()`, `updateHistories()` with server-enhanced data so Economic Overview + analytics cards are consistent.
+- **Bugfix — analytics section invisible** (3 fixes):
+  1. Insert target changed from inside `.market-grid` (has `overflow: hidden; height: calc(100% - 56px)`) to after it
+  2. Added `overflow-y: auto` to `.tab-panel.active`
+  3. Removed `content-visibility: auto` from `.tab-panel` (was skipping off-screen children in active panel)
+- **Insert target safe guard** added to `renderExecutiveDashboard`.
+- **Spec compliance — Formula + Variables**: Every intelligence card now shows its formula (`F: ...`) and variables used (`V: ...`) in compact `.analytics-meta` lines.
+- **Spec compliance — Market Intelligence Score**: Relabeled "Health Score" → "Market Intelligence Score" on executive dashboard.
 
 ### Remaining / Next
-1. **Open the page in a browser** and verify analytics renders without console errors (requires manual testing)
-2. Test edge cases: server unreachable (gateway fallback), no jobs loaded, empty histories
-3. Tune assessment text quality and warning thresholds as gameplay demands
-4. If wage truncation returns, check server cycle logs for `safety limit reached` warnings
+1. **Hard-refresh page** and verify analytics section is now visible below the four existing cards
+2. Verify no console errors (manual test needed)
+3. Test edge cases: server unreachable (gateway fallback), no jobs loaded, empty histories
+4. Tune assessment text quality and warning thresholds as gameplay demands
 
 ### Architecture Notes
-- **Server URL**: `https://newsdesk-server-4942.onbelmo.uk` (Belmo free tier, auto-deploys from GitHub `master` pushes)
-- **Poll cycle**: `doPoll()` runs on server start and schedules next poll via `setTimeout` at end — no overlap. `POLL_INTERVAL_MS=300000` (5 min).
-- **API key**: Read from `API_KEY` env var (set in Belmo dashboard). Key required for `x-api-key` header on api2 requests.
-- **Analytics**: Runs synchronously on `S.market` data already in state — no fetches inside analytics.js. Refresh fires on the market update interval.
-- **History cap**: 48 entries per array (~4 hours at 5-min intervals).
-- **Fallback chain**: `fetchFromServer` → gateway (if server 503/timed out). Analytics still runs on gateway data; only the server-enhanced totals differ.
-- **Data mapping**: Server response overwrites `S.market.econ.totalPayroll`, `.tradeVol`, `.wageCount`, `.tradeCount`, `.avgWage`, `.wageMin`, `.wageMax`, `.topOffer` after initial gateway load.
+- **Server URL**: `https://newsdesk-server-4942.onbelmo.uk` (Belmo free tier, auto-deploys from GitHub `master` pushes; latest commit `6437057`)
+- **Poll cycle**: `doPoll()` runs on server start, schedules next via `setTimeout` — no overlap. `POLL_INTERVAL_MS=300000` (5 min).
+- **API key**: `API_KEY` env var (Belmo dashboard). Required for `x-api-key` header to api2.
+- **Analytics**: Runs sync on `S.market` data in state — no fetches inside analytics.js. Refresh fires on market update interval.
+- **History cap**: 48 entries (~4 hours at 5-min intervals).
+- **Fallback chain**: `fetchFromServer` → gateway (if server 503/timed out). Analytics runs on gateway data; server-enhanced totals overwrite econ fields after response.
+- **Data mapping**: Server overwrites `S.market.econ.totalPayroll`, `.tradeVol`, `.wageCount`, `.tradeCount`, `.avgWage`, `.wageMin`, `.wageMax`, `.topOffer` after initial gateway load.
+- **`updateHistories`** only runs in the server callback (or timeout fallback), never inside `calculateAnalytics()`, ensuring history entries match displayed analytics values.
+- **Analytics section** is placed as sibling AFTER `.market-grid` (not child), with `overflow-y: auto` on `tab-panel.active`. Removed `content-visibility: auto` from `.tab-panel` base class (inactive tabs already use `display: none`).
 
 ### Key Files
 | File | Purpose |
 |------|---------|
 | `newsdesk-server/server.js` | Express + accumulator + cursor pagination with 24h early-stop |
 | `newsdesk/js/market/analytics.js` | All analysis/calculation functions |
-| `newsdesk/js/market/renderAnalytics.js` | Dashboard, cards, warnings, assessment rendering |
-| `newsdesk/js/market/market.js` | Entry point — fetches data, runs analytics, extended report |
+| `newsdesk/js/market/renderAnalytics.js` | Dashboard, cards (with F/V metadata), warnings, assessment |
+| `newsdesk/js/market/market.js` | Entry point — fetches data, runs analytics async pipeline, extended report |
 | `newsdesk/js/core/state.js` | State shape (7 history arrays) |
 | `newsdesk/js/core/api.js` | `fetchFromServer` with Belmo URL |
 | `newsdesk/js/core/constants.js` | `MARKET_SERVER_URL` |
 | `newsdesk/css/components.css` | Analytics card/dashboard styles |
-| `newsdesk/css/responsive.css` | Grid collapse for analytics cards |
+| `newsdesk/css/responsive.css` | Responsive grid collapse for analytics |
+| `newsdesk/css/base.css` | `.tab-panel.active` overflow-y fix, `content-visibility` removal |
