@@ -1,6 +1,5 @@
 import { S } from "../core/state.js";
-import { E } from "../core/dom.js";
-import { fmtMoney, fmtNum } from "../core/utils.js";
+import { fmtMoney, fmtNum, fmtPct } from "../core/utils.js";
 import { miniChart } from "../core/utils.js";
 
 const TREND_UP = "▲";
@@ -10,11 +9,6 @@ const TREND_FLAT = "■";
 function trend(val) {
   if (val == null) return TREND_FLAT;
   return val > 2 ? TREND_UP : val < -2 ? TREND_DOWN : TREND_FLAT;
-}
-
-function fmtPct(v) {
-  if (v == null) return "N/A";
-  return (v > 0 ? "+" : "") + v.toFixed(1) + "%";
 }
 
 function badge(cat) {
@@ -119,12 +113,11 @@ function card(title, category, body, opts = {}) {
 export function renderExecutiveDashboard(a) {
   const { p, d, econClass, healthScore, warnings } = a;
 
-  let section = document.querySelector(".analytics-section");
+  const section = document.querySelector(".analytics-section");
   if (!section) return;
 
-  const srv = document.querySelector(".analytics-section");
-  const execBody = srv.querySelector(".analytics-exec-body");
-  const cardsGrid = srv.querySelector(".analytics-cards-grid");
+  const execBody = section.querySelector(".analytics-exec-body");
+  const cardsGrid = section.querySelector(".analytics-cards-grid");
 
   const series = [
     { label: "Average Wage", values: S.market.wageHistory.map(w => w.avg), color: "var(--blue, #3b82f6)" },

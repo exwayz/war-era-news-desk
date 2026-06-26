@@ -1,7 +1,7 @@
 import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
 import { apiKey, fetchTrpc, fetchTrpcApi2, fetchFromServer, unwrap } from "../core/api.js";
-import { fmtMoney, fmtNum, formatShortNumber, marketItemName, commodityBars, miniChart } from "../core/utils.js";
+import { fmtMoney, fmtNum, fmtPct, formatShortNumber, marketItemName, commodityBars, miniChart } from "../core/utils.js";
 import { toast } from "../ui/toast.js";
 import * as cap from "../core/captureReport.js";
 import { highlightUserData } from "../core/profileHighlighter.js";
@@ -77,6 +77,8 @@ export function loadMarketStats() {
 
 export async function loadMarketFull(showLoading=true) {
   const k=apiKey(); if(!k) return;
+  if (S.market._loading) return;
+  S.market._loading = true;
   function setMs(el,msg,err=false) { el.hidden=false; el.textContent=msg; el.classList.toggle("error",err); }
   function clrMs(el) { el.hidden=true; el.textContent=""; el.classList.remove("error"); }
   if(showLoading){
@@ -100,7 +102,6 @@ export async function loadMarketFull(showLoading=true) {
     const totalPayroll = wages.reduce((s,t)=>s+Number(t.money??t.amount??t.value??0),0);
     const totalQuantity = wages.reduce((s,t)=>s+Number(t.quantity??t.workerCount??0),0);
     const avgWage = globalAvgWage ?? (totalQuantity > 0 ? totalPayroll / totalQuantity : 0);
-    const avgPayroll = wages.length > 0 ? totalPayroll / wages.length : 0;
     let wageMin = ws?.allowedRange?.min ?? null;
     let wageMax = ws?.allowedRange?.max ?? null;
     let topOffer = ws?.topOffer ?? null;
@@ -116,7 +117,7 @@ export async function loadMarketFull(showLoading=true) {
       topOffer = wageMax;
     }
     const tradeVol=trades.reduce((s,t)=>s+txAmt(t),0);
-    S.market.econ = { avgWage, avgPayroll, totalPayroll, totalQuantity, tradeVol, wageCount:wages.length, tradeCount:trades.length, wageMin, wageMax, topOffer };
+    S.market.econ = { avgWage, totalPayroll, totalQuantity, tradeVol, wageCount:wages.length, tradeCount:trades.length, wageMin, wageMax, topOffer };
 
     const wageByH={};
     for (const t of wages) {
@@ -282,10 +283,14 @@ export async function loadMarketFull(showLoading=true) {
   S.market.prevCommodityScores = {};
   for(const item of topValuable){ S.market.prevCommodityScores[item.item] = item.value; }
 
-  loadMarketStats();
+  if (S.market.topValuable?.length) {
+    const top = S.market.topValuable[0];
+    E.statTopItem.textContent = `${top.item}:  ${formatShortNumber(top.value)}`;
+  }
   if (window.ecgPulse) window.ecgPulse(1.5);
   highlightUserData();
   loadMarketView(_marketView);
+  S.market._loading = false;
 }
 
 let _marketView = "overview";
@@ -360,15 +365,7 @@ export function copyMarketReport() {
   r+=`\n## Top Trading Orders\n`;
   for(const o of orders.slice(0,100)) r+=`- ${(o.orderType||o.type||"ORDER")} ${o._itemCode||o.itemCode||"?"} ×${fmtNum(o._qty||o.quantity||0)} @ ${fmtMoney(o._price||0)} BTC/u\n`;
   r += `\n\n## Most Valuable Commodities\n`;
-  const commodityScores = {};
-  for(const o of orders){
-    const item = o._itemCode || o.itemCode || o.item || "?";
-    const qty = Number(o._qty || o.quantity || o.amount || 0);
-    const price = Number(o._price || o.price || 0);
-    if(!commodityScores[item]){ commodityScores[item] = { item, value:0 }; }
-    commodityScores[item].value += qty * price;
-  }
-  const valuable = Object.values(commodityScores).sort((a,b)=>b.value-a.value).slice(0,20);
+  const valuable = S.market.topValuable || [];
   const prevScores = S.market.prevCommodityScores || {};
   for(const item of valuable){
     const oldValue = prevScores[item.item];
@@ -402,11 +399,6 @@ export function copyMarketReport() {
     for (const p of a.assessment.paragraphs) r += `**${p.topic}:** ${p.text}\n`;
   }
   navigator.clipboard.writeText(r).then(()=>toast("Market report copied."));
-}
-
-function fmtPct(v) {
-  if (v == null) return "N/A";
-  return (v > 0 ? "+" : "") + v.toFixed(1) + "%";
 }
 
 export function captureMarketReport() {
