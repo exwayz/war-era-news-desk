@@ -76,9 +76,16 @@ export async function resolveProfile(input, apiKey) {
       return { error: "User not found. Check the ID or URL and try again." };
     }
 
+    let richData = {};
+    try {
+      const richRaw = await fetchTrpc("user.getUserById", { userId }, apiKey);
+      const rich = unwrap(richRaw);
+      if (rich) richData = rich;
+    } catch {}
+
     const username = user.username || user.name || "Unknown";
     const avatarUrl = user.avatarUrl || user.avatar || "";
-    const level = getField(user, "level", "userLevel", "lvl");
+    const level = richData.leveling?.level ?? getField(user, "level", "userLevel", "lvl");
 
     const muId = toId(getField(user, "mu", "muId", "militaryUnit", "militaryunit"));
     const countryInput = getField(user, "country", "countryId", "citizenship", "countryCode");
@@ -113,6 +120,8 @@ export async function resolveProfile(input, apiKey) {
       partyName = user.party.name || user.party.partyName || null;
     }
 
+    const subscribers = richData.rankings?.userSubscribers?.value ?? null;
+
     const profile = saveProfile({
       userId,
       username,
@@ -125,6 +134,7 @@ export async function resolveProfile(input, apiKey) {
       countryName,
       partyId,
       partyName,
+      subscribers,
     });
 
     return { success: true, profile };

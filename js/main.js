@@ -118,6 +118,7 @@ function bindAll() {
       if (profile.countryName) detailsHtml += `<span class="profile-detail"><span class="profile-label">Country</span>${escHtml(profile.countryName)}</span>`;
       if (profile.muName) detailsHtml += `<span class="profile-detail"><span class="profile-label">MU</span>${escHtml(profile.muName)}</span>`;
       if (profile.partyName) detailsHtml += `<span class="profile-detail"><span class="profile-label">Party</span>${escHtml(profile.partyName)}</span>`;
+      if (profile.subscribers != null) detailsHtml += `<span class="profile-detail"><span class="profile-label">▤</span>${escHtml(String(profile.subscribers))}</span>`;
       E.profileDisplay.innerHTML = `
         <div class="profile-avatar-wrap">${avatarHtml}</div>
         ${nameHtml}
