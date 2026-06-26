@@ -518,7 +518,13 @@ initOsc();
 initEcg();
 
 // Consolidated market refresh: stats + full refresh every 10s
-setInterval(()=>{ loadMarketStats(); loadMarketFull(false); }, 10000);
+let _marketRefreshing = false;
+setInterval(() => {
+  if (_marketRefreshing) return;
+  _marketRefreshing = true;
+  loadMarketStats();
+  loadMarketFull(false).finally(() => { _marketRefreshing = false; });
+}, 10000);
 
 // Initialize wage slider
 if (wageSlider && wageValue) {
