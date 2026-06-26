@@ -18,11 +18,6 @@ export function fmtNum(v) {
   return n.toFixed(0);
 }
 
-export function fmtPct(v) {
-  if (v == null) return "N/A";
-  return (v > 0 ? "+" : "") + v.toFixed(1) + "%";
-}
-
 export function fmtDate(v) {
   if(!v) return "—"; const d=new Date(v); if(isNaN(d.getTime())) return String(v);
   return new Intl.DateTimeFormat(undefined,{year:"numeric",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(d);

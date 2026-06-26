@@ -1,5 +1,4 @@
 import { S } from "../core/state.js";
-import { fmtPct } from "../core/utils.js";
 
 const MAX_HISTORY = 48;
 
@@ -14,8 +13,13 @@ export function aggregateDatasets() {
   return {
     econ: ec,
     prices: S.market.prices || [],
+    orders: S.market.orders || [],
     topValuable: S.market.topValuable || [],
+    wageHistory: S.market.wageHistory || [],
+    priceHistory: S.market.priceHistory || [],
     jobs: S.jobs || [],
+    commodityOrders: S.market.commodityOrders || [],
+    prevScores: S.market.prevCommodityScores || {},
   };
 }
 
@@ -124,7 +128,7 @@ export function calculateHealthScore(d) {
   return { score: Math.round(total), level };
 }
 
-export function generateWarnings(d, p) {
+export function generateWarnings(d) {
   const w = [];
   if (!d) return w;
   if (d.priceMom != null && d.priceMom > 5) w.push({ level: "WARNING", indicator: "Inflation Pressure", reason: "Price momentum exceeds +5%", icon: "▲" });
@@ -137,7 +141,7 @@ export function generateWarnings(d, p) {
   if (d.ppMom != null && d.ppMom < -5) w.push({ level: "CAUTION", indicator: "Weak Purchasing Power", reason: "Purchasing power declining", icon: "↓" });
   if (d.circulation != null && d.circulation < 0.3) w.push({ level: "CAUTION", indicator: "Low Economic Circulation", reason: "Trade-to-wage ratio below 30%", icon: "↻" });
   const military = ["heavyAmmo","lightAmmo","ammo","steel","case1","case2"];
-  const topMil = (p?.topValuable || []).slice(0, 5).filter(i => military.includes(i.item || i.itemCode || "")).length;
+  const topMil = (S.market.topValuable || []).slice(0, 5).filter(i => military.includes(i.item || i.itemCode || "")).length;
   if (topMil >= 3) w.push({ level: "INFO", indicator: "Military Production Focus", reason: `${topMil}/5 top commodities are military`, icon: "⚔" });
   return w;
 }
@@ -147,6 +151,7 @@ export function generateAssessment(p, d, warnings) {
   const ec = d;
   const lines = [];
   const mom = (v, up, down) => v == null ? "stable" : v > 2 ? up : v < -2 ? down : "stable";
+  const fmtPct = (v) => v == null ? "N/A" : (v > 0 ? "+" : "") + v.toFixed(1) + "%";
 
   if (ec.wageMom != null) {
     if (ec.wageMom > 3) lines.push({ topic: "Labour Market", text: `Wages rising ${fmtPct(ec.wageMom)} — labour demand is high. Workers benefit from competitive hiring.` });
@@ -220,7 +225,7 @@ export function calculateAnalytics() {
   const d = calculateDerived(p, stats, { prev });
   const econClass = classifyEconomy(d);
   const healthScore = calculateHealthScore(d);
-  const warnings = generateWarnings(d, p);
+  const warnings = generateWarnings(d);
   const assessment = generateAssessment(p, d, warnings);
   return { datasets, p, stats, d, econClass, healthScore, warnings, assessment };
 }
