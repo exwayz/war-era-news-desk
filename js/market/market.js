@@ -282,6 +282,9 @@ export async function loadMarketFull(showLoading=true) {
   S.market.prevCommodityScores = {};
   for(const item of topValuable){ S.market.prevCommodityScores[item.item] = item.value; }
 
+  const _init = calculateAnalytics();
+  updateHistories(_init.p, _init.d);
+
   loadMarketStats();
   if (window.ecgPulse) window.ecgPulse(1.5);
   highlightUserData();
