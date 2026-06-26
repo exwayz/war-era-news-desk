@@ -1,6 +1,6 @@
 import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
-import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
+import { apiKey, fetchTrpc, fetchTrpcApi2, unwrap } from "../core/api.js";
 import { fmtMoney, fmtNum, formatShortNumber, marketItemName, commodityBars, miniChart } from "../core/utils.js";
 import { toast } from "../ui/toast.js";
 import * as cap from "../core/captureReport.js";
@@ -33,15 +33,13 @@ export function txAmt(t) { const v=Number(t.amount??t.value??t.money??t.total??t
 export function loadMarketStats() {
   const k=apiKey(); if(!k) return;
   try {
-    fetchTxLast24h("wage",k).then(wages => {
-      if (!wages.length) return;
-      const totalPayroll = wages.reduce((s,t)=>s+Number(t.money??t.amount??t.value??0),0);
-      const totalQuantity = wages.reduce((s,t)=>s+Number(t.quantity??t.workerCount??0),0);
-      const avgWage = totalQuantity > 0 ? totalPayroll / totalQuantity : 0;
-      const avgPayroll = wages.length > 0 ? totalPayroll / wages.length : 0;
-      E.statAvgWage.textContent = fmtMoney(avgWage, 3) + " ₿";
-      E.statTotalWage.textContent = fmtMoney(avgPayroll) + " ₿";
-    });
+    fetchTrpcApi2("workOffer.getWageStats", {}, k).then(raw => {
+      const d = unwrap(raw);
+      if (d?.allowedRange?.average != null) {
+        E.statAvgWage.textContent = fmtMoney(d.allowedRange.average, 3) + " ₿";
+        E.statTotalWage.textContent = fmtMoney(d.topOffer || 0) + " ₿";
+      }
+    }).catch(() => {});
     fetchTxLast24h("trading",k).then(trades => {
       if (trades.length) E.statTradeVol.textContent=fmtMoney(trades.reduce((s,t)=>s+txAmt(t),0))+" ₿";
     });
@@ -62,18 +60,21 @@ export async function loadMarketFull(showLoading=true) {
     setMs(E.marketOrdersStatus,"Loading trading orders…");
   }
 
-  const [wagesR,tradesR,pricesR] = await Promise.allSettled([
+  const [wagesR,tradesR,pricesR,wageStatsR] = await Promise.allSettled([
     fetchTxLast24h("wage",k),
     fetchTxLast24h("trading",k),
     fetchTrpc("itemTrading.getPrices",{},k),
+    fetchTrpcApi2("workOffer.getWageStats",{},k).catch(()=>{}),
   ]);
 
   try {
     const wages=wagesR.status==="fulfilled"?wagesR.value:[];
     const trades=tradesR.status==="fulfilled"?tradesR.value:[];
+    const ws = wageStatsR.status==="fulfilled" ? unwrap(wageStatsR.value) : null;
+    const globalAvgWage = ws?.allowedRange?.average ?? null;
     const totalPayroll = wages.reduce((s,t)=>s+Number(t.money??t.amount??t.value??0),0);
     const totalQuantity = wages.reduce((s,t)=>s+Number(t.quantity??t.workerCount??0),0);
-    const avgWage = totalQuantity > 0 ? totalPayroll / totalQuantity : 0;
+    const avgWage = globalAvgWage ?? (totalQuantity > 0 ? totalPayroll / totalQuantity : 0);
     const avgPayroll = wages.length > 0 ? totalPayroll / wages.length : 0;
     const tradeVol=trades.reduce((s,t)=>s+txAmt(t),0);
     S.market.econ = { avgWage, avgPayroll, totalPayroll, totalQuantity, tradeVol, wageCount:wages.length, tradeCount:trades.length };
