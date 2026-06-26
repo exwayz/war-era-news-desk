@@ -24,17 +24,26 @@ Transform the Market tab into an Economic Intelligence Platform with a server-si
   2. Added `overflow-y: auto` to `.tab-panel.active`
   3. Removed `content-visibility: auto` from `.tab-panel` (was skipping off-screen children in active panel)
 - **Insert target safe guard** added to `renderExecutiveDashboard`.
+- **Bugfix — analytics.js crash line 67**: `calculatePrimary` didn't return `topValuable`, so `calculateDerived` called `.reduce()` on `undefined`. Added `topValuable: d.topValuable` to the return. This was the root cause of all analytics data showing N/A.
+- **Bugfix — favicon 404**: `captureReport.js` used absolute path `/assets/icons/favicon-32x32.png` (root-relative) instead of relative path, causing 404 when served from a subdirectory.
 - **Spec compliance — Formula + Variables**: Every intelligence card now shows its formula (`F: ...`) and variables used (`V: ...`) in compact `.analytics-meta` lines.
 - **Spec compliance — Market Intelligence Score**: Relabeled "Health Score" → "Market Intelligence Score" on executive dashboard.
 - **Visual — Glasspane styling**: Analytics cards (`.analytics-card`, `.analytics-exec-card`, `.analytics-assess-card`) now match the four original panels — same `backdrop-filter: blur(14px)`, `rgba(18,24,32,0.72)` bg, box-shadow, hover effect, and the 1px repeating-linear-gradient stripe overlay.
 - **Visual — Ubuntu Sans**: `.analytics-meta` now uses `Ubuntu Sans` font to differentiate the intelligence metadata from the main Inter body text.
 - **Pill-toggle views**: Added `data-market-view` pill buttons ("Overview" / "Full Analytics") matching the rankings tab pattern. Analytics section is lazy-created on first switch to avoid displacing the four original cells. CSS classes `view-overview` / `view-analytics` toggle `display: none` on `.market-grid` / `.analytics-section`.
 
+### Done (Session 3 — Null data root cause + edge-case hardening)
+- **Root cause fix — all analytics data showing N/A**: `calculatePrimary` (line 47) didn't return `topValuable`, causing `calculateDerived` (line 67) to call `.reduce()` on `undefined`. This crashed the entire analytics pipeline — momentum, health score, warnings, assessment — cascading all outputs to null/N/A. Fixed by adding `topValuable: d.topValuable` to the return.
+- **favicon 404**: `captureReport.js:5` used root-absolute path `/assets/...` instead of relative `assets/...`; fixed.
+- **Edge-case audit**: Confirmed all paths are guarded — `aggregateDatasets` provides `|| []` defaults for every data source; `calculatePrimary` returns null for missing econ; `calculateDerived` returns null for null p/stats; `generateAssessment` has null check; `miniHistory`/`multiChart` handle <2 entry arrays; server callback has `.catch(()=>{})` swallow for unreachable server — initial gateway render is never blocked.
+- **Assessment/warning thresholds**: Reviewed current thresholds (price mom >5%, HHI >2500, circulation <30%, etc.) — all match standard economic ranges. No changes needed.
+- **Pushed** `2cfa54c`.
+
 ### Remaining / Next
-1. **Hard-refresh page** and verify analytics section is now visible below the four existing cards
+1. **Hard-refresh page** and verify analytics section now shows real values instead of N/A (manual test)
 2. Verify no console errors (manual test needed)
-3. Test edge cases: server unreachable (gateway fallback), no jobs loaded, empty histories
-4. Tune assessment text quality and warning thresholds as gameplay demands
+3. Server-side: consider adding fetch timeout to prevent hung requests on Belmo free tier
+4. Consider adding cache-busting header to `fetchFromServer` for always-fresh accumulator data
 
 ### Architecture Notes
 - **Server URL**: `https://newsdesk-server-4942.onbelmo.uk` (Belmo free tier, auto-deploys from GitHub `master` pushes; latest commit `6437057`)

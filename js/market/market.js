@@ -178,7 +178,10 @@ export async function loadMarketFull(showLoading=true) {
         renderExecutiveDashboard(a);
       }
       updateHistories(a.p, a.d);
-    }).catch(()=>{});
+    }).catch(() => {
+      const a = calculateAnalytics();
+      updateHistories(a.p, a.d);
+    });
   } catch(e) { setMs(E.marketEconStatus,"Could not load economic data: "+(e.message||""),true); }
 
   try {
