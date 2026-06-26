@@ -142,8 +142,9 @@ export async function loadMarketFull(showLoading=true) {
           for (const o of arr2) {
             const price = Number(o.price??o.pricePerUnit??o.unitPrice??o.value??o.amount??0);
             const qty = Number(o.quantity??o.amount??o.count??1);
-            commodityOrders.push({ ...o, _itemCode:topItems[i], _price:price, _qty:qty });
+            commodityOrders.push({ ...o, _itemCode:topItems[i], _price:price, _qty:qty, _time: o.offerAt || o.createdAt || "" });
           }
+          commodityOrders.sort((a, b) => (b._time || "").localeCompare(a._time || ""));
         }
       }
     }
@@ -156,10 +157,11 @@ export async function loadMarketFull(showLoading=true) {
         _itemCode: t.itemCode || t.item || "?",
         _price: Number(t.money??t.unitPrice??t.price??t.amount??0),
         _qty: Number(t.quantity??t.amount??1),
+        _time: t.createdAt || t.date || "",
         orderType: t.type || "TRADE",
         side:"—"
       }));
-      equipmentOrders.sort((a,b)=>Number(b._price||0)-Number(a._price||0));
+      equipmentOrders.sort((a, b) => (b._time || "").localeCompare(a._time || ""));
     } catch(err){ console.error("equipment orders failed", err); }
 
     S.market.commodityOrders = commodityOrders;
@@ -205,6 +207,13 @@ export async function loadMarketFull(showLoading=true) {
   highlightUserData();
 }
 
+function fmtTime(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d)) return "";
+  return String(d.getMonth()+1).padStart(2,"0")+"/"+String(d.getDate()).padStart(2,"0")+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+}
+
 export function renderMarketOrders(){
   const data = S.market.orderView === "equipment" ? S.market.equipmentOrders : S.market.commodityOrders;
   E.marketOrdersData.innerHTML = data.slice(0,100).map(o=>{
@@ -212,9 +221,10 @@ export function renderMarketOrders(){
     const qty = o._qty || o.quantity || o.amount || 0;
     const price = o._price;
     const type = (o.orderType || o.type || o.side || "ORDER").toUpperCase();
+    const code = o._itemCode || o.itemCode || "";
     return `<div class="price-row">
       <span class="price-name">${item} <small style="color:var(--ink-dim)">${type} ×${fmtNum(qty)}</small></span>
-      <span class="price-val">${price>0 ? fmtMoney(price)+" ₿/u" : "—"}</span>
+      <span class="price-val"><small style="color:var(--ink-dim);font-size:.65rem">${fmtTime(o._time)}</small> ${price>0 ? fmtMoney(price)+" ₿/u" : "—"} <small style="color:var(--ink-dim3);font-size:.6rem">${code}</small></span>
     </div>`;
   }).join("") || "<p style='color:var(--ink-dim)'>No orders available.</p>";
 }

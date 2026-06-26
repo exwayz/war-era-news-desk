@@ -15,14 +15,16 @@ export function ts() {
     String(d.getSeconds()).padStart(2,"0");
 }
 
+const TEXTURE = "repeating-linear-gradient(90deg,rgba(255,255,255,.015) 0px,rgba(255,255,255,.015) 1px,transparent 1px,transparent 3px)";
+
 export const STYLE = {
-  container: "font-family:'Ubuntu Sans',sans-serif;padding:24px 20px;background:#fff;color:#222;width:760px",
+  container: `font-family:'Ubuntu Sans',sans-serif;padding:24px 20px;width:760px;background:${TEXTURE},#1a1a2e;color:#ddd`,
   h1: "color:#b22222;font-size:20px;margin:0 0 2px",
   h2: "color:#b22222;font-size:16px;margin:0 0 6px",
-  subtitle: "font-size:14px;color:#444;margin-bottom:4px;font-weight:600",
-  meta: "font-size:11px;color:#666;margin-bottom:14px;line-height:1.5",
+  subtitle: "font-size:14px;color:#aaa;margin-bottom:4px;font-weight:600",
+  meta: "font-size:11px;color:#888;margin-bottom:14px;line-height:1.5",
   th: "background:#b22222;color:#fff;padding:5px 8px;text-align:left;font-weight:700;font-size:11px;border:1px solid #8b1a1a",
-  td: "padding:4px 8px;border:1px solid #ddd;font-size:11px",
+  td: "padding:4px 8px;border:1px solid #333;font-size:11px;color:#ccc",
   tbl: "border-collapse:collapse;width:100%;font-family:'Ubuntu Sans',sans-serif",
 };
 
@@ -76,7 +78,7 @@ export async function captureHTML(html, filename) {
     return;
   }
   const wrapper = document.createElement("div");
-  wrapper.style.cssText = "position:fixed;left:-9999px;top:0;width:800px;background:#fff;font-family:'Ubuntu Sans',sans-serif";
+  wrapper.style.cssText = "position:fixed;left:-9999px;top:0;width:800px;background:#1a1a2e;font-family:'Ubuntu Sans',sans-serif";
   wrapper.innerHTML = html;
   document.body.appendChild(wrapper);
 
@@ -111,7 +113,7 @@ export async function captureHTML(html, filename) {
       height: h,
       scale: 2,
       useCORS: true,
-      backgroundColor: "#ffffff",
+      backgroundColor: "#1a1a2e",
       y: 0,
       x: 0,
     }).then(canvas => {
