@@ -146,31 +146,36 @@ export async function loadMarketFull(showLoading=true) {
     }
     clrMs(E.marketEconStatus);
     fetchFromServer("/api/market-stats").then(srv => {
-      if (!srv || srv.status !== "ok") return;
       const ec = S.market.econ;
-      if (!ec) return;
-      ec.totalPayroll = srv.wageTotal24h;
-      ec.tradeVol = srv.tradeVolume24h;
-      ec.wageCount = srv.wageCount;
-      ec.tradeCount = srv.tradeCount;
-      if (srv.wageRates?.avg != null) ec.avgWage = srv.wageRates.avg;
-      if (srv.wageRates?.min != null) ec.wageMin = srv.wageRates.min;
-      if (srv.wageRates?.max != null) ec.wageMax = srv.wageRates.max;
-      if (srv.wageRates?.topOffer != null) ec.topOffer = srv.wageRates.topOffer;
-      E.marketEconData.innerHTML = [
-        { label:"Avg Wage (24h)", value:fmtMoney(ec.avgWage, 3)+" ₿" },
-        ...(ec.wageMin!=null ? [{ label:"Wage Range", value:fmtMoney(ec.wageMin,3)+" → "+fmtMoney(ec.wageMax,3)+" ₿" }] : []),
-        ...(ec.topOffer!=null ? [{ label:"Top Wage Offer", value:fmtMoney(ec.topOffer,3)+" ₿" }] : []),
-        { label:"Total Payroll (24h)", value:fmtMoney(ec.totalPayroll)+" ₿" },
-        { label:"Total Work Done (24h)", value:fmtNum(ec.totalQuantity) },
-        { label:"Wage Transactions", value:fmtNum(ec.wageCount) },
-        { label:"Trade Volume (24h)", value:fmtMoney(ec.tradeVol)+" ₿" },
-        { label:"Trade Transactions", value:fmtNum(ec.tradeCount) }
-      ].map(r=>`<div class="econ-row"><span class="econ-row-label">${r.label}</span><span class="econ-row-val">${r.value}</span></div>`).join("");
-      if (S.market.wageHistory.length>1) {
-        const wageVals = S.market.wageHistory.map(w=>w.avg).filter(v=>isFinite(v));
-        if (wageVals.length>1) E.marketEconData.innerHTML+=miniChart(wageVals,"Avg Wage by Hour (₿)","var(--accent)");
+      if (srv && srv.status === "ok" && ec) {
+        ec.totalPayroll = srv.wageTotal24h;
+        ec.tradeVol = srv.tradeVolume24h;
+        ec.wageCount = srv.wageCount;
+        ec.tradeCount = srv.tradeCount;
+        if (srv.wageRates?.avg != null) ec.avgWage = srv.wageRates.avg;
+        if (srv.wageRates?.min != null) ec.wageMin = srv.wageRates.min;
+        if (srv.wageRates?.max != null) ec.wageMax = srv.wageRates.max;
+        if (srv.wageRates?.topOffer != null) ec.topOffer = srv.wageRates.topOffer;
       }
+      if (ec) {
+        E.marketEconData.innerHTML = [
+          { label:"Avg Wage (24h)", value:fmtMoney(ec.avgWage, 3)+" ₿" },
+          ...(ec.wageMin!=null ? [{ label:"Wage Range", value:fmtMoney(ec.wageMin,3)+" → "+fmtMoney(ec.wageMax,3)+" ₿" }] : []),
+          ...(ec.topOffer!=null ? [{ label:"Top Wage Offer", value:fmtMoney(ec.topOffer,3)+" ₿" }] : []),
+          { label:"Total Payroll (24h)", value:fmtMoney(ec.totalPayroll)+" ₿" },
+          { label:"Total Work Done (24h)", value:fmtNum(ec.totalQuantity) },
+          { label:"Wage Transactions", value:fmtNum(ec.wageCount) },
+          { label:"Trade Volume (24h)", value:fmtMoney(ec.tradeVol)+" ₿" },
+          { label:"Trade Transactions", value:fmtNum(ec.tradeCount) }
+        ].map(r=>`<div class="econ-row"><span class="econ-row-label">${r.label}</span><span class="econ-row-val">${r.value}</span></div>`).join("");
+        if (S.market.wageHistory.length>1) {
+          const wageVals = S.market.wageHistory.map(w=>w.avg).filter(v=>isFinite(v));
+          if (wageVals.length>1) E.marketEconData.innerHTML+=miniChart(wageVals,"Avg Wage by Hour (₿)","var(--accent)");
+        }
+      }
+      const a = calculateAnalytics();
+      renderExecutiveDashboard(a);
+      updateHistories(a.p, a.d);
     }).catch(()=>{});
   } catch(e) { setMs(E.marketEconStatus,"Could not load economic data: "+(e.message||""),true); }
 
@@ -277,7 +282,6 @@ export async function loadMarketFull(showLoading=true) {
   highlightUserData();
   const analytics = calculateAnalytics();
   renderExecutiveDashboard(analytics);
-  updateHistories(analytics.p, analytics.d);
 }
 
 function fmtTime(iso) {
