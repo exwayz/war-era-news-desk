@@ -19,9 +19,12 @@ Transform the Market tab into an Economic Intelligence Platform with a server-si
 - **api.js/constants.js**: `fetchFromServer`, `MARKET_SERVER_URL`.
 - **CSS**: Full suite of `analytics-*` classes in `components.css`, responsive grid in `responsive.css`.
 - **All code pushed** to both repos: `newsdesk` (frontend) and `newsdesk-server`.
+- **Bugfix (session 2)**: Moved `updateHistories` out of `calculateAnalytics()` to prevent momentum 0% bug when `copyMarketReport()` re-runs analytics. Added `insertTarget` safe guard in `renderExecutiveDashboard`. Added `.analytics-section` margin-top CSS.
+- **Edge case audit (session 2)**: Verified all code paths for null econ, empty histories, no jobs, server down, stale server data — all handled gracefully.
+- **Verified second server cycle**: 553,965 ₿ wages (153,732 txns), 2,424,532 ₿ trade (67,171 txns).
 
 ### Remaining / Next
-1. Open the page and verify analytics renders without console errors
+1. **Open the page in a browser** and verify analytics renders without console errors (requires manual testing)
 2. Test edge cases: server unreachable (gateway fallback), no jobs loaded, empty histories
 3. Tune assessment text quality and warning thresholds as gameplay demands
 4. If wage truncation returns, check server cycle logs for `safety limit reached` warnings
