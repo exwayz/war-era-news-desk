@@ -98,7 +98,8 @@ export async function loadMarketFull(showLoading=true) {
     ].map(r=>`<div class="econ-row"><span class="econ-row-label">${r.label}</span><span class="econ-row-val">${r.value}</span></div>`).join("");
 
     if (S.market.wageHistory.length>1) {
-      E.marketEconData.innerHTML+=miniChart(S.market.wageHistory.map(w=>w.avg),"Avg Wage by Hour (₿)","var(--accent)");
+      const wageVals = S.market.wageHistory.map(w=>w.avg).filter(v=>isFinite(v));
+      if (wageVals.length>1) E.marketEconData.innerHTML+=miniChart(wageVals,"Avg Wage by Hour (₿)","var(--accent)");
     }
     clrMs(E.marketEconStatus);
   } catch(e) { setMs(E.marketEconStatus,"Could not load economic data: "+(e.message||""),true); }
@@ -108,7 +109,7 @@ export async function loadMarketFull(showLoading=true) {
     const arr=(Array.isArray(prices)?prices:Object.entries(prices||{}).map(([k,v])=>({itemCode:k,price:v})))
       .sort((a,b)=>Number(b.price||b.value||0)-Number(a.price||a.value||0));
     S.market.prices=arr;
-    const pi=arr.slice(0,10).reduce((s,i)=>s+Number(i.price||i.value||0),0)/Math.min(10,arr.length);
+    const pi = arr.length ? arr.slice(0,10).reduce((s,i)=>s+Number(i.price||i.value||0),0) / Math.min(10,arr.length) : 0;
     S.market.priceHistory.push({t:Date.now(),i:pi});
     if(S.market.priceHistory.length>48) S.market.priceHistory.shift();
     E.marketPricesData.innerHTML=arr.slice(0,30).map(item=>{
@@ -116,7 +117,8 @@ export async function loadMarketFull(showLoading=true) {
       const price=Number(item.price||item.value||0);
       return `<div class="price-row"><span class="price-name">${name}</span><span class="price-val">${fmtMoney(price)} ₿</span></div>`;
     }).join("")||"<p style='color:var(--ink-dim)'>No price data.</p>";
-    E.marketPricesChart.innerHTML = miniChart(S.market.priceHistory.map(p=>p.i),"Price Index (Top-10 Avg ₿)","var(--blue)");
+    const priceVals = S.market.priceHistory.map(p=>p.i).filter(v=>isFinite(v));
+    E.marketPricesChart.innerHTML = priceVals.length>1 ? miniChart(priceVals,"Price Index (Top-10 Avg ₿)","var(--blue)") : "";
     clrMs(E.marketPricesStatus);
   } catch { setMs(E.marketPricesStatus,"Could not load price data.",true); }
 
