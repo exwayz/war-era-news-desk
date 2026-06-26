@@ -93,7 +93,7 @@ function multiChart(series) {
     }).join("")}
   </svg>
   <div class="exec-legend">${lines.map(l => {
-    const label = l.label + (l.curVal != null ? ` (${fmtMoney(l.curVal)}${l.curVal > 10 ? "" : typeof l.curVal === "number" && l.curVal < 1 ? "" : ""})` : "");
+    const label = l.label + (l.curVal != null ? ` (${fmtMoney(l.curVal)})` : "");
     const pctDisplay = l.pct != null ? fmtPct(l.pct) : "";
     return `<span class="exec-legend-item"><span class="exec-legend-dot" style="background:${l.color}"></span>${label} <small style="color:${l.color}">${pctDisplay} ${trend(l.pct)}</small></span>`;
   }).join("")}</div>`;
