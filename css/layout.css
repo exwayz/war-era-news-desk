@@ -176,7 +176,9 @@ h1 {
 }
 
 .tab-btn {
-  flex: 1;
+  flex: 0 0 auto;
+  width: 130px;
+  text-align: center;
   height: var(--tab-h);
   padding: 0 18px;
   border: 1px solid transparent;
@@ -202,10 +204,6 @@ h1 {
   border-color: var(--line);
   border-bottom-color: var(--surface-hi);
   box-shadow: 0 -3px 0 0 var(--accent) inset;
-}
-
-.tab-btn{
-  position:relative;
 }
 
 .timeline-badge{
