@@ -44,7 +44,7 @@ export function calculatePrimary(d) {
   const topWage = d.econ.topOffer;
   const wageMin = d.econ.wageMin;
   const wageMax = d.econ.wageMax;
-  return { P, H, Tw, Tv, Tt, Pw, Basket, Vc, Javg, Jmin, Jmax, topWage, wageMin, wageMax };
+  return { P, H, Tw, Tv, Tt, Pw, Basket, Vc, Javg, Jmin, Jmax, topWage, wageMin, wageMax, topValuable: d.topValuable };
 }
 
 export function calculateStats(d, p) {

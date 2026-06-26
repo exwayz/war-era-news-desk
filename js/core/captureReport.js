@@ -2,7 +2,7 @@ const watermarkPromise = new Promise(resolve => {
   const img = new Image();
   img.onload = () => resolve(img);
   img.onerror = () => resolve(null);
-  img.src = "/assets/icons/favicon-32x32.png";
+  img.src = "assets/icons/favicon-32x32.png";
 });
 
 export function ts() {
