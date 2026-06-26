@@ -35,10 +35,12 @@ export function loadMarketStats() {
   try {
     fetchTxLast24h("wage",k).then(wages => {
       if (!wages.length) return;
-      const sum = wages.reduce((s,t)=>s+Number(t.money??t.amount??t.value??0),0);
-      const qty = wages.reduce((s,t)=>s+Number(t.quantity??t.workerCount??0),0);
-      E.statAvgWage.textContent = fmtMoney(qty > 0 ? sum / qty : 0, 3) + " ₿";
-      E.statTotalWage.textContent = fmtMoney(wages.length > 0 ? sum / wages.length : 0) + " ₿";
+      const totalPayroll = wages.reduce((s,t)=>s+Number(t.money??t.amount??t.value??0),0);
+      const totalQuantity = wages.reduce((s,t)=>s+Number(t.quantity??t.workerCount??0),0);
+      const avgWage = totalQuantity > 0 ? totalPayroll / totalQuantity : 0;
+      const avgPayroll = wages.length > 0 ? totalPayroll / wages.length : 0;
+      E.statAvgWage.textContent = fmtMoney(avgWage, 3) + " ₿";
+      E.statTotalWage.textContent = fmtMoney(avgPayroll) + " ₿";
     });
     fetchTxLast24h("trading",k).then(trades => {
       if (trades.length) E.statTradeVol.textContent=fmtMoney(trades.reduce((s,t)=>s+txAmt(t),0))+" ₿";
@@ -98,8 +100,7 @@ export async function loadMarketFull(showLoading=true) {
     ].map(r=>`<div class="econ-row"><span class="econ-row-label">${r.label}</span><span class="econ-row-val">${r.value}</span></div>`).join("");
 
     if (S.market.wageHistory.length>1) {
-      const wageVals = S.market.wageHistory.map(w=>w.avg).filter(v=>isFinite(v));
-      if (wageVals.length>1) E.marketEconData.innerHTML+=miniChart(wageVals,"Avg Wage by Hour (₿)","var(--accent)");
+      E.marketEconData.innerHTML+=miniChart(S.market.wageHistory.map(w=>w.avg),"Avg Wage by Hour (₿)","var(--accent)");
     }
     clrMs(E.marketEconStatus);
   } catch(e) { setMs(E.marketEconStatus,"Could not load economic data: "+(e.message||""),true); }
@@ -109,7 +110,7 @@ export async function loadMarketFull(showLoading=true) {
     const arr=(Array.isArray(prices)?prices:Object.entries(prices||{}).map(([k,v])=>({itemCode:k,price:v})))
       .sort((a,b)=>Number(b.price||b.value||0)-Number(a.price||a.value||0));
     S.market.prices=arr;
-    const pi = arr.length ? arr.slice(0,10).reduce((s,i)=>s+Number(i.price||i.value||0),0) / Math.min(10,arr.length) : 0;
+    const pi=arr.slice(0,10).reduce((s,i)=>s+Number(i.price||i.value||0),0)/Math.min(10,arr.length);
     S.market.priceHistory.push({t:Date.now(),i:pi});
     if(S.market.priceHistory.length>48) S.market.priceHistory.shift();
     E.marketPricesData.innerHTML=arr.slice(0,30).map(item=>{
@@ -117,8 +118,7 @@ export async function loadMarketFull(showLoading=true) {
       const price=Number(item.price||item.value||0);
       return `<div class="price-row"><span class="price-name">${name}</span><span class="price-val">${fmtMoney(price)} ₿</span></div>`;
     }).join("")||"<p style='color:var(--ink-dim)'>No price data.</p>";
-    const priceVals = S.market.priceHistory.map(p=>p.i).filter(v=>isFinite(v));
-    E.marketPricesChart.innerHTML = priceVals.length>1 ? miniChart(priceVals,"Price Index (Top-10 Avg ₿)","var(--blue)") : "";
+    E.marketPricesChart.innerHTML = miniChart(S.market.priceHistory.map(p=>p.i),"Price Index (Top-10 Avg ₿)","var(--blue)");
     clrMs(E.marketPricesStatus);
   } catch { setMs(E.marketPricesStatus,"Could not load price data.",true); }
 

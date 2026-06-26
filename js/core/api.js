@@ -14,30 +14,19 @@ export async function fetchTrpc(method, input, k) {
   const url=`${TRPC_BASE}/${method}?input=${encodeURIComponent(JSON.stringify(noUndef(input)))}`;
   const headers = {};
   if (k) headers["x-api-key"] = k;
-  let lastErr;
-  for (let attempt=0; attempt<3; attempt++) {
-    if (attempt) await new Promise(r => setTimeout(r, attempt*1000));
-    try {
-      const res=await fetch(url,{headers}).catch(err=>{
-        if (location.protocol==="file:") throw new Error("Serve over http://localhost — file:// blocks CORS.");
-        throw err;
-      });
-      const txt=await res.text();
-      if (res.status===503 && attempt<2) { lastErr=new Error(`Gateway 503: ${txt.slice(0,80)}`); continue; }
-      if (!res.ok) {
-        if (res.status===401) throw new Error("Invalid API key — check and try again.");
-        throw new Error(`Gateway ${res.status}: ${txt.slice(0,140)}`);
-      }
-      if (!txt) return null;
-      const j=JSON.parse(txt);
-      if (j?.error?.message) throw new Error(j.error.message);
-      return j;
-    } catch (err) {
-      if (err.message?.startsWith("Invalid API key")||err.message?.includes("file://")) throw err;
-      lastErr=err;
-    }
+  const res=await fetch(url,{headers}).catch(err=>{
+    if (location.protocol==="file:") throw new Error("Serve over http://localhost — file:// blocks CORS.");
+    throw err;
+  });
+  const txt=await res.text();
+  if (!res.ok) {
+    if (res.status===401) throw new Error("Invalid API key — check and try again.");
+    throw new Error(`Gateway ${res.status}: ${txt.slice(0,140)}`);
   }
-  throw lastErr||new Error(`${method} failed after 3 retries`);
+  if (!txt) return null;
+  const j=JSON.parse(txt);
+  if (j?.error?.message) throw new Error(j.error.message);
+  return j;
 }
 
 export async function fetchTrpcApi2(method, input, apiKeyValue) {
