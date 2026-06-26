@@ -77,7 +77,10 @@ export async function loadMarketFull(showLoading=true) {
     const avgWage = globalAvgWage ?? (totalQuantity > 0 ? totalPayroll / totalQuantity : 0);
     const avgPayroll = wages.length > 0 ? totalPayroll / wages.length : 0;
     const tradeVol=trades.reduce((s,t)=>s+txAmt(t),0);
-    S.market.econ = { avgWage, avgPayroll, totalPayroll, totalQuantity, tradeVol, wageCount:wages.length, tradeCount:trades.length };
+    const wageMin = ws?.allowedRange?.min ?? null;
+    const wageMax = ws?.allowedRange?.max ?? null;
+    const topOffer = ws?.topOffer ?? null;
+    S.market.econ = { avgWage, avgPayroll, totalPayroll, totalQuantity, tradeVol, wageCount:wages.length, tradeCount:trades.length, wageMin, wageMax, topOffer };
 
     const wageByH={};
     for (const t of wages) {
@@ -92,7 +95,8 @@ export async function loadMarketFull(showLoading=true) {
 
     E.marketEconData.innerHTML=[
       { label:"Avg Wage (24h)", value:fmtMoney(avgWage, 3)+" ₿" },
-      { label:"Avg Payroll (Txn)", value:fmtMoney(avgPayroll)+" ₿" },
+      ...(wageMin!=null && wageMax!=null ? [{ label:"Wage Range", value:fmtMoney(wageMin,3)+" → "+fmtMoney(wageMax,3)+" ₿" }] : []),
+      { label:"Top Wage Offer", value:fmtMoney(topOffer||0)+" ₿" },
       { label:"Total Payroll (24h)", value:fmtMoney(totalPayroll)+" ₿" },
       { label:"Total Work Done (24h)", value:fmtNum(totalQuantity) },
       { label:"Wage Transactions", value:fmtNum(wages.length) },
@@ -232,7 +236,12 @@ export function renderMarketOrders(){
 export function copyMarketReport() {
   const ec=S.market.econ; const prices=S.market.prices||[]; const orders=S.market.orders||[];
   let r=`# War Era Market Intelligence Report\nGenerated: ${new Date().toUTCString()}\n\n## Economic Overview\n`;
-  if(ec){ r+=`- Avg wage: ${fmtMoney(ec.avgWage, 3)} BTC/hit\n- Avg payroll: ${fmtMoney(ec.avgPayroll)} BTC\n- Total payroll: ${fmtMoney(ec.totalPayroll)} BTC\n- Total work done: ${fmtNum(ec.totalQuantity)} hits (${ec.wageCount} txn)\n- Trade vol: ${fmtMoney(ec.tradeVol)} BTC (${ec.tradeCount} txn)\n\n`; }
+  if(ec){
+    r+=`- Avg wage: ${fmtMoney(ec.avgWage, 3)} BTC/hit\n`;
+    if(ec.wageMin!=null) r+=`- Wage range: ${fmtMoney(ec.wageMin,3)} → ${fmtMoney(ec.wageMax,3)} BTC/hit\n`;
+    if(ec.topOffer) r+=`- Top wage offer: ${fmtMoney(ec.topOffer)} BTC/hit\n`;
+    r+=`- Total payroll: ${fmtMoney(ec.totalPayroll)} BTC (sampled)\n- Total work done: ${fmtNum(ec.totalQuantity)} hits (${ec.wageCount} txn)\n- Trade vol: ${fmtMoney(ec.tradeVol)} BTC (${ec.tradeCount} txn)\n\n`;
+  }
   r+=`## Top Commodity Prices\n`;
   for(const i of prices.slice(0,23)) r+=`- ${i.itemCode||i.name||"?"}: ${fmtMoney(Number(i.price||0))} BTC\n`;
   r+=`\n## Top Trading Orders\n`;
@@ -266,8 +275,9 @@ export function captureMarketReport() {
   const overviewRows = [];
   if(ec) {
     overviewRows.push(["Avg Wage", fmtMoney(ec.avgWage, 3)+" BTC/hit"]);
-    overviewRows.push(["Avg Payroll", fmtMoney(ec.avgPayroll)+" BTC"]);
-    overviewRows.push(["Total Payroll", fmtMoney(ec.totalPayroll)+" BTC"]);
+    if(ec.wageMin!=null) overviewRows.push(["Wage Range", fmtMoney(ec.wageMin,3)+" → "+fmtMoney(ec.wageMax,3)+" BTC/hit"]);
+    if(ec.topOffer) overviewRows.push(["Top Wage Offer", fmtMoney(ec.topOffer)+" BTC/hit"]);
+    overviewRows.push(["Total Payroll", fmtMoney(ec.totalPayroll)+" BTC (sampled)"]);
     overviewRows.push(["Total Work Done", fmtNum(ec.totalQuantity)+" hits ("+ec.wageCount+" txn)"]);
     overviewRows.push(["Trade Volume", fmtMoney(ec.tradeVol)+" BTC ("+ec.tradeCount+" txn)"]);
   }
