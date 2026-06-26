@@ -1,4 +1,4 @@
-import { TRPC_BASE, API2_BASE } from "./constants.js";
+import { TRPC_BASE, API2_BASE, MARKET_SERVER_URL } from "./constants.js";
 import { STORE } from "./storage.js";
 import { E } from "./dom.js";
 
@@ -68,4 +68,15 @@ export function normalizeEvents(r) {
 export function normalizeCursor(r) {
   const d=unwrap(r);
   return d?.nextCursor||d?.cursor||d?.next||null;
+}
+
+export async function fetchFromServer(path) {
+  if (!MARKET_SERVER_URL) return null;
+  try {
+    const r = await fetch(`${MARKET_SERVER_URL}${path}`, { signal: AbortSignal.timeout(5000) });
+    if (!r.ok) return null;
+    return r.json();
+  } catch {
+    return null;
+  }
 }

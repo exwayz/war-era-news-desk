@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>War Era TRPC Explorer</title>
+
+<style>
+
+:root{
+    --bg:#111;
+    --panel:#1b1b1b;
+    --border:#333;
+    --input:#222;
+    --accent:#d32f2f;
+    --text:#eee;
+    --dim:#999;
+    --green:#2d5a27;
+    --blue:#1e4d8f;
+}
+
+*{
+    box-sizing:border-box;
+}
+
+body{
+    margin:0;
+    padding:20px;
+    background:var(--bg);
+    color:var(--text);
+    font-family:Arial,sans-serif;
+}
+
+h1{
+    margin-top:0;
+    margin-bottom:20px;
+}
+
+.panel{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:15px;
+    margin-bottom:15px;
+}
+
+label{
+    display:block;
+    margin-bottom:6px;
+    font-weight:bold;
+}
+
+input,
+select,
+textarea{
+    width:100%;
+    padding:10px;
+    border-radius:6px;
+    border:1px solid #444;
+    background:var(--input);
+    color:white;
+    font-size:.95rem;
+}
+
+textarea{
+    resize:vertical;
+    min-height:220px;
+    font-family:Consolas, monospace;
+}
+
+.row{
+    display:flex;
+    gap:12px;
+    margin-bottom:15px;
+}
+
+.row > *{
+    flex:1;
+}
+
+button{
+    border:none;
+    border-radius:6px;
+    padding:10px 16px;
+    cursor:pointer;
+    font-weight:bold;
+    font-size:.95rem;
+}
+
+.fetch-btn{
+    background:var(--accent);
+    color:white;
+}
+
+.pretty-btn{
+    background:#444;
+    color:white;
+}
+
+.copy-btn{
+    background:var(--green);
+    color:white;
+}
+
+.runjs-btn{
+    background:var(--blue);
+    color:white;
+}
+
+.small{
+    color:var(--dim);
+    font-size:.85rem;
+}
+
+.quick-items{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-top:10px;
+}
+
+.quick-items button{
+    background:#333;
+    color:white;
+    padding:6px 10px;
+    font-size:.8rem;
+}
+
+pre{
+    background:black;
+    border-radius:8px;
+    padding:15px;
+    overflow:auto;
+    max-height:700px;
+    white-space:pre-wrap;
+    word-break:break-word;
+}
+
+#endpointInfo{
+    color:#bbb;
+    line-height:1.6;
+}
+
+#jsCode{
+    min-height:300px;
+}
+
+</style>
+</head>
+<body>
+
+<h1>War Era TRPC Explorer</h1>
+
+<div class="panel">
+
+<label>API Server</label>
+
+<select id="apiBase">
+
+<option value="https://gateway.warerastats.io/trpc">
+Gateway
+</option>
+
+<option value="https://api2.warera.io/trpc">
+API2
+</option>
+
+</select>
+
+</div>
+
+<div class="panel">
+
+<label>API Key</label>
+
+<input
+id="apiKey"
+type="text"
+placeholder="Paste API key">
+
+</div>
+
+<div class="panel">
+
+<label>Endpoint</label>
+
+<select id="endpoint"></select>
+
+</div>
+
+<div class="panel">
+
+<h3>Endpoint Description</h3>
+
+<div id="endpointInfo">
+Select endpoint...
+</div>
+
+</div>
+
+<div class="panel">
+
+<label>Parameters JSON</label>
+
+<textarea id="params"></textarea>
+
+<p class="small">
+Endpoint template loads automatically when endpoint changes.
+</p>
+
+</div>
+
+<div class="panel">
+
+<h3>Quick Commodity Buttons</h3>
+
+<div class="quick-items">
+
+<button data-item="heavyAmmo">heavyAmmo</button>
+<button data-item="lightAmmo">lightAmmo</button>
+<button data-item="concrete">concrete</button>
+<button data-item="steel">steel</button>
+<button data-item="oil">oil</button>
+<button data-item="bread">bread</button>
+<button data-item="fish">fish</button>
+<button data-item="steak">steak</button>
+<button data-item="cocain">cocain</button>
+<button data-item="case1">case1</button>
+<button data-item="case2">case2</button>
+
+</div>
+
+<p class="small">
+Works with tradingOrder.getTopOrders
+</p>
+
+</div>
+
+<div class="row">
+
+<button
+id="fetchBtn"
+class="fetch-btn">
+Fetch Endpoint
+</button>
+
+<button
+id="prettyBtn"
+class="pretty-btn">
+Pretty JSON
+</button>
+
+<button
+id="copyResponseBtn"
+class="copy-btn">
+Copy Response
+</button>
+
+</div>
+
+<div class="panel">
+
+<h3>Request URL</h3>
+
+<pre id="urlBox"></pre>
+
+</div>
+
+<div class="panel">
+
+<h3>Response</h3>
+
+<pre id="resultBox"></pre>
+
+</div>
+
+<div class="panel">
+
+<h2>JavaScript Sandbox</h2>
+
+<p class="small">
+Execute custom JavaScript directly in the browser.
+Useful for testing fetches, inspecting TRPC payloads,
+batch requests, debugging endpoints, etc.
+</p>
+
+<label>Custom JavaScript</label>
+
+<textarea id="jsCode">
+
+const endpoint = "tradingOrder.getTopOrders";
+
+const payload = {
+    "0":{
+        json:{
+            itemCode:"heavyAmmo",
+            limit:20
+        }
+    }
+};
+
+const res = await fetch(
+    `${apiBase}/${endpoint}`,
+    {
+        method:"POST",
+        headers:{
+            "Content-Type":"application/json",
+            "X-API-Key":apiKey
+        },
+        body:JSON.stringify(payload)
+    }
+);
+
+const data = await res.json();
+
+console.log(data);
+
+return data;
+
+</textarea>
+
+<div class="row">
+
+<button
+id="runJsBtn"
+class="runjs-btn">
+Run JS
+</button>
+
+<button
+id="copyJsBtn"
+class="copy-btn">
+Copy JS
+</button>
+
+</div>
+
+</div>
+
+<div class="panel">
+
+<h3>JS Console</h3>
+
+<pre id="jsResult"></pre>
+
+</div>
+
+<script src="script.js"></script>
+
+<script>
+
+document.addEventListener("click",e=>{
+
+if(!e.target.dataset.item) return;
+
+const endpoint =
+document.getElementById("endpoint");
+
+if(
+endpoint.value !==
+"tradingOrder.getTopOrders"
+) return;
+
+try{
+
+const params =
+JSON.parse(
+document.getElementById("params").value
+);
+
+params.itemCode =
+e.target.dataset.item;
+
+document.getElementById("params").value =
+JSON.stringify(
+params,
+null,
+2
+);
+
+}catch{}
+
+});
+
+document
+.getElementById("copyResponseBtn")
+.addEventListener("click",()=>{
+
+navigator.clipboard.writeText(
+document.getElementById("resultBox")
+.textContent
+);
+
+});
+
+document
+.getElementById("copyJsBtn")
+.addEventListener("click",()=>{
+
+navigator.clipboard.writeText(
+document.getElementById("jsCode")
+.value
+);
+
+});
+
+</script>
+
+</body>
+</html>

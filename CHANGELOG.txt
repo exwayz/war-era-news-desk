@@ -1,0 +1,440 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is inspired by Keep a Changelog and follows Semantic Versioning principles.
+
+---
+
+##[1.0.0] - 2026-06-23
+
+###Added
+
+*Rankings tab with 5 category views: Weekly Damages, Users, MUs, Countries, Alliances.
+*Category selector pills switching between ranking views without page reload.
+*4-panel grid layout per category, each panel displaying a ranked leaderboard (top 50 entries).
+*Avatar support for Users, Military Units, and Alliances via media.warera.io avatar URLs.
+*Country flag display from local assets/flags/ directory, keyed by ISO shortCode.
+*Fallback initial-letter avatar when no image is available for an entity.
+*Automatic entity resolution — fetches unknown user/MU/country/alliance profiles on demand.
+*Dual-API redundancy — ranking.getRanking endpoint fetched from both gateway.warerastats.io and api2.warera.io.
+*Rankings module directory: js/rankings/rankings.js.
+*Dedicated rankings stylesheet: css/rankings.css with responsive grid breakpoints.
+*ES Module architecture — full modularization of the codebase into independent module groups.
+*Dedicated module directories: core, timeline, battles, market, jobs, ui, visuals, audio, intro.
+*SFX system with 5 distinct sounds: click, read, copy, intro, api_saved.
+*Settings modal with SFX volume slider and persistent localStorage configuration.
+*Click-to-begin gate on the intro overlay ensuring reliable intro audio playback on first visit.
+*Mobile responsive breakpoints at 1100px, 860px, 760px, and 420px.
+*safe-area-inset support for notched and rounded-display devices.
+*CSS organization — monolithic style.css split into variables, base, layout, components, visuals, intro, and responsive.
+
+###Improved
+
+*Codebase maintainability — monolithic script.js refactored into 30+ self-contained ES modules.
+*CSS maintainability — single stylesheet split into 7 focused files with clear responsibilities.
+*Audio reliability — intro.mp3 now plays in exact sync with the title reveal animation, respecting browser autoplay policy.
+*Pulsating animation keyframes restored — 8 missing @keyframes (livePulse, liveRing, pulseBadge, modalIn, sweep, flashPop, toastIn, badgePulse) re-added to base.css after CSS split.
+*Touch target sizing restored to compact original values (28–34px) — global 44px minimum removed from desktop.
+*Date picker cleanliness — removed misaligned clear buttons from startTimeInput and endTimeInput.
+*Removed all BGM code and associated controls from settings modal and module imports.
+
+###Technical
+
+*Modular architecture:
+  -js/core/: api, constants, dom, resolver, state, storage, utils
+  -js/timeline/: timeline, articles, events, filters
+  -js/battles/: battles, battleDetail, companies
+  -js/market/: market, economy, orders, valuable
+  -js/jobs/: jobs, jobDetail, companies
+  -js/ui/: toast, tabs, theme
+  -js/visuals/: clock, oscilloscope, ecg
+  -js/intro/: intro
+  -js/audio/: audio
+  -js/main.js as single entry point.
+*CSS into: variables.css, base.css, layout.css, components.css, visuals.css, intro.css, responsive.css.
+*AudioManager singleton with clone-on-play pattern for overlapping SFX and localStorage volume persistence.
+*SFX click delegation — single document-level handler routing to playClick/playRead/playCopy based on target.closest() selectors.
+*Removed console.log from tabs.js, 8 unused imports across 6 files, dead getItemCount function, 5 empty stub export files.
+*Cancelled requestAnimationFrame loop in intro.js closeOverlay to free retained canvas context memory.
+*Performance: will-change on animated/hover elements, content-visibility on inactive tab panels, passive resize listeners.
+
+###UX
+
+*Intro audio now reliably plays on first visit — click-to-begin prompt ensures user gesture before animation and audio start.
+*Auditory feedback across all clickable elements with context-sensitive sounds for read and copy actions.
+*Settings accessible via gear icon in top bar with instant SFX volume adjustment.
+*Cleaner mobile experience with proper breakpoints and safe-area support.
+
+
+##[0.4.4-beta] - 2026-06-22
+
+###Added
+
+*News Desk Information & Attribution tooltip integrated directly into the main newsroom title.
+*Dedicated transparency panel describing project purpose, data sourcing, and newsroom principles.
+*Attribution and infrastructure acknowledgement for:
+	-https://api2.warera.io/trpc/
+	-https://gateway.warerastats.io/trpc/
+*Expanded transparency messaging emphasizing credibility, journalism, and responsible data usage.
+*Enhanced newsroom branding and informational accessibility through contextual hover-based documentation.
+
+###Improved
+
+*Refined newsroom header presentation with integrated information access directly beside the News Desk title.
+*Improved tooltip layering and rendering behavior to ensure visibility above panels, navigation elements, and scrolling containers.
+*Enhanced tooltip readability through dedicated newsroom-styled presentation.
+*Refined visual hierarchy of newsroom metadata and project attribution.
+
+###Technical
+
+*Implemented standalone newsroom information tooltip architecture.
+*Improved z-index and overflow handling across header and navigation layers.
+*Added reusable tooltip rendering patterns for future informational UI elements.
+*Refined header component structure to better support future newsroom branding features.
+
+###UX
+
+*Users can now quickly understand the purpose, data sources, and operational principles of News Desk without leaving the application.
+*Improved transparency regarding data collection practices and third-party integrations.
+*Reduced ambiguity regarding the project's relationship with War Era services and statistics providers.
+
+
+##[0.4.3-beta] - 2026-06-19
+
+###Added
+
+*Live Event Toast notification system for newly detected timeline events.
+*Automatic toast suppression while the user is actively viewing the Timeline tab.
+*Dedicated toast container integrated into the navigation bar area.
+*Animated toast entrance and exit transitions using slide-up motion.
+*Audio notification support for live event alerts.
+*Market Intelligence live activity indicator.
+*Animated signal-strength style status indicator to visually represent continuous real-time market monitoring.
+*Persistent Price Index chart container within the Commodity Prices panel.
+*Dedicated chart region separated from commodity list rendering.
+*Market order dataset separation between commodity trading orders and equipment market transactions.
+*Automatic market view rotation architecture for alternating market datasets.
+*Support for equipment transaction parsing from itemMarket transaction history.
+*Support for equipment item code normalization and human-readable equipment naming.
+
+###Improved
+
+*Live timeline monitoring now generates contextual toast notifications using generated event titles rather than relying on raw API payload fields.
+*Improved event title handling by reusing the existing buildTitle() intelligence generation pipeline.
+*Enhanced visibility of newly detected events when browsing non-timeline sections.
+*Improved market monitoring UX through persistent visual feedback indicating live updates.
+*Improved Commodity Prices panel layout by allowing commodity lists to scroll independently from chart visualizations.
+*Refined chart placement to behave similarly to frozen spreadsheet rows, ensuring trend visibility at all times.
+*Improved market intelligence readability through separation of data lists and trend visualizations.
+*Enhanced support for equipment market activity alongside traditional commodity order books.
+*Improved handling of mixed market datasets without requiring changes to existing rendering and reporting systems.
+*Refined toast notification styling and positioning within the navigation area.
+*Improved handling of long event headlines within constrained toast layouts.
+
+###Technical
+
+*Introduced dedicated live-event toast rendering pipeline.
+*Added conditional notification logic based on active tab state.
+*Implemented reusable event title generation through integration with buildTitle().
+*Added toast animation lifecycle management including timed appearance and removal states.
+*Added market live-indicator animation framework using CSS keyframe sequences.
+*Separated commodity and equipment order collection pipelines for future market expansion.
+*Prepared rotating market data architecture allowing alternating dataset presentation without modifying downstream rendering logic.
+*Added support for extracting equipment transaction pricing from itemMarket transaction payloads.
+*Introduced dedicated chart container architecture for persistent market visualizations.
+*Refactored market panel rendering structure to support independently scrolling content regions.
+*Expanded market intelligence framework to accommodate future multi-category market analytics.
+
+###UX
+
+*Users now receive unobtrusive live notifications when important events occur while reading Battles, Market, or Jobs pages.
+*Price Index trend visualization remains visible while browsing large commodity datasets.
+*Market Intelligence section now more clearly communicates that data is continuously updated in real time.
+*Reduced risk of missing important geopolitical or military developments while navigating away from the Timeline page.
+
+
+## [0.4.2-beta] - 2026-06-17
+
+### Added
+
+*Nixie Clock display integrated into the newsroom interface for persistent time monitoring.
+*Journalist-style intelligence summaries for additional diplomatic event types:
+	-allianceJoined
+	-allianceLeft
+	-allianceExclude
+	-defensivePactFormed
+	-defensivePactBroken
+
+### Improved
+
+*Rewrote diplomatic event summaries to read as professional news reports instead of raw metadata.
+*Improved API token handling and authentication workflow for more reliable access.
+
+###Technical
+
+*Refined event rendering logic for alliance and defensive pact intelligence generation.
+*Improved API token parsing and validation routines.
+
+
+## [0.4.1-beta] - 2026-06-16
+
+### Added
+
+*"Copy Article" action inside Reader Mode.
+*"Copy Report" action for Market Tracker.
+*"Copy Report" action for Job Market Tracker.
+*Detailed Battle Report modal with integrated report copying functionality.
+
+### Improved
+
+*Enhanced Battle Report XLS export generation.
+*Improved report accessibility across monitoring modules.
+
+### Technical
+
+*Expanded report generation utilities for battle intelligence.
+*Refined XLS export implementation for battle reports.
+
+
+## [0.4.0-beta] - 2026-06-16
+
+### Added
+
+*Complete Battle Intelligence overhaul.
+*Side-by-side attacker and defender analytics including:
+*Top 10 users by damage
+*Top 10 users by ground points
+*Top Military Units by damage
+*Top Military Units by ground points
+*Top 10 countries by damage
+*Top 10 countries by ground points
+*Battle win score indicator.
+*Ground point bar chart for each battle round.
+*Per-round monitoring alongside overall battle statistics.
+*Downloadable XLS Battle Report export.
+
+### Improved
+
+*Significantly expanded battle analytics for journalists and intelligence reporting.
+*Enhanced visualization of round progression and combat performance.
+
+Technical
+
+*Added comprehensive battle aggregation pipeline.
+*Introduced XLS generation utilities for battle reporting.
+
+
+## [0.3.3-beta] - 2026-06-15
+
+### Added
+
+*Country filter for the Job Market Tracker.
+*Search bar for Battle Tracker.
+
+### Improved
+
+*Refined category sorting within the timeline filter dropdown.
+*Refactored overall UI/UX for a cleaner and more organized newsroom experience.
+
+### Technical
+
+*Improved filtering architecture across multiple monitoring modules.
+
+
+## [0.3.2-beta] - 2026-06-15
+
+### Added
+
+*Damage share percentage statistics within Battle Tracker.
+
+### Improved
+
+*Improved direct navigation to in-game company pages from the Job Market.
+
+### Technical
+
+*Refined company linking logic and battle statistic calculations.
+
+## [0.3.1-beta] - 2026-06-15
+
+### Added
+
+*Ongoing Battle monitoring mode.
+*Ended Battle monitoring mode.
+*Average Wage by Hour chart.
+*Display of top market order prices.
+
+### Improved
+
+*Improved Battle, Market, and Job data fetching reliability.
+*Enhanced company name presentation in the Job Market interface.
+
+### Technical
+
+*Refactored backend fetching logic for Battle Tracker, Market Tracker, and Job Market Tracker.
+*Expanded hourly wage aggregation processing.
+
+
+[0.3.0-beta] - 2026-06-15
+
+### Added
+
+*ECG-style animated integrated into the top bar, pulsing with live updates.
+*Top bar intelligence displaying:
+*Top traded item
+*Wage information
+*Trade volume statistics
+
+### Improved
+
+*Replaced top bar navigation buttons with a tab-style navigation system for Battle, Market, and Job pages.
+*Refined dashboard grid layout for improved spacing and consistency.
+*Improved presentation of wage, trade volume, and top item intelligence in the header.
+
+### Technical
+
+*Reworked navigation architecture to support tab-based page switching.
+*Refined dashboard layout and top bar rendering components.
+
+
+## [0.2.0-beta] - 2026-06-16
+
+### Added
+
+*Dedicated Battle Tracker page for monitoring ongoing battles.
+*Dedicated Market Tracker page for monitoring global market conditions.
+*Dedicated Job Market Tracker page for workforce and wage monitoring.
+*Market intelligence panel displaying:
+	-Highest commodity price
+	-Average wage
+	-Total wage
+	-24-hour trade volume
+*"Copy Report" action for Battle Tracker.
+*"Copy Report" action for Market Tracker.
+*"Copy Report" action for Job Market Tracker.
+*"Copy Article" action inside Reader Mode for copying full article text.
+*Animated oscilloscope background effect for the newsroom interface.
+
+### Improved
+
+*Refined overall dashboard layout with a cleaner and more organized newsroom workflow.
+*Redesigned Reader Mode interface for improved readability and usability.
+*Improved visual consistency across monitoring pages.
+*Better separation between event monitoring, battle tracking, and market intelligence sections.
+*Streamlined report generation workflow through integrated copy actions.
+
+### Technical
+
+*Expanded monitoring architecture with dedicated tracker modules.
+*Added text-ready report generation utilities for tracker pages.
+*Extended Reader Mode functionality with direct article text extraction.
+*Integrated additional market statistic processing and rendering logic.
+
+
+## [0.1.1-beta] - 2026-06-15
+
+### Added
+
+* Animated article indexing status indicator.
+* Yellow pulse animation while article indexing is in progress.
+* Green completion pulse animation after successful article indexing.
+* "Copy News Brief" action for timeline events.
+* Dedicated newsroom-style intelligence templates for `battleOpened` events.
+* Multiple randomized summary templates for supported event types to reduce repetitive phrasing.
+
+### Improved
+
+* Reworked live auto-refresh behavior to preserve the user's current reading position.
+* Timeline updates now append newly detected events instead of re-rendering the entire feed.
+* Prevented automatic refreshes from forcing the page back to the top while scrolling.
+* Article feed status messaging now displays `indexing...` during fetch operations before transitioning to the loaded state.
+* Replaced the former "Copy Headline" workflow with "Copy News Brief".
+* Copy operation now includes both the generated headline and its accompanying intelligence summary.
+* Significantly overhauled event intelligence rendering with more natural newsroom-style reporting.
+* Rewrote multiple event summaries to better resemble professional journalistic language rather than system-generated logs.
+* Introduced randomized sentence variations across supported event summaries for a more dynamic reading experience.
+* Improved fallback event descriptions with more informative and context-aware reporting.
+
+### Technical
+
+* Optimized incremental timeline rendering for live updates.
+* Reduced unnecessary DOM re-rendering during automatic refresh cycles.
+* Added randomized summary selection helper for event intelligence generation.
+* Expanded event-specific rendering logic with dedicated handling for additional event types.
+
+
+## [0.1.0-beta] - 2026-06-15
+
+### Added
+
+- Initial public beta release.
+- Real-time Global Events timeline powered by the War Era API.
+- Support for major event categories including:
+  - Wars
+  - Battles
+  - Alliances
+  - Revolutions
+  - Region transfers
+  - Economic events
+  - Political events
+- Event pagination and "Load More" support.
+- Event filtering by:
+  - Country
+  - Event type
+  - Date/time range
+- Country auto-complete and lookup system.
+- Automatic resolution of:
+  - Countries
+  - Regions
+  - Battles
+  - Usernames
+- Human-readable event intelligence rendering.
+- Direct links to War Era event pages.
+- One-click "Write as Article" integration with War Era Writer.
+- Real-time article feed.
+- Article search functionality.
+- Article pagination support.
+- API key management system.
+- Secure local API key storage using browser localStorage.
+- Light and Dark theme support.
+- Auto-refresh engine for live monitoring.
+- Responsive dashboard layout.
+- Live status indicator for active timeline monitoring.
+
+### Improved
+
+- Reworked dashboard layout to prioritize the Global Events feed.
+- Redesigned filtering interface for a cleaner newsroom workflow.
+- Improved article feed placement and navigation.
+- Simplified article controls to focus on search and reading.
+
+### Technical
+
+- Built entirely with vanilla HTML, CSS, and JavaScript.
+- No external frameworks or dependencies.
+- Direct integration with War Era TRPC endpoints.
+- Modular rendering system for events and articles.
+- Lookup caching for countries, regions, battles, and users.
+
+### Known Issues
+
+- Reader Mode is still under active development.
+- Some article metadata may not always resolve correctly.
+- Additional event intelligence templates are planned.
+- Mobile layout still requires further optimization.
+- Performance tuning for large timelines is ongoing.
+
+### Planned
+
+- Refinement of the live refresh engine.
+- Integrated newsroom clock and time utilities.
+- Reader Mode interface overhaul.
+- Improved event intelligence summaries.
+- Battle Monitoring system.
+- Automated post-battle intelligence reports featuring:
+  - Top damage dealers
+  - Participation statistics
+  - Casualty and performance analysis
+  - Battle outcome assessments
+- Continued UI and workflow improvements for War Era journalists.
