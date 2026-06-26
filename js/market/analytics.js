@@ -227,6 +227,5 @@ export function calculateAnalytics() {
   const healthScore = calculateHealthScore(d);
   const warnings = generateWarnings(d);
   const assessment = generateAssessment(p, d, warnings);
-  updateHistories(p, d);
   return { datasets, p, stats, d, econClass, healthScore, warnings, assessment };
 }

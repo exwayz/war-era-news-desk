@@ -5,7 +5,7 @@ import { fmtMoney, fmtNum, formatShortNumber, marketItemName, commodityBars, min
 import { toast } from "../ui/toast.js";
 import * as cap from "../core/captureReport.js";
 import { highlightUserData } from "../core/profileHighlighter.js";
-import { calculateAnalytics } from "./analytics.js";
+import { calculateAnalytics, updateHistories } from "./analytics.js";
 import { renderExecutiveDashboard } from "./renderAnalytics.js";
 
 export async function fetchTxLast24h(type, k, maxPages=50) {
@@ -277,6 +277,7 @@ export async function loadMarketFull(showLoading=true) {
   highlightUserData();
   const analytics = calculateAnalytics();
   renderExecutiveDashboard(analytics);
+  updateHistories(analytics.p, analytics.d);
 }
 
 function fmtTime(iso) {
