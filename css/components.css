@@ -1102,7 +1102,7 @@
   left: 0;
   transform: translateY(10px);
   width:360px;
-  background:repeating-linear-gradient(90deg,rgba(255,255,255,.015) 0px,rgba(255,255,255,.015) 1px,transparent 1px,transparent 3px), var(--surface);
+  background:repeating-linear-gradient(90deg,rgba(255,255,255,.025) 0px,rgba(255,255,255,.025) 2px,transparent 2px,transparent 6px), #0d1416;
   backdrop-filter:none;
   border:1px solid var(--line-solid);
   border-radius:0px;
@@ -1177,7 +1177,7 @@
 .analytics-card,
 .analytics-exec-card,
 .analytics-assess-card{
-  background:repeating-linear-gradient(90deg,rgba(255,255,255,.015) 0px,rgba(255,255,255,.015) 1px,transparent 1px,transparent 3px), var(--surface);
+  background:repeating-linear-gradient(90deg,rgba(255,255,255,.025) 0px,rgba(255,255,255,.025) 2px,transparent 2px,transparent 6px), #0d1416;
 }
 
 /* Live indicator */
