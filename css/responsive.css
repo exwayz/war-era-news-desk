@@ -291,6 +291,11 @@ input, select {
   .econ-row { font-size: .78rem; padding: 6px 0; }
   .price-row { font-size: .76rem; padding: 5px 0; }
 
+  /* ── Economic Intelligence ── */
+  .analytics-cards-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .analytics-exec-body { grid-template-columns: 1fr; }
+  .analytics-warn { flex-wrap: wrap; }
+
   /* ── Events + articles panels ── */
   .events-panel, .articles-panel {
     max-height: 55vh;

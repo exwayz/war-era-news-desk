@@ -5,6 +5,8 @@ import { fmtMoney, fmtNum, formatShortNumber, marketItemName, commodityBars, min
 import { toast } from "../ui/toast.js";
 import * as cap from "../core/captureReport.js";
 import { highlightUserData } from "../core/profileHighlighter.js";
+import { calculateAnalytics } from "./analytics.js";
+import { renderExecutiveDashboard } from "./renderAnalytics.js";
 
 export async function fetchTxLast24h(type, k, maxPages=50) {
   const cutoff=Date.now()-86400000;
@@ -273,6 +275,8 @@ export async function loadMarketFull(showLoading=true) {
   loadMarketStats();
   if (window.ecgPulse) window.ecgPulse(1.5);
   highlightUserData();
+  const analytics = calculateAnalytics();
+  renderExecutiveDashboard(analytics);
 }
 
 function fmtTime(iso) {
@@ -330,7 +334,33 @@ export function copyMarketReport() {
     }
     r += `- ${item.item}: ${fmtMoney(item.value)} BTC ${trend}${change}\n`;
   }
+  const a = calculateAnalytics();
+  if (a.p) {
+    r += `\n\n## Executive Economic Dashboard\n`;
+    r += `- Economic Status: ${a.econClass?.label || "N/A"}\n`;
+    r += `- Health Score: ${a.healthScore ? a.healthScore.score + "/100 (" + a.healthScore.level + ")" : "N/A"}\n`;
+    r += `- Trade Momentum: ${fmtPct(a.d?.tradeMom)}\n- Payroll Momentum: ${fmtPct(a.d?.payrollMom)}\n`;
+    r += `- Wage Momentum: ${fmtPct(a.d?.wageMom)}\n- Price Momentum: ${fmtPct(a.d?.priceMom)}\n`;
+    r += `- Purchasing Power: ${a.d?.pp != null ? fmtMoney(a.d.pp, 4) : "N/A"} baskets/wage\n- HHI: ${a.d?.hhi != null ? a.d.hhi.toFixed(0) : "N/A"}\n`;
+    r += `- Economic Circulation: ${a.d?.circulation != null ? (a.d.circulation * 100).toFixed(1) + "%" : "N/A"}\n`;
+    r += `- Trade Efficiency: ${a.d?.tradeEfficiency != null ? fmtMoney(a.d.tradeEfficiency) + " BTC/trade" : "N/A"}\n`;
+    r += `- Total Commodity Value: ${a.p.Vc > 0 ? fmtMoney(a.p.Vc) + " BTC" : "N/A"}\n\n`;
+
+    if (a.warnings && a.warnings.length) {
+      r += `## Active Warnings\n`;
+      for (const w of a.warnings) r += `- [${w.level}] ${w.indicator}: ${w.reason}\n`;
+      r += "\n";
+    }
+    r += `## Economic Intelligence Assessment\n`;
+    r += a.assessment.summary + "\n\n";
+    for (const p of a.assessment.paragraphs) r += `**${p.topic}:** ${p.text}\n`;
+  }
   navigator.clipboard.writeText(r).then(()=>toast("Market report copied."));
+}
+
+function fmtPct(v) {
+  if (v == null) return "N/A";
+  return (v > 0 ? "+" : "") + v.toFixed(1) + "%";
 }
 
 export function captureMarketReport() {

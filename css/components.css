@@ -460,6 +460,117 @@
   margin-top: 3px;
 }
 
+/* ── ECONOMIC INTELLIGENCE ──────────────────────────── */
+.analytics-badge {
+  font-size: .6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.analytics-card-body {
+  padding: 10px 0;
+}
+.analytics-value {
+  font-size: 1rem;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+.analytics-trend { font-size: .9rem; margin-left: 4px; }
+.analytics-pct { font-size: .75rem; color: var(--ink-dim); margin-left: 2px; }
+.analytics-meta {
+  font-size: .72rem;
+  color: var(--ink-dim);
+  line-height: 1.6;
+}
+.analytics-interp {
+  font-size: .78rem;
+  color: var(--ink-600, var(--ink-dim));
+  margin-top: 8px;
+  font-style: italic;
+}
+.analytics-card-body .mini-chart-wrap { margin-top: 8px; padding-top: 8px; }
+.analytics-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.analytics-exec-card {
+  grid-column: 1 / -1;
+}
+.analytics-exec-body {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 16px;
+}
+.exec-chart-wrap { min-width: 0; }
+.exec-chart-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.exec-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  margin-top: 8px;
+  font-size: .75rem;
+}
+.exec-legend-item { display: flex; align-items: center; gap: 5px; }
+.exec-legend-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.exec-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0;
+}
+.exec-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: .78rem;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+.exec-summary-row:last-child { border-bottom: none; }
+.exec-label { color: var(--ink-dim); font-weight: 600; }
+.exec-value { font-weight: 700; }
+.analytics-warnings {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.analytics-warn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  font-size: .82rem;
+  border-left: 3px solid;
+}
+.analytics-warn-info { background: var(--accent-soft); border-color: var(--blue); }
+.analytics-warn-caution { background: rgba(251,191,36,.1); border-color: var(--yellow); }
+.analytics-warn-warning { background: rgba(239,68,68,.1); border-color: var(--red); }
+.analytics-warn-critical { background: rgba(139,0,0,.1); border-color: var(--dark-red, #8b0000); }
+.analytics-warn-icon { font-size: 1rem; flex: none; }
+.analytics-warn-indicator { font-weight: 700; flex: none; }
+.analytics-warn-reason { color: var(--ink-dim); }
+.analytics-assess-card { grid-column: 1 / -1; }
+.analytics-assess-body { padding: 10px 0; }
+.analytics-assess-summary {
+  font-size: .88rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.analytics-assess-item {
+  font-size: .82rem;
+  line-height: 1.6;
+  padding: 4px 0;
+}
+.analytics-assess-item strong { color: var(--accent); }
+
 /* ── JOB CARD ───────────────────────────────────────── */
 .job-card {
   padding: 14px;

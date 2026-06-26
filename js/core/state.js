@@ -15,7 +15,7 @@ export const S = {
   liveBattleTimer:null,
   battleSearch:"", battleSort:"ended", battleDateFrom:"", battleDateTo:"", battleDamageCache:new Map(), damageCachePending:false,
   articleSort:"date", articleTimeFrom:"", articleTimeTo:"",
-  market:{ econ:null, prices:null, orders:null, commodityOrders:[], equipmentOrders:[], orderView:"commodity", priceHistory:[], wageHistory:[], topValuable:[] },
+  market:{ econ:null, prices:null, orders:null, commodityOrders:[], equipmentOrders:[], orderView:"commodity", priceHistory:[], wageHistory:[], topValuable:[], tradeVolHistory:[], payrollHistory:[], ppHistory:[], hhiHistory:[], circulationHistory:[], tradeEfficiencyHistory:[], basketHistory:[] },
   jobs:[], jobCursor:null,
   jobCountryFilter:"",
   currentTab:"timeline",
