@@ -221,10 +221,9 @@ export function renderMarketOrders(){
     const qty = o._qty || o.quantity || o.amount || 0;
     const price = o._price;
     const type = (o.orderType || o.type || o.side || "ORDER").toUpperCase();
-    const code = o._itemCode || o.itemCode || "";
     return `<div class="price-row">
       <span class="price-name">${item} <small style="color:var(--ink-dim)">${type} ×${fmtNum(qty)}</small></span>
-      <span class="price-val"><small style="color:var(--ink-dim);font-size:.65rem">${fmtTime(o._time)}</small> ${price>0 ? fmtMoney(price)+" ₿/u" : "—"} <small style="color:var(--ink-dim3);font-size:.6rem">${code}</small></span>
+      <span class="price-val"><small style="color:var(--ink-dim);font-size:.65rem">${fmtTime(o._time)}</small> ${price>0 ? fmtMoney(price)+" ₿/u" : "—"}</span>
     </div>`;
   }).join("") || "<p style='color:var(--ink-dim)'>No orders available.</p>";
 }
