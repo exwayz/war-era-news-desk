@@ -39,7 +39,14 @@ export function loadMarketStats() {
         E.statAvgWage.textContent = fmtMoney(d.allowedRange.average, 3) + " ₿";
         E.statTotalWage.textContent = fmtMoney(d.topOffer || 0) + " ₿";
       }
-    }).catch(() => {});
+    }).catch(() => {
+      fetchTxLast24h("wage",k).then(wages => {
+        if (!wages.length) return;
+        const sum = wages.reduce((s,t)=>s+Number(t.money??t.amount??t.value??0),0);
+        const qty = wages.reduce((s,t)=>s+Number(t.quantity??t.workerCount??0),0);
+        E.statAvgWage.textContent = fmtMoney(qty > 0 ? sum / qty : 0, 3) + " ₿";
+      });
+    });
     fetchTxLast24h("trading",k).then(trades => {
       if (trades.length) E.statTradeVol.textContent=fmtMoney(trades.reduce((s,t)=>s+txAmt(t),0))+" ₿";
     });
@@ -96,7 +103,7 @@ export async function loadMarketFull(showLoading=true) {
     E.marketEconData.innerHTML=[
       { label:"Avg Wage (24h)", value:fmtMoney(avgWage, 3)+" ₿" },
       ...(wageMin!=null && wageMax!=null ? [{ label:"Wage Range", value:fmtMoney(wageMin,3)+" → "+fmtMoney(wageMax,3)+" ₿" }] : []),
-      { label:"Top Wage Offer", value:fmtMoney(topOffer||0)+" ₿" },
+      ...(topOffer != null ? [{ label:"Top Wage Offer", value:fmtMoney(topOffer)+" ₿" }] : []),
       { label:"Total Payroll (24h)", value:fmtMoney(totalPayroll)+" ₿" },
       { label:"Total Work Done (24h)", value:fmtNum(totalQuantity) },
       { label:"Wage Transactions", value:fmtNum(wages.length) },
