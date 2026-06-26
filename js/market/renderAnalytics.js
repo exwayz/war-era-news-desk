@@ -132,7 +132,7 @@ export function renderExecutiveDashboard(a) {
       <div class="analytics-exec-body"></div>
     </div>
     <div class="analytics-cards-grid"></div>`;
-    const insertTarget = E.marketValuableData?.parentElement ?? document.querySelector(".market-cont") ?? E.marketEconData?.parentElement;
+    const insertTarget = document.querySelector(".market-grid");
     if (insertTarget) insertTarget.after(section); else return;
   }
 
