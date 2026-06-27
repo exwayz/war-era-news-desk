@@ -16,7 +16,7 @@ export const S = {
   battleSearch:"", battleSort:"ended", battleDateFrom:"", battleDateTo:"", battleDamageCache:new Map(), damageCachePending:false,
   articleSort:"date", articleTimeFrom:"", articleTimeTo:"",
   market:{ econ:null, prices:null, orders:null, commodityOrders:[], equipmentOrders:[], orderView:"commodity", priceHistory:[], wageHistory:[], topValuable:[], tradeVolHistory:[], payrollHistory:[], ppHistory:[], hhiHistory:[], circulationHistory:[], tradeEfficiencyHistory:[], basketHistory:[] },
-  jobs:[], jobCursor:null,
+  jobs:[], jobCursor:null, jobTimer:null,
   jobCountryFilter:"",
   currentTab:"timeline",
   jobWageFilter:0,

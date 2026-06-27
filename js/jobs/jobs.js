@@ -223,7 +223,8 @@ export async function loadJobs(reset=true) {
   try {
     const result=await fetchTrpc("workOffer.getWorkOffersPaginated",{limit:50,cursor:reset?undefined:S.jobCursor},k);
     const data=unwrap(result);
-    const items=Array.isArray(data)?data:(data?.items||data?.offers||[]);
+    let items=Array.isArray(data)?data:(data?.items||data?.offers||[]);
+    items = items.filter(j => (j.openSlots||j.slots||j.count||j.quantity||1) > 0);
     S.jobCursor=data?.nextCursor||null;
     S.jobs=reset?items:[...S.jobs,...items];
 
@@ -239,4 +240,8 @@ export async function loadJobs(reset=true) {
     E.jobsStatus.classList.add("error");
   }
   E.loadMoreJobsBtn.hidden=!S.jobCursor;
+  if (reset) {
+    if (S.jobTimer) clearTimeout(S.jobTimer);
+    S.jobTimer = setTimeout(() => loadJobs(true), 300000);
+  }
 }
