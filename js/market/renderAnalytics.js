@@ -301,7 +301,7 @@ export function renderExecutiveDashboard(a) {
         ${a.assessment.paragraphs.map(p => `<div class="analytics-assess-item"><strong>${p.topic}:</strong> ${p.text}</div>`).join("")}
       </div>
     </div>`;
-    if (assessSection) assessSection.outerHTML = assessHtml;
+    if (assessSection) assessSection.outerHTML = `<div class="analytics-assessment">${assessHtml}</div>`;
     else {
       const div = document.createElement("div");
       div.className = "analytics-assessment";
