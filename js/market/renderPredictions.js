@@ -7,17 +7,23 @@ function fmtPct(v) {
   return (v > 0 ? "+" : "") + Number(v).toFixed(1) + "%";
 }
 
+const CAT_COLORS = {
+  "Prediction Indicator": "var(--green)",
+  "Pressure Indicator": "var(--blue)",
+  "Momentum Indicator": "var(--accent)",
+  "Liquidity Indicator": "var(--yellow)",
+  "Confidence Indicator": "var(--ink-dim)",
+  "Rank Indicator": "var(--orange)",
+};
+
+function catColor(cat) { return CAT_COLORS[cat] || "var(--ink-dim)"; }
+
 function badge(cat) {
-  const colors = {
-    "Prediction Indicator": "var(--green)",
-    "Pressure Indicator": "var(--blue)",
-    "Momentum Indicator": "var(--accent)",
-    "Liquidity Indicator": "var(--yellow)",
-    "Confidence Indicator": "var(--ink-dim)",
-    "Rank Indicator": "var(--orange)",
-  };
-  return `<span class="analytics-badge" style="background:${colors[cat] || "var(--ink-dim)"}20;color:${colors[cat] || "var(--ink-dim)"}">${cat}</span>`;
+  const c = catColor(cat);
+  return `<span class="analytics-badge" style="background:${c}20;color:${c}">${cat}</span>`;
 }
+
+function hl(name, cat) { return `<span style="color:${catColor(cat)};font-weight:700">${name}</span>`; }
 
 const TREND_UP = "▲";
 const TREND_DOWN = "▼";
@@ -87,7 +93,7 @@ export function renderPredictionDashboard() {
     trendColor: (topItem?.valueGrowth || 0) > 0 ? "var(--green)" : "var(--red)",
     extra: `<div class="analytics-meta">F: Momentum = valueGrowth% across tracked commodities</div>
       <div class="analytics-meta">V: topValuable[n].value, prevCommodityScores</div>
-      ${hasHistory ? `<div class="analytics-meta">Tracked items: ${p.itemsWithHistory.slice(0, 5).join(", ")}${p.itemsWithHistory.length > 5 ? "..." : ""}</div>` : ""}`,
+      ${hasHistory ? `<div class="analytics-meta">Tracked items: ${p.itemsWithHistory.slice(0, 5).map(n => hl(n, "Prediction Indicator")).join(", ")}${p.itemsWithHistory.length > 5 ? "..." : ""}</div>` : ""}`,
     interpretation: hasHistory ? `${p.itemsWithHistory.length} commodities have sufficient history for momentum tracking.` : "At least two data snapshots required to compute momentum.",
   }));
 
@@ -114,9 +120,9 @@ export function renderPredictionDashboard() {
     trendColor: (topGrowth?.valueGrowth || 0) > 0 ? "var(--green)" : "var(--red)",
     extra: `<div class="analytics-meta">F: ((Cv − Pv) ÷ Pv) × 100</div>
       <div class="analytics-meta">V: commodity.value, prevCommodityScores[item]</div>
-      ${topGrowth ? `<div class="analytics-meta">Leader: ${topGrowth.itemName} (${fmtPct(topGrowth.valueGrowth)})</div>` : ""}
-      ${worstGrowth ? `<div class="analytics-meta">Lowest: ${worstGrowth.itemName} (${fmtPct(worstGrowth.valueGrowth)})</div>` : ""}`,
-    interpretation: topGrowth ? `Best performer: ${topGrowth.itemName} at ${fmtPct(topGrowth.valueGrowth)}.` : "",
+      ${topGrowth ? `<div class="analytics-meta">Leader: ${hl(topGrowth.itemName, "Momentum Indicator")} (${fmtPct(topGrowth.valueGrowth)})</div>` : ""}
+      ${worstGrowth ? `<div class="analytics-meta">Lowest: ${hl(worstGrowth.itemName, "Momentum Indicator")} (${fmtPct(worstGrowth.valueGrowth)})</div>` : ""}`,
+    interpretation: topGrowth ? `Best performer: ${hl(topGrowth.itemName, "Momentum Indicator")} at ${fmtPct(topGrowth.valueGrowth)}.` : "",
   }));
 
   const topVel = p.predictions.filter(p2 => p2.valueVelocity != null).sort((a, b) => Math.abs(b.valueVelocity || 0) - Math.abs(a.valueVelocity || 0)).slice(0, 1)[0];
@@ -125,8 +131,8 @@ export function renderPredictionDashboard() {
     value: topVel ? fmtMoney(Math.abs(topVel.valueVelocity || 0), 6) + " BTC/s" : "Insufficient History",
     extra: `<div class="analytics-meta">F: (Cv − Pv) ÷ ΔTime</div>
       <div class="analytics-meta">V: commodity.value, prevCommodityScores, update timestamp</div>
-      ${topVel ? `<div class="analytics-meta">Fastest: ${topVel.itemName} (${fmtMoney(Math.abs(topVel.valueVelocity || 0), 6)} BTC/s)</div>` : ""}`,
-    interpretation: topVel ? `Highest velocity: ${topVel.itemName}.` : "",
+      ${topVel ? `<div class="analytics-meta">Fastest: ${hl(topVel.itemName, "Momentum Indicator")} (${fmtMoney(Math.abs(topVel.valueVelocity || 0), 6)} BTC/s)</div>` : ""}`,
+    interpretation: topVel ? `Highest velocity: ${hl(topVel.itemName, "Momentum Indicator")}.` : "",
   }));
 
   const topAcc = p.predictions.filter(p2 => p2.valueAcceleration != null).sort((a, b) => Math.abs(b.valueAcceleration || 0) - Math.abs(a.valueAcceleration || 0)).slice(0, 1)[0];
@@ -136,8 +142,8 @@ export function renderPredictionDashboard() {
     pct: topAcc?.valueAcceleration != null ? (topAcc.valueAcceleration / (Math.abs(topAcc.valueVelocity || 1)) * 100) : null,
     extra: `<div class="analytics-meta">F: VcurrVel − VprevVel</div>
       <div class="analytics-meta">V: current velocity, previous velocity</div>
-      ${topAcc ? `<div class="analytics-meta">Fastest acceleration: ${topAcc.itemName}</div>` : ""}`,
-    interpretation: topAcc ? `Acceleration detected in ${topAcc.itemName}.` : "Requires 3+ snapshots for acceleration.",
+      ${topAcc ? `<div class="analytics-meta">Fastest acceleration: ${hl(topAcc.itemName, "Momentum Indicator")}</div>` : ""}`,
+    interpretation: topAcc ? `Acceleration detected in ${hl(topAcc.itemName, "Momentum Indicator")}.` : "Requires 3+ snapshots for acceleration.",
   }));
 
   const maxBP = p.predictions.filter(p2 => p2.buyPressure != null).sort((a, b) => (b.buyPressure || 0) - (a.buyPressure || 0)).slice(0, 1)[0];
@@ -147,16 +153,16 @@ export function renderPredictionDashboard() {
     value: maxBP ? (maxBP.buyPressure * 100).toFixed(1) + "%" : "Insufficient Data",
     extra: `<div class="analytics-meta">F: BuyQty ÷ (BuyQty + SellQty)</div>
       <div class="analytics-meta">V: commodityOrders (BUY side)</div>
-      ${maxBP ? `<div class="analytics-meta">Highest: ${maxBP.itemName} (${(maxBP.buyPressure * 100).toFixed(0)}%)</div>` : ""}`,
-    interpretation: maxBP ? `Highest buy pressure on ${maxBP.itemName}.` : "",
+      ${maxBP ? `<div class="analytics-meta">Highest: ${hl(maxBP.itemName, "Pressure Indicator")} (${(maxBP.buyPressure * 100).toFixed(0)}%)</div>` : ""}`,
+    interpretation: maxBP ? `Highest buy pressure on ${hl(maxBP.itemName, "Pressure Indicator")}.` : "",
   }));
 
   cards.push(predCard("Sell Pressure", "Pressure Indicator", "", {
     value: maxSP ? (maxSP.sellPressure * 100).toFixed(1) + "%" : "Insufficient Data",
     extra: `<div class="analytics-meta">F: SellQty ÷ (BuyQty + SellQty)</div>
       <div class="analytics-meta">V: commodityOrders (SELL side)</div>
-      ${maxSP ? `<div class="analytics-meta">Highest: ${maxSP.itemName} (${(maxSP.sellPressure * 100).toFixed(0)}%)</div>` : ""}`,
-    interpretation: maxSP ? `Highest sell pressure on ${maxSP.itemName}.` : "",
+      ${maxSP ? `<div class="analytics-meta">Highest: ${hl(maxSP.itemName, "Pressure Indicator")} (${(maxSP.sellPressure * 100).toFixed(0)}%)</div>` : ""}`,
+    interpretation: maxSP ? `Highest sell pressure on ${hl(maxSP.itemName, "Pressure Indicator")}.` : "",
   }));
 
   const bestPR = p.predictions.filter(p2 => p2.pressureRatio != null && isFinite(p2.pressureRatio)).sort((a, b) => (b.pressureRatio || 0) - (a.pressureRatio || 0)).slice(0, 1)[0];
@@ -166,7 +172,7 @@ export function renderPredictionDashboard() {
     extra: `<div class="analytics-meta">F: BuyQty ÷ SellQty</div>
       <div class="analytics-meta">V: commodityOrders BUY/SELL quantities</div>
       <div class="analytics-meta">>1 = buy dominance, <1 = sell dominance</div>
-      ${bestPR ? `<div class="analytics-meta">Highest ratio: ${bestPR.itemName} (${bestPR.pressureRatio.toFixed(2)}x)</div>` : ""}`,
+      ${bestPR ? `<div class="analytics-meta">Highest ratio: ${hl(bestPR.itemName, "Pressure Indicator")} (${bestPR.pressureRatio.toFixed(2)}x)</div>` : ""}`,
     interpretation: bestPR ? (bestPR.pressureRatio > 1.2 ? "Strong buy dominance across top commodities." : bestPR.pressureRatio < 0.8 ? "Sell pressure outweighs buying." : "Balanced buy/sell pressure.") : "",
   }));
 
@@ -176,7 +182,7 @@ export function renderPredictionDashboard() {
     value: maxNF ? (maxNF.netOrderFlow >= 0 ? "+" : "") + fmtMoney(Math.abs(maxNF.netOrderFlow || 0)) + " BTC" : "Insufficient Data",
     extra: `<div class="analytics-meta">F: BuyValue − SellValue</div>
       <div class="analytics-meta">V: commodityOrders BUY/SELL values</div>
-      ${maxNF ? `<div class="analytics-meta">Largest flow: ${maxNF.itemName} (${(maxNF.netOrderFlow >= 0 ? "+" : "") + fmtMoney(Math.abs(maxNF.netOrderFlow || 0))} BTC)</div>` : ""}`,
+      ${maxNF ? `<div class="analytics-meta">Largest flow: ${hl(maxNF.itemName, "Liquidity Indicator")} (${(maxNF.netOrderFlow >= 0 ? "+" : "") + fmtMoney(Math.abs(maxNF.netOrderFlow || 0))} BTC)</div>` : ""}`,
     interpretation: maxNF ? (maxNF.netOrderFlow > 0 ? "Net buying across tracked commodities." : "Net selling across tracked commodities.") : "",
   }));
 
@@ -193,7 +199,7 @@ export function renderPredictionDashboard() {
     value: whales.length > 0 ? `${whales.length} whale${whales.length > 1 ? "s" : ""} detected` : "No whales",
     extra: `<div class="analytics-meta">F: LargestOrderQty ÷ TotalOrderQty ≥ 35%</div>
       <div class="analytics-meta">V: commodityOrders quantities</div>
-      ${whales.length ? `<div class="analytics-meta">${whales.map(w => w.itemName + " (" + (w.largeOrderWeight * 100).toFixed(0) + "%)").join(", ")}</div>` : `<div class="analytics-meta">No commodity has a single order ≥35% of its order book.</div>`}`,
+      ${whales.length ? `<div class="analytics-meta">${whales.map(w => hl(w.itemName, "Liquidity Indicator") + " (" + (w.largeOrderWeight * 100).toFixed(0) + "%)").join(", ")}</div>` : `<div class="analytics-meta">No commodity has a single order ≥35% of its order book.</div>`}`,
     interpretation: whales.length ? `${whales.length} commodities show whale activity — large single orders dominating order books.` : "No whale activity detected.",
   }));
 
