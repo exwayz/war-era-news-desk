@@ -8,6 +8,7 @@ import { highlightUserData } from "../core/profileHighlighter.js";
 import { calculateAnalytics, updateHistories } from "./analytics.js";
 import { renderExecutiveDashboard } from "./renderAnalytics.js";
 import { renderPredictionDashboard } from "./renderPredictions.js";
+import { computePredictions } from "./predictions.js";
 
 export async function fetchTxLast24h(type, k, maxPages=50) {
   const cutoff=Date.now()-86400000;
@@ -431,6 +432,23 @@ export function copyMarketReport() {
     r += `## Economic Intelligence Assessment\n`;
     r += a.assessment.summary + "\n\n";
     for (const p of a.assessment.paragraphs) r += `**${p.topic}:** ${p.text}\n`;
+  }
+  const pred = computePredictions();
+  if (pred.itemsWithHistory.length > 0) {
+    r += `\n\n## Commodity Predictions\n`;
+    r += `- Prediction Confidence: ${pred.confidence}/100\n`;
+    r += `- Market Rotation Index: ${pred.marketRotationIndex} rank changes\n`;
+    r += `- Sentiment: ${pred.totalBullish} bullish / ${pred.totalStable} stable / ${pred.totalBearish} bearish\n`;
+    if (pred.topBullish.length) r += `- Top Bullish: ${pred.topBullish.map(k => { const h = pred.heatScores[k]; return (h?.pred?.itemName || k) + " (" + (h ? h.score.toFixed(1) : "?") + ")"; }).join(", ")}\n`;
+    if (pred.topBearish.length) r += `- Top Bearish: ${pred.topBearish.map(k => { const h = pred.heatScores[k]; return (h?.pred?.itemName || k) + " (" + (h ? h.score.toFixed(1) : "?") + ")"; }).join(", ")}\n`;
+    if (pred.potentialChanges.length) {
+      r += `- Potential Ranking Changes:\n`;
+      for (const pc of pred.potentialChanges) {
+        const dir = pc.rankChange > 0 ? "▲ up" : "▼ down";
+        r += `    ${pc.itemName}: ${dir} ${Math.abs(pc.rankChange)} rank${Math.abs(pc.rankChange) > 1 ? "s" : ""}\n`;
+      }
+    }
+    r += `- Outlook: ${pred.outlook.summary}\n`;
   }
   navigator.clipboard.writeText(r).then(()=>toast("Market report copied."));
 }
