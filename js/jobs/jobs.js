@@ -110,7 +110,7 @@ export function renderJobs() {
     const card=document.createElement("div"); card.className="job-card";
     const company = getJobCompanyName(job) || "Unknown Company";
     const c = getJobCompany(job);
-    const skill=job.skill||job.skillName||job.type||"General";
+    const skill=job.skill||job.skillName||job.type||"";
     const wage=Number(job.wage||job.salary||job.pay||0);
     const wageNet=Number(job.wageAfterTax ?? 0);
     const currency=job.currency||"BTC";
@@ -126,7 +126,7 @@ export function renderJobs() {
 
     card.innerHTML=`
       <p class="job-company">${company}${locationText?` <span style="color:var(--ink-dim);font-weight:500;font-size:.68rem">· ${locationText}</span>`:""}</p>
-      <p class="job-title">${skill} Worker</p>
+      ${skill?`<p class="job-title">${skill} Worker</p>`:""}
       <div class="job-chips">
         <span class="job-chip wage">💰 ${fmtMoney(wage)} ${currency}/hit${wageNet?` <span style="color:var(--ink-dim)">(net ${fmtMoney(wageNet)})</span>`:""}</span>
         <span class="job-chip">📋 ${slots} slot${slots!==1?"s":""}</span>
@@ -160,10 +160,15 @@ export function copyJobsReport() {
   let r=`# War Era Job Market Report\nGenerated: ${new Date().toUTCString()}\nTotal offers: ${S.jobs.length}\n\n## Top Paying\n`;
   for(const j of byWage.slice(0,20)) {
     const company = getJobCompanyName(j)||"Unknown";
+    const c = getJobCompany(j);
     const country = getJobCountryName(j);
     const region = getJobRegionName(j);
     const loc = [region, country].filter(Boolean).join(", ");
-    r+=`- ${company}${loc?` (${loc})`:""} — ${j.skill||j.type||"General"}: ${fmtMoney(j.wage||0)} BTC/hit\n`;
+    const wageN = Number(j.wageAfterTax||0);
+    const slotsN = j.openSlots||j.slots||j.count||"";
+    const item = c?.itemCode||"";
+    const val = c?.estimatedValue ? Number(c.estimatedValue) : 0;
+    r+=`- ${company}${loc?` (${loc})`:""}${slotsN?` — ${slotsN} slot${slotsN!==1?"s":""}`:""}${item?` — ${item}`:""}: ${fmtMoney(j.wage||0)} BTC/hit${wageN?` (net ${fmtMoney(wageN)})`:""}${val?` · 💎 ${fmtMoney(val)} BTC`:""}\n`;
   }
   navigator.clipboard.writeText(r).then(()=>toast("Jobs report copied."));
 }
@@ -172,13 +177,18 @@ export function captureJobsReport() {
   const byWage=[...S.jobs].sort((a,b)=>Number(b.wage||0)-Number(a.wage||0));
   const rows = byWage.slice(0,20).map((j,i) => {
     const company = getJobCompanyName(j)||"Unknown";
+    const c = getJobCompany(j);
     const country = getJobCountryName(j);
     const region = getJobRegionName(j);
     const loc = [region, country].filter(Boolean).join(", ");
-    return [String(i+1), company, loc||"—", j.skill||j.type||"General", fmtMoney(j.wage||0)+" BTC/hit"];
+    const wageN = Number(j.wageAfterTax||0);
+    const slotsN = j.openSlots||j.slots||j.count||"";
+    const item = c?.itemCode||"";
+    const val = c?.estimatedValue ? Number(c.estimatedValue) : 0;
+    return [String(i+1), company, loc||"—", j.skill||j.type||"", item||"—", String(slotsN), fmtMoney(j.wage||0)+" BTC/hit", wageN?fmtMoney(wageN)+" BTC":"", val?fmtMoney(val)+" BTC":""];
   });
   const html = cap.pageOpen("War Era Job Market Report", "", ["Total offers: "+S.jobs.length, "Generated: "+new Date().toUTCString()]) +
-    cap.section("Top Job Offers", cap.tableBlock("", ["#","Company","Location","Skill","Wage"], rows, 20)) +
+    cap.section("Top Job Offers", cap.tableBlock("", ["#","Company","Location","Skill","Item","Slots","Wage","Net Wage","Value"], rows, 20)) +
     cap.pageClose();
   cap.captureHTML(html, "jobs_report_"+cap.ts()+".png");
 }
