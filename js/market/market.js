@@ -316,7 +316,7 @@ export function loadMarketView(view) {
     let section = document.querySelector(".prediction-section");
     if (!section) {
       section = document.createElement("div");
-      section.className = "prediction-section analytics-section";
+      section.className = "prediction-section";
       section.innerHTML = `<div class="market-card analytics-exec-card" style="grid-column:1/-1">
         <div class="market-card-header"><span class="market-card-title">Market Prediction Overview</span></div>
         <div class="prediction-exec-body"></div>

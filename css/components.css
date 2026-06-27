@@ -511,6 +511,7 @@
 }
 .analytics-card-body .mini-chart-wrap { margin-top: 8px; padding-top: 8px; }
 .analytics-section { margin-top: 20px; }
+.prediction-section { margin-top: 20px; }
 .analytics-cards-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
