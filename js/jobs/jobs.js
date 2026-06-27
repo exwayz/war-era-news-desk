@@ -205,14 +205,13 @@ export function captureJobsReport() {
     const region = getJobRegionName(j);
     const loc = [region, country].filter(Boolean).join(", ");
     const wageN = Number(j.wageAfterTax||0);
-    const slotsN = j.openSlots||j.slots||j.count||"";
     const item = c?.itemCode||"";
     const val = c?.estimatedValue ? Number(c.estimatedValue) : 0;
     const boss = getJobBossName(j);
-    return [String(i+1), company, boss||"—", loc||"—", j.skill||j.type||"", item||"—", String(slotsN), fmtMoney(j.wage||0)+" BTC/hit", wageN?fmtMoney(wageN)+" BTC":"", val?fmtMoney(val)+" BTC":""];
+    return [String(i+1), company, boss||"—", loc||"—", item||"—", fmtMoney(j.wage||0)+" BTC/hit", wageN?fmtMoney(wageN)+" BTC":"", val?fmtMoney(val)+" BTC":""];
   });
   const html = cap.pageOpen("War Era Job Market Report", "", ["Total offers: "+S.jobs.length, "Generated: "+new Date().toUTCString()]) +
-    cap.section("Top Job Offers", cap.tableBlock("", ["#","Company","Boss","Location","Skill","Item","Slots","Wage","Net Wage","Value"], rows, 20)) +
+    cap.section("Top Job Offers", cap.tableBlock("", ["#","Company","Boss","Location","Item","Wage","Net Wage","Value"], rows, 20)) +
     cap.pageClose();
   cap.captureHTML(html, "jobs_report_"+cap.ts()+".png");
 }
