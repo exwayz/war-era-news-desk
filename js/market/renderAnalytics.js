@@ -103,13 +103,19 @@ function multiChart(series) {
   if (key === _chartKey) return "";
   _chartKey = key;
 
-  let gMin = Infinity, gMax = -Infinity;
-  for (const d of data) {
-    for (const v of d.vals) { if (v != null && isFinite(v)) { if (v < gMin) gMin = v; if (v > gMax) gMax = v; } }
-  }
-  if (!isFinite(gMin) || !isFinite(gMax) || gMin === gMax) return `<p style="color:var(--ink-dim);padding:20px;text-align:center">Insufficient data range.</p>`;
+  const pctData = data.map(d => {
+    const baseline = d.vals[0];
+    if (baseline == null || !isFinite(baseline) || baseline === 0) return null;
+    const pcts = d.vals.map(v => (v != null && isFinite(v)) ? (v / baseline) * 100 : null);
+    return { label: d.label, color: d.color, vals: d.vals, pcts, baseline, len: d.len };
+  }).filter(Boolean);
+  if (!pctData.length) return `<p style="color:var(--ink-dim);padding:20px;text-align:center">Insufficient data range.</p>`;
 
-  const range = gMax - gMin;
+  let gMin = Infinity, gMax = -Infinity;
+  for (const d of pctData) {
+    for (const p of d.pcts) { if (p != null && isFinite(p)) { gMin = Math.min(gMin, p); gMax = Math.max(gMax, p); } }
+  }
+  const range = gMax - gMin || 1;
   const pado = range * 0.05 || 1;
   gMin -= pado; gMax += pado;
 
@@ -121,11 +127,11 @@ function multiChart(series) {
 
   const yTicks = niceScale(gMin, gMax, 5);
 
-  const lines = data.map(d => {
+  const lines = pctData.map(d => {
     const points = [];
     for (let i = 0; i < d.len; i++) {
-      if (d.vals[i] != null && isFinite(d.vals[i])) {
-        points.push({ x: xPos(i), y: yPos(d.vals[i]), v: d.vals[i], i });
+      if (d.pcts[i] != null && isFinite(d.pcts[i]) && d.vals[i] != null && isFinite(d.vals[i])) {
+        points.push({ x: xPos(i), y: yPos(d.pcts[i]), v: d.vals[i], i });
       }
     }
     const cur = d.vals[d.len - 1];
@@ -156,9 +162,9 @@ function multiChart(series) {
     <svg viewBox="0 0 ${W} ${H}" class="exec-chart-svg" style="cursor:crosshair">
       ${yTicks.map(v => {
         const yy = yPos(v);
-        return `<line x1="${padL}" y1="${yy}" x2="${padL + plotW}" y2="${yy}" stroke="var(--border-1)" stroke-width="0.5" stroke-dasharray="3,3"/><text x="${padL - 6}" y="${yy + 3}" fill="var(--ink-dim)" font-size="9" text-anchor="end">${fmtShort(v)}</text>`;
+        return `<line x1="${padL}" y1="${yy}" x2="${padL + plotW}" y2="${yy}" stroke="var(--border-1)" stroke-width="0.5" stroke-dasharray="3,3"/><text x="${padL - 6}" y="${yy + 3}" fill="var(--ink-dim)" font-size="9" text-anchor="end">${v.toFixed(0)}%</text>`;
       }).join("")}
-      <text x="${padL}" y="${padT - 4}" fill="var(--ink-dim)" font-size="9">Last ${totalLen} cycles</text>
+      <text x="${padL}" y="${padT - 4}" fill="var(--ink-dim)" font-size="9">Relative Performance (%, baseline = first visible)</text>
       ${areas}
       ${paths}
       <line class="ch-${uid}-xhair" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--ink-dim)" stroke-width="0.8" stroke-dasharray="3,3" style="display:none;pointer-events:none"/>
