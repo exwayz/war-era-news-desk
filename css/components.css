@@ -592,7 +592,11 @@
 
 /* ── MARKET VIEW TOGGLE ──────────────────────────── */
 #tab-market.view-analytics .market-grid { display: none; }
+#tab-market.view-predictions .market-grid { display: none; }
+#tab-market.view-predictions .analytics-section { display: none; }
 #tab-market.view-overview .analytics-section { display: none; }
+#tab-market.view-overview .prediction-section { display: none; }
+#tab-market.view-analytics .prediction-section { display: none; }
 
 /* ── JOB CARD ───────────────────────────────────────── */
 .job-card {

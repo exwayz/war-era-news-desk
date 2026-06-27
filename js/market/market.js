@@ -7,6 +7,7 @@ import * as cap from "../core/captureReport.js";
 import { highlightUserData } from "../core/profileHighlighter.js";
 import { calculateAnalytics, updateHistories } from "./analytics.js";
 import { renderExecutiveDashboard } from "./renderAnalytics.js";
+import { renderPredictionDashboard } from "./renderPredictions.js";
 
 export async function fetchTxLast24h(type, k, maxPages=50) {
   const cutoff=Date.now()-86400000;
@@ -224,9 +225,10 @@ export async function loadMarketFull(showLoading=true) {
       for (let i=0;i<rs.length;i++) {
         if (rs[i].status==="fulfilled") {
           const d = unwrap(rs[i].value);
+          const tagSide = (arr, side) => (Array.isArray(arr) ? arr : []).map(o => ({ ...o, _side: side }));
           const arr2 = [
-            ...(Array.isArray(d?.buyOrders) ? d.buyOrders : []),
-            ...(Array.isArray(d?.sellOrders) ? d.sellOrders : []),
+            ...tagSide(d?.buyOrders, "BUY"),
+            ...tagSide(d?.sellOrders, "SELL"),
             ...(Array.isArray(d?.items) ? d.items : []),
             ...(Array.isArray(d?.orders) ? d.orders : [])
           ];
@@ -290,6 +292,7 @@ export async function loadMarketFull(showLoading=true) {
 
   E.marketValuableData.innerHTML = commodityBars(topValuable);
 
+  S.market._prevScoresSnapshot = { ...prevScores };
   S.market.prevCommodityScores = {};
   for(const item of topValuable){ S.market.prevCommodityScores[item.item] = item.value; }
 
@@ -307,9 +310,23 @@ let _marketView = "overview";
 export function loadMarketView(view) {
   _marketView = view;
   const panel = document.getElementById("tab-market");
-  panel.classList.remove("view-overview", "view-analytics");
+  panel.classList.remove("view-overview", "view-analytics", "view-predictions");
   panel.classList.add("view-" + view);
-  if (view === "analytics") {
+  if (view === "predictions") {
+    let section = document.querySelector(".prediction-section");
+    if (!section) {
+      section = document.createElement("div");
+      section.className = "prediction-section analytics-section";
+      section.innerHTML = `<div class="market-card analytics-exec-card" style="grid-column:1/-1">
+        <div class="market-card-header"><span class="market-card-title">Market Prediction Overview</span></div>
+        <div class="prediction-exec-body"></div>
+      </div>
+      <div class="prediction-cards-grid analytics-cards-grid"></div>`;
+      const insertTarget = document.querySelector(".market-grid");
+      if (insertTarget) insertTarget.after(section);
+    }
+    renderPredictionDashboard();
+  } else if (view === "analytics") {
     let section = document.querySelector(".analytics-section");
     if (!section) {
       section = document.createElement("div");
