@@ -573,8 +573,8 @@ ${Array.from({length:maxRows}).map((_,i)=>{
     const ch = await import("../core/captureReport.js");
     const title2 = `${atk||"Attacker"} vs ${def||"Defender"}${reg?" — "+reg:""}`;
     const slug = (atk||"Attacker")+"_vs_"+(def||"Defender")+(reg?"_"+reg.replace(/[\s-]+/g,"_"):"");
-    const ptotalDmg = rankUsers.reduce((s, r) => s + getValue(r), 0);
-    const ptotalGp = gpUsers.reduce((s, r) => s + getPoints(r), 0);
+    const ptotalDmg = totalDmg || rankUsers.reduce((s, r) => s + getValue(r), 0);
+    const ptotalGp = (atkGp + defGp) || gpUsers.reduce((s, r) => s + getPoints(r), 0);
     const parts = (atkPar||0)+(defPar||0);
     const score = `${atkRoundsWon}—${defRoundsWon}`;
     const meta = [
