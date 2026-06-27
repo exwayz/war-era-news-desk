@@ -9,7 +9,7 @@ import { calculateAnalytics, updateHistories } from "./analytics.js";
 import { renderExecutiveDashboard } from "./renderAnalytics.js";
 import { renderPredictionDashboard } from "./renderPredictions.js";
 import { computePredictions } from "./predictions.js";
-import { storeMarketSnapshot, loadSupabaseHistory } from "./marketHistory.js";
+import { storeMarketSnapshot, loadSupabaseHistory, loadWeeklyMVI } from "./marketHistory.js";
 
 export async function fetchTxLast24h(type, k, maxPages=50) {
   const cutoff=Date.now()-86400000;
@@ -292,11 +292,10 @@ export async function loadMarketFull(showLoading=true) {
     }
   }
 
-  E.marketValuableData.innerHTML = commodityBars(topValuable);
-
   S.market._prevScoresSnapshot = { ...prevScores };
   S.market.prevCommodityScores = {};
   for(const item of topValuable){ S.market.prevCommodityScores[item.item] = item.value; }
+  renderMVI();
 
   const _init = calculateAnalytics();
   updateHistories(_init.p, _init.d);
@@ -307,7 +306,24 @@ export async function loadMarketFull(showLoading=true) {
   loadMarketView(_marketView);
   storeMarketSnapshot();
   loadSupabaseHistory();
+  loadWeeklyMVI();
 }
+
+function renderMVI() {
+  const data = S.market._mviView === "weekly" && S.market._weeklyMVI ? S.market._weeklyMVI : S.market.topValuable;
+  E.marketValuableData.innerHTML = commodityBars(data || []);
+  const btn = document.getElementById("mviToggle");
+  if (btn) btn.textContent = S.market._mviView === "weekly" ? "Weekly" : "CMVI";
+}
+
+export function toggleMVI() {
+  S.market._mviView = S.market._mviView === "live" ? "weekly" : "live";
+  renderMVI();
+}
+
+document.addEventListener("click", e => {
+  if (e.target.id === "mviToggle") toggleMVI();
+});
 
 let _marketView = "overview";
 

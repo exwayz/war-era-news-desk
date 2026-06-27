@@ -3,7 +3,7 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from "../core/constants.js";
 import { calculateAnalytics } from "./analytics.js";
 
 const TABLE = "market_snapshots";
-const TWO_HOURS = 7200000;
+const RETENTION_MS = 7 * 24 * 3600000;
 
 function headers() {
   return {
@@ -30,7 +30,7 @@ export async function storeMarketSnapshot() {
     analytics: a.p ? { p: a.p, d: a.d } : null,
     priceIndex: { t: Date.now(), i: pi },
   };
-  const cutoff = new Date(Date.now() - TWO_HOURS).toISOString();
+  const cutoff = new Date(Date.now() - RETENTION_MS).toISOString();
   try {
     await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?created_at=lt.${cutoff}`, {
       method: "DELETE", headers: headers(),
@@ -62,7 +62,7 @@ export async function storeMarketSnapshot() {
 }
 
 export async function loadSupabaseHistory(limit = 15) {
-  const cutoff = new Date(Date.now() - TWO_HOURS).toISOString();
+  const cutoff = new Date(Date.now() - RETENTION_MS).toISOString();
   try {
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/${TABLE}?created_at=gte.${cutoff}&order=created_at.desc&limit=${limit}`,
@@ -126,5 +126,35 @@ export async function loadSupabaseHistory(limit = 15) {
     if (cur.basket != null) push(S.market.basketHistory, cur.basket);
     if (cur.wage) { S.market.wageHistory.push(cur.wage); if (S.market.wageHistory.length > 48) S.market.wageHistory.shift(); }
     if (cur.price) { S.market.priceHistory.push(cur.price); if (S.market.priceHistory.length > 48) S.market.priceHistory.shift(); }
+  } catch {}
+}
+
+export async function loadWeeklyMVI() {
+  const weekAgo = new Date(Date.now() - RETENTION_MS).toISOString();
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/${TABLE}?created_at=gte.${weekAgo}&order=created_at.desc&limit=2000`,
+      { headers: headers() }
+    );
+    if (!res.ok) return;
+    const rows = await res.json();
+    const acc = {};
+    let count = 0;
+    for (const row of rows) {
+      const tv = row.snapshot?.topValuable;
+      if (!Array.isArray(tv)) continue;
+      count++;
+      for (const entry of tv) {
+        if (!entry.item || !entry.value) continue;
+        if (!acc[entry.item]) acc[entry.item] = 0;
+        acc[entry.item] += Number(entry.value);
+      }
+    }
+    if (count < 10) return;
+    const sorted = Object.entries(acc)
+      .map(([item, value]) => ({ item, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 20);
+    S.market._weeklyMVI = sorted;
   } catch {}
 }
