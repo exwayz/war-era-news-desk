@@ -26,8 +26,14 @@ export async function fetchBattleDamage(battleId) {
     const result = await fetchTrpc("battle.getById", { battleId }, k);
     const data = unwrap(result);
     if (!data) return 0;
-    const atkDmg = Number(data.attacker?.damages ?? 0);
-    const defDmg = Number(data.defender?.damages ?? 0);
+    function sumDmg(d) {
+      if (d == null) return 0;
+      if (typeof d === "number") return d;
+      if (typeof d === "object") return Object.values(d).reduce((s, v) => s + (Number(v) || 0), 0);
+      return Number(d) || 0;
+    }
+    const atkDmg = sumDmg(data.attacker?.damages);
+    const defDmg = sumDmg(data.defender?.damages);
     const total = atkDmg + defDmg;
     if (total > 0) S.battleDamageCache.set(battleId, total);
     return total;

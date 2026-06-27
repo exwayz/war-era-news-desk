@@ -232,8 +232,15 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
   const ended = b.endedAt||"";
   const winner = b.winner||(b.wonBy==="attacker"?atk:b.wonBy==="defender"?def:null);
 
-  let atkDmg = b.attacker?.damages ?? rankUsers.filter(r => r._side === "attacker").reduce((s, r) => s + getValue(r), 0);
-  let defDmg = b.defender?.damages ?? rankUsers.filter(r => r._side === "defender").reduce((s, r) => s + getValue(r), 0);
+  function sumDmg(d) {
+    if (d == null) return 0;
+    if (typeof d === "number") return d;
+    if (typeof d === "object") return Object.values(d).reduce((s, v) => s + (Number(v) || 0), 0);
+    return Number(d) || 0;
+  }
+  let rawAtkDmg = b.attacker?.damages, rawDefDmg = b.defender?.damages;
+  let atkDmg = rawAtkDmg != null ? sumDmg(rawAtkDmg) : rankUsers.filter(r => r._side === "attacker").reduce((s, r) => s + getValue(r), 0);
+  let defDmg = rawDefDmg != null ? sumDmg(rawDefDmg) : rankUsers.filter(r => r._side === "defender").reduce((s, r) => s + getValue(r), 0);
   let totalDmg = atkDmg+defDmg||b.totalDamage||b.damage||0;
   let atkGp = gpUsers.filter(r => r._side === "attacker").reduce((s, r) => s + getPoints(r), 0);
   let defGp = gpUsers.filter(r => r._side === "defender").reduce((s, r) => s + getPoints(r), 0);
