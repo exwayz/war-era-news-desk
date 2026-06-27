@@ -1,7 +1,7 @@
 import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
 import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
-import { fmtMoney, fmtNum } from "../core/utils.js";
+import { fmtMoney, fmtNum, fmtDate } from "../core/utils.js";
 
 import { toast } from "../ui/toast.js";
 import * as cap from "../core/captureReport.js";
@@ -109,8 +109,10 @@ export function renderJobs() {
   for(const job of jobs) {
     const card=document.createElement("div"); card.className="job-card";
     const company = getJobCompanyName(job) || "Unknown Company";
+    const c = getJobCompany(job);
     const skill=job.skill||job.skillName||job.type||"General";
     const wage=Number(job.wage||job.salary||job.pay||0);
+    const wageNet=Number(job.wageAfterTax ?? 0);
     const currency=job.currency||"BTC";
     const slots=job.openSlots||job.slots||job.count||1;
     const minSkill=job.minSkill||job.requiredLevel||job.level||0;
@@ -118,15 +120,21 @@ export function renderJobs() {
     const regionName = getJobRegionName(job);
     const countryName = getJobCountryName(job);
     const locationText = [regionName, countryName].filter(Boolean).join(", ");
+    const itemCode = c?.itemCode || "";
+    const estVal = c?.estimatedValue ? Number(c.estimatedValue) : 0;
+    const created = job.createdAt ? fmtDate(job.createdAt) : "";
 
     card.innerHTML=`
       <p class="job-company">${company}${locationText?` <span style="color:var(--ink-dim);font-weight:500;font-size:.68rem">· ${locationText}</span>`:""}</p>
       <p class="job-title">${skill} Worker</p>
       <div class="job-chips">
-        <span class="job-chip wage">💰 ${fmtMoney(wage)} ${currency}/hit</span>
+        <span class="job-chip wage">💰 ${fmtMoney(wage)} ${currency}/hit${wageNet?` <span style="color:var(--ink-dim)">(net ${fmtMoney(wageNet)})</span>`:""}</span>
         <span class="job-chip">📋 ${slots} slot${slots!==1?"s":""}</span>
         ${minSkill?`<span class="job-chip">⭐ Min. skill ${minSkill}</span>`:""}
+        ${itemCode?`<span class="job-chip">🏭 ${itemCode}</span>`:""}
         ${countryName?`<span class="job-chip">🌍 ${countryName}</span>`:""}
+        ${estVal?`<span class="job-chip">💎 ${fmtMoney(estVal)} BTC</span>`:""}
+        ${created?`<span class="job-chip">🕐 ${created}</span>`:""}
       </div>
       <div class="job-actions">
         ${cid ?`<button class="job-btn" data-cid="${cid}">🏭 View Company</button>` :`<button class="job-btn" disabled title="Company ID not available" style="opacity:.4;cursor:not-allowed">🏭 View Company</button>`}
