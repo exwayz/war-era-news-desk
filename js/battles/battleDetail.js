@@ -242,6 +242,11 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
   let atkDmg = rawAtkDmg != null ? sumDmg(rawAtkDmg) : rankUsers.filter(r => r._side === "attacker").reduce((s, r) => s + getValue(r), 0);
   let defDmg = rawDefDmg != null ? sumDmg(rawDefDmg) : rankUsers.filter(r => r._side === "defender").reduce((s, r) => s + getValue(r), 0);
   let totalDmg = atkDmg+defDmg||b.totalDamage||b.damage||0;
+  if (!totalDmg && roundsData && roundsData.length) {
+    atkDmg = roundsData.reduce((s, rd) => s + (rd.attacker?.damages ?? 0), 0);
+    defDmg = roundsData.reduce((s, rd) => s + (rd.defender?.damages ?? 0), 0);
+    totalDmg = atkDmg + defDmg;
+  }
   let atkGp = gpUsers.filter(r => r._side === "attacker").reduce((s, r) => s + getPoints(r), 0);
   let defGp = gpUsers.filter(r => r._side === "defender").reduce((s, r) => s + getPoints(r), 0);
   let participantsA = atkPar || b.atkPar || 0;
