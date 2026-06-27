@@ -40,7 +40,7 @@ export function computePredictions() {
     if (!S.market._prevVelocities) S.market._prevVelocities = {};
     S.market._prevVelocities[itemKey] = valueVelocity;
 
-    const itemOrders = commodityOrders.filter(o => (o._itemCode || o.itemCode) === itemKey);
+    const itemOrders = commodityOrders.filter(o => marketItemName(o._itemCode || o.itemCode || o.item) === itemKey);
     const buyOrders = itemOrders.filter(o => (o._side || o.orderType || o.type || o.side || "").toUpperCase() === "BUY");
     const sellOrders = itemOrders.filter(o => (o._side || o.orderType || o.type || o.side || "").toUpperCase() === "SELL");
     const undefOrders = itemOrders.filter(o => {
