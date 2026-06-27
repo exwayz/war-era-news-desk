@@ -9,6 +9,7 @@ import { calculateAnalytics, updateHistories } from "./analytics.js";
 import { renderExecutiveDashboard } from "./renderAnalytics.js";
 import { renderPredictionDashboard } from "./renderPredictions.js";
 import { computePredictions } from "./predictions.js";
+import { storeMarketSnapshot, loadSupabaseHistory } from "./marketHistory.js";
 
 export async function fetchTxLast24h(type, k, maxPages=50) {
   const cutoff=Date.now()-86400000;
@@ -304,6 +305,8 @@ export async function loadMarketFull(showLoading=true) {
   if (window.ecgPulse) window.ecgPulse(1.5);
   highlightUserData();
   loadMarketView(_marketView);
+  storeMarketSnapshot();
+  loadSupabaseHistory();
 }
 
 let _marketView = "overview";
