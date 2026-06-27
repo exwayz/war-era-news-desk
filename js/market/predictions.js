@@ -4,11 +4,11 @@ import { marketItemName } from "../core/utils.js";
 export function computePredictions() {
   const topValuable = S.market.topValuable || [];
   let prevScores = S.market._prevScoresSnapshot || S.market.prevCommodityScores || {};
-  if (Object.keys(prevScores).length === 0 && S.market._supabaseHistory && S.market._supabaseHistory.length > 0) {
-    const latest = S.market._supabaseHistory[0];
-    if (latest && latest.topValuable) {
+  if (Object.keys(prevScores).length === 0 && S.market._supabaseHistory && S.market._supabaseHistory.length > 1) {
+    const prev = S.market._supabaseHistory[1];
+    if (prev && prev.topValuable) {
       prevScores = {};
-      for (const item of latest.topValuable) prevScores[item.item] = item.value;
+      for (const item of prev.topValuable) prevScores[item.item] = item.value;
     }
   }
   const commodityOrders = S.market.commodityOrders || [];

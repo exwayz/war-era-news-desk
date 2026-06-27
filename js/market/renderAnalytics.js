@@ -1,6 +1,6 @@
 import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
-import { fmtMoney, fmtNum } from "../core/utils.js";
+import { fmtMoney, fmtNum, formatShortNumber } from "../core/utils.js";
 import { miniChart } from "../core/utils.js";
 
 const TREND_UP = "▲";
@@ -15,6 +15,16 @@ function trend(val) {
 function fmtPct(v) {
   if (v == null) return "N/A";
   return (v > 0 ? "+" : "") + v.toFixed(1) + "%";
+}
+
+function fmtShort(v) {
+  if (v == null || !isFinite(v)) return "—";
+  const abs = Math.abs(v);
+  if (abs >= 1e9) return (v / 1e9).toFixed(1) + "B";
+  if (abs >= 1e6) return (v / 1e6).toFixed(1) + "M";
+  if (abs >= 1e3) return (v / 1e3).toFixed(1) + "K";
+  if (abs >= 1) return v.toFixed(1);
+  return v.toFixed(3);
 }
 
 function badge(cat) {
@@ -33,70 +43,195 @@ function miniHistory(arr, color = "var(--accent)") {
   return miniChart(arr, "", color);
 }
 
-function normalize(arr) {
-  if (!arr || arr.length < 2) return arr || [];
-  const mn = Math.min(...arr);
-  const mx = Math.max(...arr);
-  if (mx === mn) return arr.map(() => 50);
-  return arr.map(v => ((v - mn) / (mx - mn)) * 100);
+function niceScale(min, max, ticks) {
+  if (min === max) { const v = min || 1; return [v - 1, v, v + 1]; }
+  const range = max - min;
+  const rough = range / (ticks - 1);
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const norm = rough / mag;
+  const step = norm <= 1.5 ? mag : norm <= 3.5 ? 2 * mag : norm <= 7.5 ? 5 * mag : 10 * mag;
+  const start = Math.ceil(min / step) * step;
+  const end = Math.floor(max / step) * step;
+  const labels = [];
+  for (let v = start; v <= end + step * 0.5; v += step) labels.push(v);
+  return labels;
 }
 
+function smoothPath(points) {
+  if (points.length < 2) return "";
+  if (points.length === 2) return `M${points[0].x},${points[0].y} L${points[1].x},${points[1].y}`;
+  let d = `M${points[0].x},${points[0].y}`;
+  for (let i = 1; i < points.length; i++) {
+    const mx = (points[i - 1].x + points[i].x) / 2;
+    d += ` C${mx},${points[i - 1].y} ${mx},${points[i].y} ${points[i].x},${points[i].y}`;
+  }
+  return d;
+}
+
+function fmtChartVal(v) {
+  if (v == null || !isFinite(v)) return "—";
+  const abs = Math.abs(v);
+  if (abs < 1) return v.toFixed(4);
+  if (abs < 10) return v.toFixed(3);
+  if (abs < 1000) return v.toFixed(1);
+  return formatShortNumber(v);
+}
+
+let _chartKey = "";
+let _chartConfig = null;
+
 function multiChart(series) {
-  const valid = series.filter(s => s.values && s.values.length >= 2);
-  if (!valid.length) return `<p style="color:var(--ink-dim);padding:20px;text-align:center">Insufficient historical data for chart.</p>`;
+  const pureCycleKeys = ["ppHistory","hhiHistory","circulationHistory","tradeEfficiencyHistory","basketHistory"];
+  let cycleLen = 0;
+  for (const k of pureCycleKeys) {
+    if (S.market[k] && S.market[k].length > 0) { cycleLen = S.market[k].length; break; }
+  }
+  if (cycleLen < 2) {
+    cycleLen = Math.min(...series.map(s => s.values.length).filter(l => l >= 2));
+    if (!cycleLen || cycleLen < 2) return `<p style="color:var(--ink-dim);padding:20px;text-align:center">Insufficient historical data for chart.</p>`;
+  }
 
-  const W = 800, H = 220, padL = 50, padR = 20, padT = 16, padB = 28;
-  const plotW = W - padL - padR;
-  const plotH = H - padT - padB;
-  const n = Math.max(...valid.map(s => s.values.length));
-  const idx = (i) => padL + (n > 1 ? (i / (n - 1)) * plotW : plotW / 2);
+  const data = series.map(s => {
+    const vals = s.values.length > cycleLen ? s.values.slice(-cycleLen) : s.values;
+    return { label: s.label, color: s.color, vals, len: vals.length };
+  }).filter(d => d.len >= 2);
+  if (!data.length) return `<p style="color:var(--ink-dim);padding:20px;text-align:center">Insufficient historical data for chart.</p>`;
 
-  const lines = valid.map(s => {
-    const norm = normalize(s.values);
-    const pts = norm.map((v, i) => `${idx(i).toFixed(1)},${(padT + plotH - (v / 100) * plotH).toFixed(1)}`);
-    const lastX = parseFloat(pts[pts.length - 1].split(",")[0]);
-    const lastY = parseFloat(pts[pts.length - 1].split(",")[1]);
-    const curVal = s.values[s.values.length - 1];
-    const prevVal = s.values.length > 1 ? s.values[s.values.length - 2] : null;
-    const pct = prevVal && prevVal > 0 ? ((curVal - prevVal) / prevVal) * 100 : null;
-    return {
-      id: s.label.replace(/\W/g, ""),
-      label: s.label,
-      color: s.color,
-      pts,
-      lastX, lastY,
-      curVal,
-      pct,
-    };
+  const totalLen = Math.max(...data.map(d => d.len));
+
+  const key = data.map(d => d.len + "|" + (isFinite(d.vals[d.len - 1]) ? d.vals[d.len - 1].toFixed(2) : "n")).join(";");
+  if (key === _chartKey) return "";
+  _chartKey = key;
+
+  let gMin = Infinity, gMax = -Infinity;
+  for (const d of data) {
+    for (const v of d.vals) { if (v != null && isFinite(v)) { if (v < gMin) gMin = v; if (v > gMax) gMax = v; } }
+  }
+  if (!isFinite(gMin) || !isFinite(gMax) || gMin === gMax) return `<p style="color:var(--ink-dim);padding:20px;text-align:center">Insufficient data range.</p>`;
+
+  const range = gMax - gMin;
+  const pado = range * 0.05 || 1;
+  gMin -= pado; gMax += pado;
+
+  const W = 800, H = 220, padL = 60, padR = 30, padT = 16, padB = 28;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+
+  const xPos = (i) => padL + (totalLen > 1 ? (i / (totalLen - 1)) * plotW : plotW / 2);
+  const yPos = (v) => padT + plotH - ((v - gMin) / (gMax - gMin)) * plotH;
+
+  const yTicks = niceScale(gMin, gMax, 5);
+
+  const lines = data.map(d => {
+    const points = [];
+    for (let i = 0; i < d.len; i++) {
+      if (d.vals[i] != null && isFinite(d.vals[i])) {
+        points.push({ x: xPos(i), y: yPos(d.vals[i]), v: d.vals[i], i });
+      }
+    }
+    const cur = d.vals[d.len - 1];
+    const prev = d.len > 1 ? d.vals[d.len - 2] : null;
+    const pct = (prev != null && isFinite(prev) && prev > 0) ? ((cur - prev) / prev) * 100 : null;
+    return { label: d.label, color: d.color, points, cur, pct, len: d.len };
   });
 
-  const gridlines = [0, 25, 50, 75, 100];
-  const yPos = (v) => padT + plotH - (v / 100) * plotH;
+  const uid = "ch" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
-  return `<svg viewBox="0 0 ${W} ${H}" class="exec-chart-svg">
-    ${gridlines.map(v => {
-      const y = yPos(v);
-      return `<line x1="${padL}" y1="${y}" x2="${padL + plotW}" y2="${y}" stroke="var(--border-1)" stroke-width="0.5"/>
-        <text x="${padL - 6}" y="${y + 3}" fill="var(--ink-dim)" font-size="9" text-anchor="end">${v}</text>`;
-    }).join("")}
-    <text x="${padL}" y="${padT - 4}" fill="var(--ink-dim)" font-size="9">Normalized (0–100)</text>
-    ${lines.map(l => {
-      const fillId = "efill-" + l.id;
-      const areaPath = `M${l.pts[0]} ${l.pts.slice(1).map(p => "L" + p).join(" ")} L${padL + plotW},${padT + plotH} L${padL},${padT + plotH} Z`;
-      return `<defs><linearGradient id="${fillId}" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="${l.color}" stop-opacity="0.15"/>
-        <stop offset="100%" stop-color="${l.color}" stop-opacity="0.01"/>
-      </linearGradient></defs>
-      <path d="${areaPath}" fill="url(#${fillId})"/>
-      <polyline points="${l.pts.join(" ")}" fill="none" stroke="${l.color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-      <circle cx="${l.lastX}" cy="${l.lastY}" r="3.5" fill="${l.color}" stroke="var(--ink-950)" stroke-width="1"/>`;
-    }).join("")}
-  </svg>
+  const areas = lines.map(l => {
+    if (l.points.length < 2) return "";
+    const fid = "fa" + uid + l.label.replace(/\W/g, "");
+    const pts = l.points.map(p => `${p.x},${p.y}`).join(" L");
+    return `<defs><linearGradient id="${fid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${l.color}" stop-opacity="0.10"/><stop offset="100%" stop-color="${l.color}" stop-opacity="0.01"/></linearGradient></defs><path d="M${l.points[0].x},${padT + plotH} L${pts} L${l.points[l.points.length - 1].x},${padT + plotH} Z" fill="url(#${fid})"/>`;
+  }).join("");
+
+  const paths = lines.map(l => {
+    if (l.points.length < 2) return "";
+    const path = smoothPath(l.points);
+    const last = l.points[l.points.length - 1];
+    return `<path d="${path}" fill="none" stroke="${l.color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>${last ? `<circle cx="${last.x}" cy="${last.y}" r="3" fill="${l.color}" stroke="var(--ink-950)" stroke-width="1"/>` : ""}`;
+  }).join("");
+
+  _chartConfig = { uid, lines, plotW, plotH, padL, padT, totalLen };
+
+  return `<div class="exec-chart-inner" style="position:relative" data-uid="${uid}">
+    <svg viewBox="0 0 ${W} ${H}" class="exec-chart-svg" style="cursor:crosshair">
+      ${yTicks.map(v => {
+        const yy = yPos(v);
+        return `<line x1="${padL}" y1="${yy}" x2="${padL + plotW}" y2="${yy}" stroke="var(--border-1)" stroke-width="0.5" stroke-dasharray="3,3"/><text x="${padL - 6}" y="${yy + 3}" fill="var(--ink-dim)" font-size="9" text-anchor="end">${fmtShort(v)}</text>`;
+      }).join("")}
+      <text x="${padL}" y="${padT - 4}" fill="var(--ink-dim)" font-size="9">Last ${totalLen} cycles</text>
+      ${areas}
+      ${paths}
+      <line class="ch-${uid}-xhair" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--ink-dim)" stroke-width="0.8" stroke-dasharray="3,3" style="display:none;pointer-events:none"/>
+      <rect x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent" class="ch-${uid}-zone" style="cursor:crosshair"/>
+    </svg>
+    <div class="ch-${uid}-tip chart-tooltip" style="display:none;position:absolute;pointer-events:none;background:rgba(24,32,40,0.95);backdrop-filter:blur(6px);border:1px solid var(--border-1);border-radius:6px;padding:8px 12px;font-size:.72rem;z-index:100;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.3);line-height:1.6"></div>
+  </div>
   <div class="exec-legend">${lines.map(l => {
-    const label = l.label + (l.curVal != null ? ` (${fmtMoney(l.curVal)})` : "");
-    const pctDisplay = l.pct != null ? fmtPct(l.pct) : "";
-    return `<span class="exec-legend-item"><span class="exec-legend-dot" style="background:${l.color}"></span>${label} <small style="color:${l.color}">${pctDisplay} ${trend(l.pct)}</small></span>`;
+    const pctD = l.pct != null ? fmtPct(l.pct) : "";
+    const tri = l.pct != null ? (l.pct > 2 ? TREND_UP : l.pct < -2 ? TREND_DOWN : TREND_FLAT) : TREND_FLAT;
+    return `<span class="exec-legend-item"><span class="exec-legend-dot" style="background:${l.color}"></span>${l.label} <span class="exec-legend-val">${l.cur != null ? fmtChartVal(l.cur) : ""}</span> <small style="color:${l.color}">${pctD} ${tri}</small></span>`;
   }).join("")}</div>`;
+}
+
+function initChartTools(uid, lines, plotW, plotH, padL, padT, totalLen) {
+  const inner = document.querySelector(`.exec-chart-inner[data-uid="${uid}"]`);
+  if (!inner) return;
+  const svg = inner.querySelector("svg");
+  const xhair = inner.querySelector(`.ch-${uid}-xhair`);
+  const tip = inner.querySelector(`.ch-${uid}-tip`);
+  const zone = inner.querySelector(`.ch-${uid}-zone`);
+  if (!svg || !zone || !xhair || !tip) return;
+
+  function getSVGPoint(clientX, clientY) {
+    const rect = svg.getBoundingClientRect();
+    const scaleX = 800 / rect.width;
+    const scaleY = 220 / rect.height;
+    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+  }
+
+  function showTooltip(svgX) {
+    const relX = svgX - padL;
+    const ratio = Math.max(0, Math.min(1, relX / plotW));
+    const idx = Math.round(ratio * (totalLen - 1));
+    const cx = padL + (totalLen > 1 ? (idx / (totalLen - 1)) * plotW : plotW / 2);
+
+    xhair.setAttribute("x1", cx);
+    xhair.setAttribute("x2", cx);
+    xhair.style.display = "";
+
+    const vals = lines.filter(l => l.points.length > 0);
+    const atIdx = vals.map(l => {
+      const pt = l.points.find(p => p.i === idx) || l.points.reduce((a, b) => Math.abs(b.i - idx) < Math.abs(a.i - idx) ? b : a);
+      return { label: l.label, color: l.color, v: pt ? pt.v : null, dist: pt ? Math.abs(pt.i - idx) : Infinity };
+    }).filter(x => x.v != null && isFinite(x.v));
+
+    if (!atIdx.length) { tip.style.display = "none"; return; }
+
+    tip.innerHTML = atIdx.map(t => `<span style="color:${t.color}">${t.label}</span> ${fmtChartVal(t.v)}`).join("<br>");
+    tip.style.display = "";
+
+    const svgRect = svg.getBoundingClientRect();
+    const tipX = cx * (svgRect.width / 800);
+    const tipY = padT * (svgRect.height / 220);
+    tip.style.left = tipX + "px";
+    tip.style.top = (tipY - tip.offsetHeight - 8) + "px";
+
+    if (tipX + tip.offsetWidth > svgRect.width - 4) {
+      tip.style.left = (svgRect.width - tip.offsetWidth - 4) + "px";
+    }
+  }
+
+  function hideTooltip() {
+    xhair.style.display = "none";
+    tip.style.display = "none";
+  }
+
+  zone.addEventListener("mousemove", (e) => {
+    const pt = getSVGPoint(e.clientX, e.clientY);
+    showTooltip(pt.x);
+  });
+
+  zone.addEventListener("mouseleave", hideTooltip);
 }
 
 function card(title, category, body, opts = {}) {
@@ -127,47 +262,59 @@ export function renderExecutiveDashboard(a) {
   const cardsGrid = srv.querySelector(".analytics-cards-grid");
 
   const series = [
-    { label: "Average Wage", values: S.market.wageHistory.map(w => w.avg), color: "var(--blue, #3b82f6)" },
-    { label: "Trade Volume", values: S.market.tradeVolHistory, color: "var(--green, #22c55e)" },
-    { label: "Total Payroll", values: S.market.payrollHistory, color: "var(--orange, #f59e0b)" },
     { label: "Commodity Basket", values: S.market.basketHistory, color: "var(--purple, #a855f7)" },
+    { label: "Purchasing Power", values: S.market.ppHistory, color: "var(--accent, #f59e0b)" },
+    { label: "Market Concentration", values: S.market.hhiHistory, color: "var(--yellow, #eab308)" },
+    { label: "Economic Circulation", values: S.market.circulationHistory, color: "var(--orange, #f97316)" },
+    { label: "Trade Efficiency", values: S.market.tradeEfficiencyHistory, color: "var(--cyan, #06b6d4)" },
   ];
 
-  execBody.innerHTML = `<div class="exec-chart-wrap">${multiChart(series)}</div>
-    <div class="exec-summary">
-      <div class="exec-summary-row">
-        <span class="exec-label">Economic Status</span>
-        <span class="exec-value" style="color:${econClass?.color || "var(--ink-dim)"}">${econClass?.label || "N/A"}</span>
-      </div>
-      <div class="exec-summary-row">
-        <span class="exec-label">Market Intelligence Score</span>
-        <span class="exec-value">${healthScore ? healthScore.score + "/100 · " + healthScore.level : "N/A"}</span>
-      </div>
-      <div class="exec-summary-row">
-        <span class="exec-label">Trade Momentum</span>
-        <span class="exec-value">${fmtPct(d?.tradeMom)} ${trend(d?.tradeMom)}</span>
-      </div>
-      <div class="exec-summary-row">
-        <span class="exec-label">Payroll Momentum</span>
-        <span class="exec-value">${fmtPct(d?.payrollMom)} ${trend(d?.payrollMom)}</span>
-      </div>
-      <div class="exec-summary-row">
-        <span class="exec-label">Wage Momentum</span>
-        <span class="exec-value">${fmtPct(d?.wageMom)} ${trend(d?.wageMom)}</span>
-      </div>
-      <div class="exec-summary-row">
-        <span class="exec-label">Price Momentum</span>
-        <span class="exec-value">${fmtPct(d?.priceMom)} ${trend(d?.priceMom)}</span>
-      </div>
-      <div class="exec-summary-row">
-        <span class="exec-label">Purchasing Power</span>
-        <span class="exec-value">${d?.pp != null ? fmtMoney(d.pp, 4) + " baskets/wage" : "N/A"} ${trend(d?.ppMom)}</span>
-      </div>
-      <div class="exec-summary-row">
-        <span class="exec-label">Market Concentration</span>
-        <span class="exec-value">${d?.hhi != null ? "HHI " + d.hhi.toFixed(0) : "N/A"} ${trend(d?.hhiMom ? -d.hhiMom : null)}</span>
-      </div>
-    </div>`;
+  const summaryHtml = `<div class="exec-summary">
+    <div class="exec-summary-row">
+      <span class="exec-label">Economic Status</span>
+      <span class="exec-value" style="color:${econClass?.color || "var(--ink-dim)"}">${econClass?.label || "N/A"}</span>
+    </div>
+    <div class="exec-summary-row">
+      <span class="exec-label">Market Intelligence Score</span>
+      <span class="exec-value">${healthScore ? healthScore.score + "/100 · " + healthScore.level : "N/A"}</span>
+    </div>
+    <div class="exec-summary-row">
+      <span class="exec-label">Trade Momentum</span>
+      <span class="exec-value">${fmtPct(d?.tradeMom)} ${trend(d?.tradeMom)}</span>
+    </div>
+    <div class="exec-summary-row">
+      <span class="exec-label">Payroll Momentum</span>
+      <span class="exec-value">${fmtPct(d?.payrollMom)} ${trend(d?.payrollMom)}</span>
+    </div>
+    <div class="exec-summary-row">
+      <span class="exec-label">Wage Momentum</span>
+      <span class="exec-value">${fmtPct(d?.wageMom)} ${trend(d?.wageMom)}</span>
+    </div>
+    <div class="exec-summary-row">
+      <span class="exec-label">Price Momentum</span>
+      <span class="exec-value">${fmtPct(d?.priceMom)} ${trend(d?.priceMom)}</span>
+    </div>
+    <div class="exec-summary-row">
+      <span class="exec-label">Purchasing Power</span>
+      <span class="exec-value">${d?.pp != null ? fmtMoney(d.pp, 4) + " baskets/wage" : "N/A"} ${trend(d?.ppMom)}</span>
+    </div>
+    <div class="exec-summary-row">
+      <span class="exec-label">Market Concentration</span>
+      <span class="exec-value">${d?.hhi != null ? "HHI " + d.hhi.toFixed(0) : "N/A"} ${trend(d?.hhiMom ? -d.hhiMom : null)}</span>
+    </div>
+  </div>`;
+
+  const chartHtml = multiChart(series);
+  if (chartHtml) {
+    execBody.innerHTML = `<div class="exec-chart-wrap">${chartHtml}</div>${summaryHtml}`;
+    if (_chartConfig) {
+      const { uid, lines, plotW, plotH, padL, padT, totalLen } = _chartConfig;
+      initChartTools(uid, lines, plotW, plotH, padL, padT, totalLen);
+    }
+  } else {
+    const s = execBody.querySelector(".exec-summary");
+    if (s) s.outerHTML = summaryHtml;
+  }
 
   const cards = [];
 
