@@ -420,6 +420,8 @@ export function copyMarketReport() {
     commodityScores[item].value += qty * price;
   }
   const valuable = Object.values(commodityScores).sort((a,b)=>b.value-a.value).slice(0,20);
+  const weeklyMap = {};
+  if (S.market._weeklyMVI) for (const w of S.market._weeklyMVI) weeklyMap[w.item] = w.value;
   const prevScores = S.market.prevCommodityScores || {};
   for(const item of valuable){
     const oldValue = prevScores[item.item];
@@ -429,7 +431,8 @@ export function copyMarketReport() {
       if(pct > 0){ trend = "▲"; change = ` (+${pct.toFixed(1)}%)`; }
       else if(pct < 0){ trend = "▼"; change = ` (${pct.toFixed(1)}%)`; }
     }
-    r += `- ${item.item}: ${fmtMoney(item.value)} BTC ${trend}${change}\n`;
+    const wv = weeklyMap[item.item];
+    r += `- ${item.item}: ${fmtMoney(item.value)} BTC${wv ? ` (weekly: ${fmtMoney(wv)} BTC)` : ""} ${trend}${change}\n`;
   }
   const a = calculateAnalytics();
   if (a.p) {
@@ -498,12 +501,19 @@ export function captureMarketReport() {
     commodityScores[itemCode].value += qty * price;
   }
   const valuable = Object.values(commodityScores).sort((a,b)=>b.value-a.value).slice(0,10);
-  const valuableRows = valuable.map(entry => [marketItemName(entry.itemCode), fmtMoney(entry.value)+" BTC"]);
+  const weeklyMap = {};
+  if (S.market._weeklyMVI) for (const w of S.market._weeklyMVI) weeklyMap[w.item] = w.value;
+  const nowStr = new Date().toLocaleString();
+  const valuableRows = valuable.map(entry => {
+    const name = marketItemName(entry.itemCode);
+    const wv = weeklyMap[name];
+    return [name, fmtMoney(entry.value)+" BTC", wv ? fmtMoney(wv)+" BTC" : "—"];
+  });
 
   const html = cap.pageOpen("War Era Market Intelligence Report", "", ["Generated: "+new Date().toUTCString()]) +
     (overviewRows.length ? cap.section("Economic Overview", cap.tableBlock("", ["Metric","Value"], overviewRows, 99)) : "") +
     (priceRows.length ? cap.section("Top Commodity Prices", cap.tableBlock("", ["#","Item","Price"], priceRows.map((r,i)=>[String(i+1),...r]), 10)) : "") +
-    (valuableRows.length ? cap.section("Most Valuable Commodities", cap.tableBlock("", ["#","Item","Value"], valuableRows.map((r,i)=>[String(i+1),...r]), 10)) : "") +
+    (valuableRows.length ? cap.section("Most Valuable Commodities", cap.tableBlock("", ["#","Item","Current Value ("+nowStr+")","Weekly Value"], valuableRows.map((r,i)=>[String(i+1),...r]), 10)) : "") +
     cap.pageClose();
   cap.captureHTML(html, "market_report_"+cap.ts()+".png");
 }
