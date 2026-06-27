@@ -313,7 +313,7 @@ function renderMVI() {
   const data = S.market._mviView === "weekly" && S.market._weeklyMVI ? S.market._weeklyMVI : S.market.topValuable;
   E.marketValuableData.innerHTML = commodityBars(data || []);
   const btn = document.getElementById("mviToggle");
-  if (btn) btn.textContent = S.market._mviView === "weekly" ? "Weekly" : "CMVI";
+  if (btn) btn.textContent = S.market._mviView === "weekly" ? "Weekly" : "Live";
 }
 
 export function toggleMVI() {
