@@ -388,13 +388,13 @@ export function copyMarketReport() {
     r+=`- Total payroll: ${fmtMoney(ec.totalPayroll)} BTC\n- Total work done: ${fmtNum(ec.totalQuantity)} hits (${ec.wageCount} txn)\n- Trade vol: ${fmtMoney(ec.tradeVol)} BTC (${ec.tradeCount} txn)\n\n`;
   }
   r+=`## Top Commodity Prices\n`;
-  for(const i of prices.slice(0,23)) r+=`- ${i.itemCode||i.name||"?"}: ${fmtMoney(Number(i.price||0))} BTC\n`;
+  for(const i of prices.slice(0,23)) r+=`- ${marketItemName(i.itemCode||i.name)}: ${fmtMoney(Number(i.price||0))} BTC\n`;
   r+=`\n## Recent Trading Orders\n`;
-  for(const o of orders.slice(0,100)) r+=`- [${fmtTime(o._time)}] ${(o.orderType||o.type||"ORDER")} ${o._itemCode||o.itemCode||"?"} ×${fmtNum(o._qty||o.quantity||0)} @ ${fmtMoney(o._price||0)} BTC/u\n`;
+  for(const o of orders.slice(0,100)) r+=`- [${fmtTime(o._time)}] ${(o.orderType||o.type||"ORDER")} ${marketItemName(o._itemCode||o.itemCode)} ×${fmtNum(o._qty||o.quantity||0)} @ ${fmtMoney(o._price||0)} BTC/u\n`;
   r += `\n\n## Most Valuable Commodities\n`;
   const commodityScores = {};
   for(const o of orders){
-    const item = o._itemCode || o.itemCode || o.item || "?";
+    const item = marketItemName(o._itemCode || o.itemCode || o.item || "?");
     const qty = Number(o._qty || o.quantity || o.amount || 0);
     const price = Number(o._price || o.price || 0);
     if(!commodityScores[item]){ commodityScores[item] = { item, value:0 }; }
