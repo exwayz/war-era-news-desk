@@ -371,8 +371,8 @@ export function copyMarketReport() {
   }
   r+=`## Top Commodity Prices\n`;
   for(const i of prices.slice(0,23)) r+=`- ${i.itemCode||i.name||"?"}: ${fmtMoney(Number(i.price||0))} BTC\n`;
-  r+=`\n## Recent Trading Orders [${new Date().toISOString().slice(0,16).replace("T"," ")}]\n`;
-  for(const o of orders.slice(0,100)) r+=`- ${(o.orderType||o.type||"ORDER")} ${o._itemCode||o.itemCode||"?"} ×${fmtNum(o._qty||o.quantity||0)} @ ${fmtMoney(o._price||0)} BTC/u\n`;
+  r+=`\n## Recent Trading Orders\n`;
+  for(const o of orders.slice(0,100)) r+=`- [${fmtTime(o._time)}] ${(o.orderType||o.type||"ORDER")} ${o._itemCode||o.itemCode||"?"} ×${fmtNum(o._qty||o.quantity||0)} @ ${fmtMoney(o._price||0)} BTC/u\n`;
   r += `\n\n## Most Valuable Commodities\n`;
   const commodityScores = {};
   for(const o of orders){
