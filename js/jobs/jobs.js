@@ -123,6 +123,7 @@ export function renderJobs() {
     const itemCode = c?.itemCode || "";
     const estVal = c?.estimatedValue ? Number(c.estimatedValue) : 0;
     const created = job.createdAt ? fmtDate(job.createdAt) : "";
+    const boss = getJobBossName(job);
 
     card.innerHTML=`
       <p class="job-company">${company}${locationText?` <span style="color:var(--ink-dim);font-weight:500;font-size:.68rem">· ${locationText}</span>`:""}</p>
@@ -133,6 +134,7 @@ export function renderJobs() {
         ${minSkill?`<span class="job-chip">⭐ Min. skill ${minSkill}</span>`:""}
         ${itemCode?`<span class="job-chip">🏭 ${itemCode}</span>`:""}
         ${countryName?`<span class="job-chip">🌍 ${countryName}</span>`:""}
+        ${boss?`<span class="job-chip">👔 ${boss}</span>`:""}
         ${estVal?`<span class="job-chip">💎 ${fmtMoney(estVal)} BTC</span>`:""}
         ${created?`<span class="job-chip">🕐 ${created}</span>`:""}
       </div>
@@ -168,9 +170,30 @@ export function copyJobsReport() {
     const slotsN = j.openSlots||j.slots||j.count||"";
     const item = c?.itemCode||"";
     const val = c?.estimatedValue ? Number(c.estimatedValue) : 0;
-    r+=`- ${company}${loc?` (${loc})`:""}${slotsN?` — ${slotsN} slot${slotsN!==1?"s":""}`:""}${item?` — ${item}`:""}: ${fmtMoney(j.wage||0)} BTC/hit${wageN?` (net ${fmtMoney(wageN)})`:""}${val?` · 💎 ${fmtMoney(val)} BTC`:""}\n`;
+    const boss = getJobBossName(j);
+    r+=`- ${company}${loc?` (${loc})`:""}${boss?` · Boss: ${boss}`:""}${slotsN?` — ${slotsN} slot${slotsN!==1?"s":""}`:""}${item?` — ${item}`:""}: ${fmtMoney(j.wage||0)} BTC/hit${wageN?` (net ${fmtMoney(wageN)})`:""}${val?` · 💎 ${fmtMoney(val)} BTC`:""}\n`;
   }
   navigator.clipboard.writeText(r).then(()=>toast("Jobs report copied."));
+}
+
+function getJobBossName(job) {
+  const c = getJobCompany(job);
+  const uid = c?.user || "";
+  if (!uid) return "";
+  const u = S.lookups.usersById.get(uid);
+  return u?.username || u?.name || "";
+}
+
+async function resolveBosses(jobs, k) {
+  const toFetch = [...new Set(jobs.map(j => { const c = getJobCompany(j); return c?.user || ""; }).filter(Boolean))].filter(uid => !S.lookups.usersById.has(uid));
+  if (!toFetch.length) return;
+  await Promise.all(toFetch.map(async uid => {
+    try {
+      const r = await fetchTrpc("user.getUserLite", { userId: uid }, k);
+      const u = unwrap(r);
+      if (u) S.lookups.usersById.set(uid, u);
+    } catch {}
+  }));
 }
 
 export function captureJobsReport() {
@@ -185,10 +208,11 @@ export function captureJobsReport() {
     const slotsN = j.openSlots||j.slots||j.count||"";
     const item = c?.itemCode||"";
     const val = c?.estimatedValue ? Number(c.estimatedValue) : 0;
-    return [String(i+1), company, loc||"—", j.skill||j.type||"", item||"—", String(slotsN), fmtMoney(j.wage||0)+" BTC/hit", wageN?fmtMoney(wageN)+" BTC":"", val?fmtMoney(val)+" BTC":""];
+    const boss = getJobBossName(j);
+    return [String(i+1), company, boss||"—", loc||"—", j.skill||j.type||"", item||"—", String(slotsN), fmtMoney(j.wage||0)+" BTC/hit", wageN?fmtMoney(wageN)+" BTC":"", val?fmtMoney(val)+" BTC":""];
   });
   const html = cap.pageOpen("War Era Job Market Report", "", ["Total offers: "+S.jobs.length, "Generated: "+new Date().toUTCString()]) +
-    cap.section("Top Job Offers", cap.tableBlock("", ["#","Company","Location","Skill","Item","Slots","Wage","Net Wage","Value"], rows, 20)) +
+    cap.section("Top Job Offers", cap.tableBlock("", ["#","Company","Boss","Location","Skill","Item","Slots","Wage","Net Wage","Value"], rows, 20)) +
     cap.pageClose();
   cap.captureHTML(html, "jobs_report_"+cap.ts()+".png");
 }
@@ -205,6 +229,7 @@ export async function loadJobs(reset=true) {
     S.jobs=reset?items:[...S.jobs,...items];
 
     await resolveCompaniesForJobs(items, k);
+    await resolveBosses(items, k);
     await ensureLookups(k);
 
     E.jobsStatus.hidden=true;
