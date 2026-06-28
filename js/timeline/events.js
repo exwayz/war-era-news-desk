@@ -36,6 +36,7 @@ export function fmtType(v) {
     regionLiberated:"Region Liberated", revolutionStarted:"Revolution Started",
     revolutionEnded:"Revolution Ended", financedRevolt:"Financed Revolt",
     bankruptcy:"Bankruptcy", peace_agreement:"Peace Agreement",
+    electionStarted:"Election Started", electionEnded:"Election Ended",
     resistanceIncreased:"Resistance Increased", resistanceDecreased:"Resistance Decreased",
     strategicResourcesReshuffled:"Resources Reshuffled",
   };
@@ -131,6 +132,20 @@ export function buildTitle(event,type,ed) {
       const country=S.lookups.countriesById.get(ed.country||ed.countryId||cids[0])?.name||"";
       if(country) return `${country} declares bankruptcy`;
       return "Country bankruptcy";
+    }
+    case "electionStarted": {
+      const cn=S.lookups.countriesById.get(ed.country||ed.countryId||cids[0])?.name||"";
+      const label=ed.electionType==="congress"?"Congressional":"Presidential";
+      if(cn) return `${label} election opens in ${cn}`;
+      return `${label} election started`;
+    }
+    case "electionEnded": {
+      const cn=S.lookups.countriesById.get(ed.country||ed.countryId||cids[0])?.name||"";
+      const label=ed.electionType==="congress"?"Congressional":"Presidential";
+      const votes=ed.votesCount||ed.votes;
+      if(cn&&votes) return `${label} election in ${cn} closes — ${votes} votes cast`;
+      if(cn) return `${label} election concludes in ${cn}`;
+      return `${label} election ended`;
     }
     case "resistanceIncreased": if(reg) return `Resistance rises in ${reg}`; break;
     case "resistanceDecreased": if(reg) return `Resistance falls in ${reg}`; break;
@@ -337,6 +352,29 @@ export function buildSummary(event,type,ed) {
       );
       return pick(`A country has declared bankruptcy, triggering economic and political uncertainty.`);
     }
+    case "electionStarted": {
+      const cn=S.lookups.countriesById.get(ed.country||ed.countryId||cids[0])?.name||"";
+      const label=ed.electionType==="congress"?"congressional":"presidential";
+      if(cn) return pick(
+        `A ${label} election has opened in ${cn} with ${ed.candidates||0} candidates on the ballot.`,
+        `Citizens in ${cn} head to the polls as a ${label} election officially begins.`,
+        `${cn} opens voting for a ${label} election — ${ed.candidates||0} candidates registered.`
+      );
+      return pick(`A ${label} election has started.`);
+    }
+    case "electionEnded": {
+      const cn=S.lookups.countriesById.get(ed.country||ed.countryId||cids[0])?.name||"";
+      const label=ed.electionType==="congress"?"congressional":"presidential";
+      if(cn&&ed.votesCount) return pick(
+        `The ${label} election in ${cn} has concluded with ${ed.votesCount} total votes cast.`,
+        `Voting has ended in ${cn}'s ${label} election — ${ed.votesCount} votes tallied.`
+      );
+      if(cn) return pick(
+        `The ${label} election in ${cn} has concluded.`,
+        `${cn}'s ${label} election has come to a close.`
+      );
+      return pick(`A ${label} election has ended.`);
+    }
     case "resistanceIncreased":
       if(reg) return pick(
         `Resistance levels in ${reg} have increased, suggesting growing opposition to the current occupying force.`,
@@ -374,7 +412,10 @@ export function buildDetails(event,ed) {
   addD("Countries",[...new Set(cnames)].join(", "));
   addD("Region",reg);
   addD("Battle",bn);
-  return d.filter(x=>x.value).slice(0,5);
+  addD("Election",ed.electionType==="congress"?"Congressional":"Presidential");
+  addD("Candidates",ed.candidates);
+  addD("Votes",ed.votesCount||ed.votes);
+  return d.filter(x=>x.value).slice(0,6);
 }
 
 export function buildLink(event,ed) {
@@ -384,7 +425,7 @@ export function buildLink(event,ed) {
   if(Array.isArray(ed.wars)&&ed.wars[0]) return `${BASE}/war/${ed.wars[0]}`;
   const rid=ed.region||ed.defenderRegion||ed.attackerRegion||ed.regionId;
   if(rid) return `${BASE}/region/${rid}`;
-  const cid=collectCountryIds(event,ed)[0];
+  const cid=ed.country||ed.countryId||collectCountryIds(event,ed)[0];
   if(cid) return `${BASE}/country/${cid}`;
   return "";
 }

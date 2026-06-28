@@ -1,4 +1,4 @@
-import { TRPC_BASE, API2_BASE, MARKET_SERVER_URL } from "./constants.js";
+import { TRPC_BASE, API2_BASE, API5_BASE, MARKET_SERVER_URL } from "./constants.js";
 import { STORE } from "./storage.js";
 import { E } from "./dom.js";
 
@@ -40,6 +40,20 @@ export async function fetchTrpc(method, input, k) {
   throw lastErr||new Error(`${method} failed after 3 retries`);
 }
 
+export async function fetchTrpcApi5(method, input, apiKeyValue) {
+  const payload = encodeURIComponent(JSON.stringify(input || {}));
+  const r = await fetch(
+    `${API5_BASE}/${method}?input=${payload}`,
+    {
+      headers: {
+        "Authorization": "Bearer " + apiKeyValue
+      }
+    }
+  );
+  if (!r.ok) throw new Error(`${method} ${r.status}`);
+  return r.json();
+}
+
 export async function fetchTrpcApi2(method, input, apiKeyValue) {
   const payload = encodeURIComponent(JSON.stringify(input || {}));
   const r = await fetch(
@@ -70,10 +84,15 @@ export function normalizeCursor(r) {
   return d?.nextCursor||d?.cursor||d?.next||null;
 }
 
-export async function fetchFromServer(path) {
+export async function fetchFromServer(path, opts = {}) {
   if (!MARKET_SERVER_URL) return null;
   try {
-    const r = await fetch(`${MARKET_SERVER_URL}${path}`, { signal: AbortSignal.timeout(5000) });
+    const r = await fetch(`${MARKET_SERVER_URL}${path}`, {
+      method: opts.method || "GET",
+      headers: opts.body ? { "Content-Type": "application/json" } : undefined,
+      body: opts.body || undefined,
+      signal: AbortSignal.timeout(opts.timeout || 5000),
+    });
     if (!r.ok) return null;
     return r.json();
   } catch {

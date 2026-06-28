@@ -6,6 +6,7 @@ import { loadMarketFull } from "../market/market.js";
 import { loadJobs } from "../jobs/jobs.js";
 import { loadCategory } from "../rankings/rankings.js";
 import { loadMessages, renderWallMessages, renderWallCount } from "../community/wall.js";
+import { loadPolitics } from "../politics/politics.js";
 import { highlightUserData } from "../core/profileHighlighter.js";
 export function switchTab(tab) {
   document.querySelectorAll(".overlay").forEach(o => o.classList.add("hidden"));
@@ -29,6 +30,7 @@ export function switchTab(tab) {
   if (tab==="market" && !S.market.prices) loadMarketFull();
   if (tab==="jobs" && S.jobs.length===0) loadJobs(true);
   if (tab==="rankings") loadCategory(document.querySelector("[data-rank-cat].active")?.dataset.rankCat || "weekly");
+  if (tab==="politics") loadPolitics();
 }
 
 export function isTimelineOpen(){

@@ -156,6 +156,12 @@ h1 {
   transform: translateY(-1px);
 }
 
+.btn-icon-sm:disabled {
+  opacity: .4;
+  cursor: wait;
+  transform: none;
+}
+
 .tool-link {
   background: var(--accent);
   border-color: var(--accent);

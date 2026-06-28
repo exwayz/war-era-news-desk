@@ -1511,3 +1511,53 @@
 .hl-user a {
   color: var(--red) !important;
 }
+
+/* ── AI BRIEFING ─────────────────────────────────────── */
+.ai-output {
+  margin-top: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: .84rem;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.ai-output.error {
+  border-color: var(--red);
+  background: rgba(248, 113, 113, .08);
+}
+
+.ai-response {
+  white-space: pre-wrap;
+}
+
+.ai-error {
+  color: var(--red);
+  font-weight: 700;
+  font-size: .82rem;
+}
+
+.ai-loading {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.ai-loading span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: aiBounce 1.2s infinite;
+}
+
+.ai-loading span:nth-child(2) { animation-delay: .2s; }
+.ai-loading span:nth-child(3) { animation-delay: .4s; }
+
+@keyframes aiBounce {
+  0%, 80%, 100% { transform: scale(.6); opacity: .4; }
+  40% { transform: scale(1); opacity: 1; }
+}

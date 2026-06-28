@@ -1,0 +1,288 @@
+.politics-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.politics-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.politics-toolbar select {
+  max-width: 260px;
+}
+
+#politicsContent {
+  flex: 1;
+  min-height: 0;
+}
+
+.pol-header h3 {
+  margin: 0 0 10px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.pol-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.pol-section {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+.pol-section-title {
+  margin: 0 0 10px;
+  font-size: .82rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.pol-count {
+  font-size: .72rem;
+  color: var(--ink-dim);
+  font-weight: 700;
+}
+
+.pol-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.pol-scroll::-webkit-scrollbar { width: 4px; }
+.pol-scroll::-webkit-scrollbar-track { background: transparent; }
+.pol-scroll::-webkit-scrollbar-thumb { background: var(--line-solid); border-radius: 99px; }
+
+.pol-empty {
+  color: var(--ink-dim);
+  font-size: .8rem;
+  text-align: center;
+  padding: 20px 0;
+}
+
+/* ── Government roles ── */
+.pol-role-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: .84rem;
+}
+
+.pol-role-row:last-child { border-bottom: none; }
+
+.pol-role-icon { font-size: 1rem; width: 20px; text-align: center; flex-shrink: 0; }
+.pol-role-label { color: var(--ink-dim); font-weight: 700; font-size: .76rem; min-width: 100px; flex-shrink: 0; }
+.pol-role-name { color: var(--ink); font-weight: 600; display: flex; align-items: center; gap: 6px; min-width: 0; }
+
+/* ── User / Party avatars in government rows ── */
+.pol-user-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.pol-user-initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--surface-hi);
+  color: var(--ink-dim);
+  font-size: .64rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.pol-party-avatar-sm {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.pol-party-initials-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface-hi);
+  color: var(--ink-dim);
+  font-size: .6rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+/* ── Congress collapsible ── */
+.pol-congress-details {
+  margin-top: 6px;
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
+}
+.pol-congress-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--ink);
+  list-style: none;
+  user-select: none;
+}
+.pol-congress-summary::-webkit-details-marker { display: none; }
+.details-marker {
+  transition: transform .2s;
+  font-size: .7rem;
+  color: var(--ink-dim);
+  margin-left: auto;
+}
+.pol-congress-details[open] .details-marker { transform: rotate(180deg); }
+.pol-congress-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+.pol-congress-list::-webkit-scrollbar { width: 4px; }
+.pol-congress-list::-webkit-scrollbar-track { background: transparent; }
+.pol-congress-list::-webkit-scrollbar-thumb { background: var(--line-solid); border-radius: 99px; }
+.pol-congress-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px 2px 4px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── Party cards ── */
+.pol-party-card {
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+  background: var(--surface);
+  transition: border-color .15s;
+}
+
+.pol-party-card:hover { border-color: var(--accent); }
+
+.pol-party-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pol-party-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+}
+
+.pol-party-avatar--initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--surface-hi);
+  color: var(--ink-dim);
+  font-size: .7rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.pol-party-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.pol-party-name {
+  display: block;
+  font-weight: 700;
+  font-size: .84rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pol-party-meta {
+  display: block;
+  font-size: .7rem;
+  color: var(--ink-dim);
+  margin-top: 1px;
+}
+
+/* ── Elections ── */
+.pol-election-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: .82rem;
+  cursor: default;
+  transition: background .15s;
+}
+
+.pol-election-row:hover { background: var(--surface-hi); border-radius: var(--radius-sm); padding: 8px 6px; }
+.pol-election-row:last-child { border-bottom: none; }
+
+.pol-election-type { font-weight: 700; min-width: 90px; font-size: .78rem; }
+.pol-election-dates { flex: 1; font-size: .72rem; color: var(--ink-dim); min-width: 0; }
+.pol-election-status {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: .68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  flex-shrink: 0;
+}
+.pol-status-upcoming { background: var(--accent-soft); color: var(--accent); }
+.pol-status-active { background: rgba(34,197,94,.15); color: #22c55e; }
+.pol-status-closed { background: var(--surface-hi); color: var(--ink-dim); }
+.pol-election-votes { font-size: .72rem; color: var(--ink-dim); flex-shrink: 0; min-width: 60px; text-align: right; }
+
+/* ── Elections panel spans full width ── */
+.pol-elections { grid-column: 1 / -1; }
+
+/* ── Responsive ── */
+@media (max-width: 1100px) {
+  .pol-grid { grid-template-columns: 1fr; }
+  .pol-elections { grid-column: 1; }
+}

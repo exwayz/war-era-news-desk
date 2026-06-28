@@ -1,6 +1,6 @@
 import { S, setUnseenTimelineEvents, getUnseenTimelineEvents } from "../core/state.js";
 import { E } from "../core/dom.js";
-import { apiKey, fetchTrpc, normalizeEvents, normalizeCursor } from "../core/api.js";
+import { apiKey, fetchTrpc, fetchTrpcApi5, normalizeEvents, normalizeCursor, unwrap } from "../core/api.js";
 import { STORE } from "../core/storage.js";
 import { fmtDate, parseLocal } from "../core/utils.js";
 import { resolveBattles, resolveUsers, ensureLookups, getFilters } from "./filters.js";
@@ -33,6 +33,7 @@ export async function loadEvents(reset) {
     S.events = reset ? evts : [...S.events, ...evts];
     await resolveBattles(evts, k);
     await resolveUsers(evts.map(e=>evtData(e).user).filter(Boolean), k);
+    await injectElectionEvents(k);
     renderTimeline();
     if (window.ecgPulse) window.ecgPulse(1.0);
   } catch (err) {
@@ -58,15 +59,22 @@ export async function silentRefreshEvents() {
   try {
     const result = await fetchTrpc("event.getEventsPaginated", {...S.lastFilters, limit:20}, apiKey());
     const fresh = normalizeEvents(result).filter(e=>!S.events.some(x=>(x._id||x.id)===(e._id||e.id)));
-    if (!fresh.length) return;
-    for(const ev of fresh){
-      showLiveEventToast(ev);
+    const hasFresh = !!fresh.length;
+    if (hasFresh) {
+      for(const ev of fresh) showLiveEventToast(ev);
+      S.events = [...fresh, ...S.events];
     }
-    S.events = [...fresh, ...S.events];
-    renderTimeline();
-    S.articleLimiter = 0;
-    loadArticles(true);
-    if (window.ecgPulse) window.ecgPulse(1.2);
+    let electionsChanged = false;
+    if (!S.lastElectionInject || Date.now() - S.lastElectionInject > 60000) {
+      const beforeCount = S.events.filter(e => e._id?.startsWith?.("election-")).length;
+      await injectElectionEvents(apiKey());
+      electionsChanged = S.events.filter(e => e._id?.startsWith?.("election-")).length !== beforeCount;
+    }
+    if (hasFresh || electionsChanged) {
+      renderTimeline();
+      if (hasFresh) { S.articleLimiter = 0; loadArticles(true); }
+      if (window.ecgPulse) window.ecgPulse(1.2);
+    }
   } catch {}
 }
 
@@ -179,6 +187,68 @@ export function handleEventAction(e) {
   const link=buildLink(ev,ed);
   const brief=`# ${title}\n\n${summary}\n\n${dets}${evtTime(ev)?"\n• Time: "+fmtDate(evtTime(ev)):""}\n\n${link?"Source: "+link:""}`;
   navigator.clipboard.writeText(brief).then(()=>toast("News brief copied."));
+}
+
+async function injectElectionEvents(k) {
+  try {
+    const countryIds = S.lastFilters?.countryId
+      ? [S.lastFilters.countryId]
+      : [...S.lookups.countriesById.keys()].filter(Boolean).slice(0, 30);
+    if (!countryIds.length) return;
+
+    const now = Date.now();
+    const rangeMs = 7 * 86400000;
+    const synthetic = [];
+    const concurrency = 10;
+
+    for (let i = 0; i < countryIds.length; i += concurrency) {
+      const batch = countryIds.slice(i, i + concurrency);
+      const results = await Promise.allSettled(
+        batch.map(cid =>
+          fetchTrpcApi5("election.getElections", { countryId: cid }, k)
+            .then(r => unwrap(r))
+            .then(arr => Array.isArray(arr) ? arr : [])
+        )
+      );
+      for (const r of results) {
+        if (r.status !== "fulfilled") continue;
+        for (const el of r.value) {
+          const cid = el.countryId || el.country;
+          const start = new Date(el.votesStartAt).getTime();
+          const end = new Date(el.votesEndAt).getTime();
+          if (isNaN(start) || isNaN(end)) continue;
+          if (end < now - rangeMs) continue;
+          if (start > now + rangeMs) continue;
+
+          synthetic.push({
+            _id: `election-${el._id}-start`, type: "electionStarted",
+            createdAt: el.votesStartAt, countryId: cid,
+            data: { type: "electionStarted", country: cid, electionId: el._id,
+              electionType: el.type, candidates: el.candidates?.length || 0, votesCount: el.votesCount }
+          });
+
+          if (end < now) {
+            synthetic.push({
+              _id: `election-${el._id}-end`, type: "electionEnded",
+              createdAt: el.votesEndAt, countryId: cid,
+              data: { type: "electionEnded", country: cid, electionId: el._id,
+                electionType: el.type, votes: el.votes, votesCount: el.votesCount, candidates: el.candidates }
+            });
+          }
+        }
+      }
+    }
+
+    if (!synthetic.length) return;
+    S.events = S.events.filter(e => !e._id?.startsWith?.("election-"));
+    S.events = [...S.events, ...synthetic].sort((a, b) => new Date(evtTime(a)) - new Date(evtTime(b)));
+    S.lastElectionInject = Date.now();
+
+    const userIds = [...new Set(synthetic.flatMap(e =>
+      (e.data.candidates || []).map(c => c.userId || c.user).filter(Boolean)
+    ))];
+    if (userIds.length) await resolveUsers(userIds, k);
+  } catch {}
 }
 
 

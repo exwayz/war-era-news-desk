@@ -121,4 +121,5 @@ export const E = {
   wallLoadMore: document.getElementById("wallLoadMore"),
   wallCount: document.getElementById("wallCount"),
   wallStatus: document.getElementById("wallStatus"),
+  aiKeyInput: document.getElementById("aiKeyInput"),
 };

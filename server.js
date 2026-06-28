@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 
-const PORT = process.env.PORT || 8020;
+const PORT = process.env.PORT || 8022;
 const DB = path.join(__dirname, "database", "messages.json");
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_POSTS_PER_WEEK = 5;

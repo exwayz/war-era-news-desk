@@ -14,6 +14,7 @@ import { switchTab, isTimelineOpen } from "./ui/tabs.js";
 import { toggleTheme, applyTheme } from "./ui/theme.js";
 import { toast, setStatus } from "./ui/toast.js";
 import { evtData, evtTime, buildTitle, buildSummary } from "./timeline/events.js";
+import { generateBriefing } from "./timeline/ai.js";
 import { loadBattles, stopBattlePolling, updateBattleTabPills } from "./battles/battles.js";
 import { injectBattleSearchBar } from "./battles/companies.js";
 import { loadMarketFull, loadMarketStats, copyMarketReport, captureMarketReport, renderMarketOrders, initMarketView } from "./market/market.js";
@@ -25,6 +26,7 @@ import { initWriterToolbar, initDraftLibrary, initImageLibrary, initMentions, in
 import { loadProfile, saveProfile, deleteProfile, isRegistered, formatProfileLink, resolveProfile } from "./user/profile.js";
 import { POLICY_TEXT } from "./community/policy.js";
 import { loadMessages, loadMoreMessages, postMessage, upvoteMessage, renderWallMessages, renderWallCount, getMessageById, hasMoreMessages } from "./community/wall.js";
+import { loadPolitics, initPolitics } from "./politics/politics.js";
 import { highlightUserData } from "./core/profileHighlighter.js";
 
 function escHtml(s) {
@@ -132,6 +134,7 @@ function bindAll() {
     }
     E.sfxVolumeSlider.value = Math.round(getSfxVolume() * 100);
     E.sfxVolumeValue.textContent = Math.round(getSfxVolume() * 100) + "%";
+    E.aiKeyInput.value = localStorage.getItem(STORE.aiKey) || "";
     E.settingsModal.classList.remove("hidden");
   }
 
@@ -166,8 +169,16 @@ function bindAll() {
   });
   E.apiKeyModal.addEventListener("click",e=>{ if(e.target===E.apiKeyModal) E.apiKeyModal.classList.add("hidden"); });
 
-  E.closeSettingsBtn?.addEventListener("click",()=>E.settingsModal.classList.add("hidden"));
-  E.settingsModal?.addEventListener("click",e=>{ if(e.target===E.settingsModal) E.settingsModal.classList.add("hidden"); });
+  E.closeSettingsBtn?.addEventListener("click",()=>{
+    localStorage.setItem(STORE.aiKey, E.aiKeyInput.value.trim());
+    E.settingsModal.classList.add("hidden");
+  });
+  E.settingsModal?.addEventListener("click",e=>{
+    if(e.target===E.settingsModal) {
+      localStorage.setItem(STORE.aiKey, E.aiKeyInput.value.trim());
+      E.settingsModal.classList.add("hidden");
+    }
+  });
   E.sfxVolumeSlider?.addEventListener("input",()=>{
     const v = Number(E.sfxVolumeSlider.value);
     E.sfxVolumeValue.textContent = v + "%";
@@ -234,6 +245,7 @@ function bindAll() {
   E.startTimeInput.addEventListener("change", renderTimeline);
   E.endTimeInput.addEventListener("change", renderTimeline);
   E.eventList.addEventListener("click", handleEventAction);
+  document.getElementById("aiBriefingBtn")?.addEventListener("click", generateBriefing);
 
   E.articleSearch.addEventListener("input", renderArticles);
   E.loadMoreArticlesBtn.addEventListener("click",()=>loadArticles(false));
@@ -294,6 +306,7 @@ function bindAll() {
   E.copyRankingsReportBtn?.addEventListener("click", copyRankingsReport);
   document.getElementById("captureRankingsReportBtn")?.addEventListener("click", captureRankingsReport);
   E.rankingsRefreshBtn?.addEventListener("click", refreshRankings);
+  document.getElementById("politicsRefreshBtn")?.addEventListener("click", () => loadPolitics(true));
 
   function updateWallLoadMore() {
     if (E.wallLoadMore) {
@@ -448,6 +461,7 @@ function bindAll() {
 
   initRankings();
   initMarketView();
+  initPolitics();
 
   E.jobWageFilter?.addEventListener("input", () => {
     S.jobWageFilter = Number(E.jobWageFilter.value || 0);

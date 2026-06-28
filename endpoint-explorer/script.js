@@ -284,6 +284,21 @@ desc:"Party list",
 params:{
 limit:20
 }
+},
+
+"election.getElections":{
+desc:"Elections for a country (api5)",
+params:{
+countryId:"",
+limit:20
+}
+},
+
+"election.getElection":{
+desc:"Election details (api5)",
+params:{
+electionId:""
+}
 }
 
 };
@@ -295,6 +310,7 @@ apiBase: document.getElementById("apiBase"),
 apiKey: document.getElementById("apiKey"),
 endpoint: document.getElementById("endpoint"),
 params: document.getElementById("params"),
+httpMethod: document.getElementById("httpMethod"),
 
 fetchBtn: document.getElementById("fetchBtn"),
 prettyBtn: document.getElementById("prettyBtn"),
@@ -421,7 +437,8 @@ JSON.stringify({
 
 apiBase:E.apiBase.value,
 apiKey:E.apiKey.value,
-endpoint:E.endpoint.value
+endpoint:E.endpoint.value,
+httpMethod:E.httpMethod.value
 
 })
 );
@@ -450,6 +467,9 @@ E.apiKey.value=s.apiKey;
 if(s.endpoint)
 E.endpoint.value=s.endpoint;
 
+if(s.httpMethod)
+E.httpMethod.value=s.httpMethod;
+
 }
 catch{}
 
@@ -470,33 +490,50 @@ E.endpoint.value.trim();
 const input =
 JSON.parse(E.params.value);
 
-const payload = {
-"0":{
-json:input
+const method = E.httpMethod.value;
+
+let url;
+let fetchOpts;
+
+if (method === "get") {
+  const payload = encodeURIComponent(JSON.stringify(input));
+  url = `${E.apiBase.value}/${endpoint}?input=${payload}`;
+  fetchOpts = {
+    method: "GET",
+    headers: {
+      "X-API-Key": E.apiKey.value.trim()
+    }
+  };
+} else if (method === "raw") {
+  url = `${E.apiBase.value}/${endpoint}`;
+  fetchOpts = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-API-Key": E.apiKey.value.trim()
+    },
+    body: JSON.stringify(input)
+  };
+} else {
+  const payload = {
+    "0":{
+      json:input
+    }
+  };
+  url = `${E.apiBase.value}/${endpoint}`;
+  fetchOpts = {
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "X-API-Key": E.apiKey.value.trim()
+    },
+    body: JSON.stringify(payload)
+  };
 }
-};
 
-const url =
-`${E.apiBase.value}/${endpoint}`;
+E.urlBox.textContent = url;
 
-E.urlBox.textContent =
-url;
-
-const res =
-await fetch(url,{
-
-method:"POST",
-
-headers:{
-"Content-Type":"application/json",
-"X-API-Key":
-E.apiKey.value.trim()
-},
-
-body:
-JSON.stringify(payload)
-
-});
+const res = await fetch(url, fetchOpts);
 
 const txt =
 await res.text();
@@ -532,8 +569,20 @@ err.message;
 
 async function trpc(
 endpoint,
-input={}
+input={},
+method="post"
 ){
+
+if (method === "get") {
+  const payload = encodeURIComponent(JSON.stringify(input));
+  const url = `${E.apiBase.value}/${endpoint}?input=${payload}`;
+  const res = await fetch(url, {
+    headers: { "X-API-Key": E.apiKey.value.trim() }
+  });
+  const txt = await res.text();
+  try{ return JSON.parse(txt); }
+  catch{ return txt; }
+}
 
 const payload={
 "0":{
@@ -662,6 +711,7 @@ new Function(
 "apiKey",
 "apiBase",
 "response",
+"httpMethod",
 
 `
 return (async()=>{
@@ -677,7 +727,8 @@ await fn(
 trpc,
 apiKey,
 apiBase,
-lastResponse
+lastResponse,
+() => E.httpMethod.value
 );
 
 console.log = oldLog;

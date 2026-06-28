@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="css/intro.css">
   <link rel="stylesheet" href="css/responsive.css">
   <link rel="stylesheet" href="css/rankings.css">
+  <link rel="stylesheet" href="css/politics.css">
   <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
   <link rel="stylesheet" href="css/writer.css">
   <link rel="preconnect" href="https://gateway.warerastats.io">
@@ -200,6 +201,7 @@
   <button class="tab-btn" data-tab="battles" role="tab" aria-selected="false">⚔ Battles</button>
   <button class="tab-btn" data-tab="market" role="tab" aria-selected="false">📈 Market</button>
   <button class="tab-btn" data-tab="jobs" role="tab" aria-selected="false">💼 Jobs</button>
+  <button class="tab-btn" data-tab="politics" role="tab" aria-selected="false">🏛 Politics</button>
   <button class="tab-btn" data-tab="rankings" role="tab" aria-selected="false">🏆 Rankings</button>
   <button class="tab-btn" data-tab="community" role="tab" aria-selected="false">💬 Community</button>
   <div id="liveEventToastArea"></div>
@@ -265,11 +267,13 @@
               <button class="btn-icon-sm" id="copyTimelineBtn" title="Copy all visible">📋</button>
               <button class="btn-icon-sm" id="applyFiltersButton" title="Refresh">⟳</button>
               <button class="btn-icon-sm" id="clearFiltersButton" title="Clear">✕</button>
+              <button class="btn-icon-sm" id="aiBriefingBtn" title="AI Briefing">🤖</button>
             </div>
           </div>
           <div id="statusBox" class="status-msg" hidden></div>
           <div id="eventList" class="card-list"></div>
           <button id="loadMoreButton" class="btn-load" hidden>Load More</button>
+          <div id="aiBriefingOutput" class="ai-output" hidden></div>
         </section>
       </div>
 
@@ -450,6 +454,25 @@
     <div id="wallStatus" class="status-msg" hidden></div>
     <div id="wallGrid" class="wall-grid"></div>
     <button id="wallLoadMore" class="btn-load" hidden>Load More</button>
+  </div>
+
+  <!-- ── POLITICS TAB ── -->
+  <div class="tab-panel" id="tab-politics" role="tabpanel">
+    <div class="politics-layout">
+      <div class="politics-toolbar panel-head">
+        <h2>🏛 Politics</h2>
+        <div class="input-wrap" style="max-width:260px">
+          <input id="politicsCountryInput" type="text" list="politicsCountryOptions" placeholder="Search country…">
+          <button class="clear-btn" data-clears="politicsCountryInput" type="button">✕</button>
+        </div>
+        <datalist id="politicsCountryOptions"></datalist>
+        <div class="btn-row">
+          <button class="btn-primary" id="politicsRefreshBtn">⟳ Refresh</button>
+        </div>
+      </div>
+      <p id="politicsStatus" class="status-msg" hidden></p>
+      <div id="politicsContent"></div>
+    </div>
   </div>
 
   </main>
@@ -691,6 +714,10 @@
       <label for="sfxVolumeSlider">SFX Volume</label>
       <input type="range" id="sfxVolumeSlider" min="0" max="100" value="100">
       <span id="sfxVolumeValue">100%</span>
+    </div>
+    <div class="settings-group" style="margin-top:6px">
+      <label for="aiKeyInput">AI Key (<a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--accent)">free Gemini</a> or DeepSeek)</label>
+      <input id="aiKeyInput" type="password" placeholder="AIza... (Gemini) or sk-... (DeepSeek)" style="flex:2;padding:5px 8px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink);font-size:.8rem;outline:none">
     </div>
     <button class="btn-primary" id="closeSettingsBtn" style="width:100%">Done</button>
   </div>
