@@ -1,6 +1,6 @@
 import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
-import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
+import { apiKey, fetchTrpc, fetchCached, unwrap } from "../core/api.js";
 import { fmtDate } from "../core/utils.js";
 import { resolveUsers } from "./filters.js";
 import { resolveContentLinks } from "../core/resolver.js";
@@ -37,6 +37,16 @@ export async function loadArticles(reset=true) {
   const k = apiKey(); if (!k) return;
   if (reset) { S.articleCursor=null; S.articles=[]; }
   try {
+    // Try cache first
+    const cached = await fetchCached("articles");
+    if (cached.length && reset) {
+      S.articles = cached;
+      await resolveUsers(cached.map(a=>a.author).filter(Boolean), k);
+      populateArticleFilters(S.articles);
+      clearArticleStatus();
+      renderArticles();
+    }
+
     const result = await fetchTrpc("article.getArticlesPaginated", { type:"last", limit:100, cursor:reset?undefined:S.articleCursor }, k);
     const data = unwrap(result);
     const items = data?.items||[];

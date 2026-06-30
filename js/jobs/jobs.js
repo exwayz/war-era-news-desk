@@ -1,6 +1,6 @@
 import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
-import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
+import { apiKey, fetchTrpc, fetchCached, unwrap } from "../core/api.js";
 import { fmtMoney, fmtNum, fmtDate } from "../core/utils.js";
 
 import { toast } from "../ui/toast.js";
@@ -248,6 +248,19 @@ export async function loadJobs(reset=true) {
   E.jobsStatus.hidden=false; E.jobsStatus.textContent="Loading job offers…";
   if(reset){S.jobs=[];S.jobCursor=null;}
   try {
+    // Try cache first
+    const cached = await fetchCached("jobs");
+    if (cached.length && reset) {
+      S.jobs = cached;
+      await resolveCompaniesForJobs(cached, k);
+      await resolveBosses(cached, k);
+      await ensureLookups(k);
+      E.jobsStatus.hidden=true;
+      renderJobs();
+      populateJobCountryOptions();
+      // Don't return — still do a live refresh in background
+    }
+
     const result=await fetchTrpc("workOffer.getWorkOffersPaginated",{limit:50,cursor:reset?undefined:S.jobCursor},k);
     const data=unwrap(result);
     let items=Array.isArray(data)?data:(data?.items||data?.offers||[]);

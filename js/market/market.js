@@ -1,6 +1,6 @@
 import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
-import { apiKey, fetchTrpc, fetchTrpcApi2, fetchFromServer, unwrap } from "../core/api.js";
+import { apiKey, fetchTrpc, fetchTrpcApi2, fetchFromServer, fetchCached, unwrap } from "../core/api.js";
 import { fmtMoney, fmtNum, formatShortNumber, marketItemName, commodityBars, miniChart } from "../core/utils.js";
 import { toast } from "../ui/toast.js";
 import * as cap from "../core/captureReport.js";
@@ -98,17 +98,25 @@ export async function loadMarketFull(showLoading=true) {
     setMs(E.marketOrdersStatus,"Loading trading orders…");
   }
 
-  const [wagesR,tradesR,pricesR,wageStatsR] = await Promise.allSettled([
+  const [wagesR,tradesR,pricesR,wageStatsR,cachedPrices,cachedOrders] = await Promise.allSettled([
     fetchTxLast24h("wage",k),
     fetchTxLast24h("trading",k),
     fetchTrpc("itemTrading.getPrices",{},k),
     fetchTrpcApi2("workOffer.getWageStats",{},k).catch(()=>{}),
+    fetchCached("prices"),
+    fetchCached("orders"),
   ]);
 
   try {
     const wages=wagesR.status==="fulfilled"?wagesR.value:[];
     const trades=tradesR.status==="fulfilled"?tradesR.value:[];
     const ws = wageStatsR.status==="fulfilled" ? unwrap(wageStatsR.value) : null;
+    let prices = cachedPrices.status==="fulfilled" && cachedPrices.value?.length ? cachedPrices.value : [];
+    let orders = cachedOrders.status==="fulfilled" && cachedOrders.value?.length ? cachedOrders.value : [];
+    if (pricesR.status==="fulfilled") {
+      const livePrices = unwrap(pricesR.value);
+      if (livePrices?.length) prices = livePrices;
+    }
     const globalAvgWage = ws?.allowedRange?.average ?? null;
     const totalPayroll = wages.reduce((s,t)=>s+Number(t.money??t.amount??t.value??0),0);
     const totalQuantity = wages.reduce((s,t)=>s+Number(t.quantity??t.workerCount??0),0);

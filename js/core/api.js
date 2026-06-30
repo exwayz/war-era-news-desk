@@ -103,3 +103,17 @@ export async function fetchFromServer(path, opts = {}) {
     return null;
   }
 }
+
+/** Fetch from Belmo cache first, fall back to direct API on miss/stale */
+export async function fetchCached(key, directFetcher) {
+  if (MARKET_SERVER_URL) {
+    try {
+      const r = await fetch(`${MARKET_SERVER_URL}/api/cache/${key}`, { signal: AbortSignal.timeout(3000) });
+      if (r.ok) {
+        const data = await r.json();
+        if (data?.items?.length) return data.items;
+      }
+    } catch {}
+  }
+  return directFetcher ? await directFetcher() : [];
+}
