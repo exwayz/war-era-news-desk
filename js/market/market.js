@@ -172,10 +172,8 @@ export async function loadMarketFull(showLoading=true) {
     fetchFromServer("/api/market-stats").then(srv => {
       const ec = S.market.econ;
       if (srv && srv.status === "ok" && ec) {
-        ec.totalPayroll = srv.wageTotal24h;
-        ec.tradeVol = srv.tradeVolume24h;
-        ec.wageCount = srv.wageCount;
-        ec.tradeCount = srv.tradeCount;
+        if (srv.wageTotal24h > 0) ec.totalPayroll = srv.wageTotal24h;
+        if (srv.wageCount > 0) ec.wageCount = srv.wageCount;
         if (srv.wageRates?.avg != null) ec.avgWage = srv.wageRates.avg;
         if (srv.wageRates?.min != null) ec.wageMin = srv.wageRates.min;
         if (srv.wageRates?.max != null) ec.wageMax = srv.wageRates.max;
