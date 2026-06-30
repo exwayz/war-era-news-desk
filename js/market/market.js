@@ -12,7 +12,7 @@ import { computePredictions } from "./predictions.js";
 import { storeMarketSnapshot, loadSupabaseHistory, loadWeeklyMVI } from "./marketHistory.js";
 import { updateInfobar } from "../visuals/clock.js";
 
-export async function fetchTxLast24h(type, k, maxPages = 500) {
+export async function fetchTxLast24h(type, k, maxPages = 10) {
   const cutoff = Date.now() - 86400000;
   const items = [];
   let cursor;
