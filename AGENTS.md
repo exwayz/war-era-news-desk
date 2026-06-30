@@ -1,71 +1,103 @@
-# Session: Economic Intelligence Platform
+# Session: UI/UX Overhaul — Newspaper Layout
 
 ## Goal
-Transform the Market tab into an Economic Intelligence Platform with a server-side accumulator for accurate pay-as-you-go totals and a multi-card analytical dashboard.
+Overhaul News Desk UI/UX to a newspaper-style tiling layout with sidebar nav, no animations, new color scheme/fonts, and add a working free AI provider.
 
-## Progress
+## Status: ✅ COMPLETE
 
-### Done (Session 1 — Server + Analytics Engine)
-- **Server-side accumulator** on Belmo (`newsdesk-server-4942.onbelmo.uk`): Node.js Express server polls api2.warera.io directly via POST, cursor-loop pagination with 340ms pacing, in-memory cache. Exposes `GET /api/market-stats` and `GET /api/health`.
-- **Cursor-based early-stop (v3)**: `fetchTxPages` filters items within the loop using a 24h cutoff (newest-first), breaks when the window is passed. `MAX_SAFETY_PAGES=5000` as guard only.
-- **Verified 24h data**: Wages 552–553K BTC (153K txns), Trade ~2.42M BTC (67K txns), cycle ~10.4 min.
-- **analytics.js**: `ensureHistories`, `aggregateDatasets`, `calculatePrimary`, `calculateStats`, `calculateDerived`, `classifyEconomy`, `calculateHealthScore`, `generateWarnings`, `generateAssessment`, `updateHistories` (max 48), `getPrevious`.
-- **renderAnalytics.js**: `multiChart` (4-series normalized SVG), `renderExecutiveDashboard`, `card` helper, `miniHistory` wrapper.
-- **market.js**: Integrates analytics at end of `loadMarketFull`; `copyMarketReport` extended.
-- **state.js**: 7 history arrays. **api.js/constants.js**: `fetchFromServer`, `MARKET_SERVER_URL`.
-- **CSS**: Full `analytics-*` suite in `components.css`, responsive grid in `responsive.css`.
-- **Push to both repos**.
+## What Was Done
 
-### Done (Session 2 — Bugfixes + Spec Compliance)
-- **Bugfix — momentum 0%**: Moved `updateHistories` out of `calculateAnalytics()` so `copyMarketReport()` gets correct previous values. Caller controls history append.
-- **Bugfix — server data didn't reach analytics**: `fetchFromServer` callback (fire-and-forget) re-runs `calculateAnalytics()`, `renderExecutiveDashboard()`, `updateHistories()` with server-enhanced data so Economic Overview + analytics cards are consistent.
-- **Bugfix — analytics section invisible** (3 fixes):
-  1. Insert target changed from inside `.market-grid` (has `overflow: hidden; height: calc(100% - 56px)`) to after it
-  2. Added `overflow-y: auto` to `.tab-panel.active`
-  3. Removed `content-visibility: auto` from `.tab-panel` (was skipping off-screen children in active panel)
-- **Insert target safe guard** added to `renderExecutiveDashboard`.
-- **Bugfix — analytics.js crash line 67**: `calculatePrimary` didn't return `topValuable`, so `calculateDerived` called `.reduce()` on `undefined`. Added `topValuable: d.topValuable` to the return. This was the root cause of all analytics data showing N/A.
-- **Bugfix — favicon 404**: `captureReport.js` used absolute path `/assets/icons/favicon-32x32.png` (root-relative) instead of relative path, causing 404 when served from a subdirectory.
-- **Spec compliance — Formula + Variables**: Every intelligence card now shows its formula (`F: ...`) and variables used (`V: ...`) in compact `.analytics-meta` lines.
-- **Spec compliance — Market Intelligence Score**: Relabeled "Health Score" → "Market Intelligence Score" on executive dashboard.
-- **Visual — Glasspane styling**: Analytics cards (`.analytics-card`, `.analytics-exec-card`, `.analytics-assess-card`) now match the four original panels — same `backdrop-filter: blur(14px)`, `rgba(18,24,32,0.72)` bg, box-shadow, hover effect, and the 1px repeating-linear-gradient stripe overlay.
-- **Visual — Ubuntu Sans**: `.analytics-meta` now uses `Ubuntu Sans` font to differentiate the intelligence metadata from the main Inter body text.
-- **Pill-toggle views**: Added `data-market-view` pill buttons ("Overview" / "Full Analytics") matching the rankings tab pattern. Analytics section is lazy-created on first switch to avoid displacing the four original cells. CSS classes `view-overview` / `view-analytics` toggle `display: none` on `.market-grid` / `.analytics-section`.
+### Layout
+- **Sidebar nav**: Icons with hover-reveal labels (160px on hover, 48px collapsed). 8 tabs (Timeline, Battles, Market, Jobs, Politics, Rankings, Community) + Writer redirect + User/Settings at bottom.
+- **Topbar**: Clock (JetBrains Mono, HH:MM:SS, left) | News Desk title (Playfair Display, center) | Market stats (avg wage, top wage, trade vol, top item, right).
+- **Infobar**: MVI pills (horizontal scroll, live not weekly, with ▲/▼ trends) + live event toast (slot-machine slide animation — MVI scroll pushes down, toast slides in from top, stays 10s, slides out, MVI scroll returns).
+- **All tabs**: Content preserved per original layout; tiling with `gap: 0` on all grids (market, rankings), no floating panels.
 
-### Done (Session 3 — Null data root cause + edge-case hardening)
-- **Root cause fix — all analytics data showing N/A**: `calculatePrimary` (line 47) didn't return `topValuable`, causing `calculateDerived` (line 67) to call `.reduce()` on `undefined`. This crashed the entire analytics pipeline — momentum, health score, warnings, assessment — cascading all outputs to null/N/A. Fixed by adding `topValuable: d.topValuable` to the return.
-- **favicon 404**: `captureReport.js:5` used root-absolute path `/assets/...` instead of relative `assets/...`; fixed.
-- **Edge-case audit**: Confirmed all paths are guarded — `aggregateDatasets` provides `|| []` defaults for every data source; `calculatePrimary` returns null for missing econ; `calculateDerived` returns null for null p/stats; `generateAssessment` has null check; `miniHistory`/`multiChart` handle <2 entry arrays; server callback has `.catch(()=>{})` swallow for unreachable server — initial gateway render is never blocked.
-- **Assessment/warning thresholds**: Reviewed current thresholds (price mom >5%, HHI >2500, circulation <30%, etc.) — all match standard economic ranges. No changes needed.
-- **Pushed** `2cfa54c`.
+### Visual Cleanup
+- Removed oscilloscope, ECG, nixie clock — all stubbed/cleaned
+- No `backdrop-filter`, `box-shadow`, or `border-radius` anywhere in layout
+- Flat `border: 1px solid var(--line)` separation throughout
+- No gaps between panels — tiling windows manager style
+- Undefined CSS vars (`--line-solid`, `--accent-soft`, `--radius-sm`) replaced
 
-### Remaining / Next
-1. **Hard-refresh page** and verify analytics section now shows real values instead of N/A (manual test)
-2. Verify no console errors (manual test needed)
-3. Server-side: consider adding fetch timeout to prevent hung requests on Belmo free tier
-4. Consider adding cache-busting header to `fetchFromServer` for always-fresh accumulator data
+### Colors (variables.css)
+| Token | Dark | Light |
+|-------|------|-------|
+| `--bg` | #121212 | #f8f8dc |
+| `--ink` | #e6e6e6 | #1C1C1C |
+| `--ink-dim` | #b0b0b0 | #666666 |
+| `--ink-caption` | #8F8F8F | #888888 |
+| `--line` | #303030 | #E5E5E5 |
+| `--link` | #6CA8FF | #0057B8 |
+| `--link-hover` | #8CC0FF | #004a99 |
+| `--entity` | #fffd8c | #989900 |
+| `--hl-user` | #fc5728 | #992c00 |
 
-### Architecture Notes
-- **Server URL**: `https://newsdesk-server-4942.onbelmo.uk` (Belmo free tier, auto-deploys from GitHub `master` pushes; latest commit `6437057`)
-- **Poll cycle**: `doPoll()` runs on server start, schedules next via `setTimeout` — no overlap. `POLL_INTERVAL_MS=300000` (5 min).
-- **API key**: `API_KEY` env var (Belmo dashboard). Required for `x-api-key` header to api2.
-- **Analytics**: Runs sync on `S.market` data in state — no fetches inside analytics.js. Refresh fires on market update interval.
-- **History cap**: 48 entries (~4 hours at 5-min intervals).
-- **Fallback chain**: `fetchFromServer` → gateway (if server 503/timed out). Analytics runs on gateway data; server-enhanced totals overwrite econ fields after response.
-- **Data mapping**: Server overwrites `S.market.econ.totalPayroll`, `.tradeVol`, `.wageCount`, `.tradeCount`, `.avgWage`, `.wageMin`, `.wageMax`, `.topOffer` after initial gateway load.
-- **`updateHistories`** only runs in the server callback (or timeout fallback), never inside `calculateAnalytics()`, ensuring history entries match displayed analytics values.
-- **View switching**: Market tab uses `<button data-market-view>` pills to toggle between "Overview" (four original cells) and "Full Analytics" (intelligence cards). CSS classes `view-overview` / `view-analytics` on `#tab-market` toggle `display: none` via sibling selectors. Analytics section is lazy-created on first switch to "analytics" via `loadMarketView()`. `renderExecutiveDashboard()` no longer auto-creates the section — only updates it if it exists. Server callback guards its render call with `if (document.querySelector(".analytics-section"))`.
+### Fonts (Google Fonts)
+- **UI**: Playfair Display
+- **Body**: Literata
+- **Article**: Atkinson Hyperlegible Next
+- **Numbers**: JetBrains Mono
+- **Code/tooltips**: Fira Code
 
-### Key Files
-| File | Purpose |
-|------|---------|
-| `newsdesk-server/server.js` | Express + accumulator + cursor pagination with 24h early-stop |
-| `newsdesk/js/market/analytics.js` | All analysis/calculation functions |
-| `newsdesk/js/market/renderAnalytics.js` | Dashboard, cards (with F/V metadata), warnings, assessment |
-| `newsdesk/js/market/market.js` | Entry point — fetches data, runs analytics async pipeline, extended report |
-| `newsdesk/js/core/state.js` | State shape (7 history arrays) |
-| `newsdesk/js/core/api.js` | `fetchFromServer` with Belmo URL |
-| `newsdesk/js/core/constants.js` | `MARKET_SERVER_URL` |
-| `newsdesk/css/components.css` | Analytics card/dashboard styles |
-| `newsdesk/css/responsive.css` | Responsive grid collapse for analytics |
-| `newsdesk/css/base.css` | `.tab-panel.active` overflow-y fix, `content-visibility` removal |
+### Writer
+- Button redirects to `https://lundgrenwarera.github.io/warera-writer/`
+- Old `writer.js`/`writer.css` files kept but not loaded in HTML
+
+### Settings Modal
+- API Key input (saves to localStorage, triggers data reload on change)
+- AI Key input (Gemini `AIza` or Groq `gsk_`)
+- SFX Volume slider (moved from user modal)
+- Theme toggle (🌙/☀️)
+- ⓘ About modal (spec text verbatim)
+- "by rooster" link → `https://app.warera.io/user/69bd432766cd740733175da7`
+
+### AI Provider
+- `callOpenAI()` auto-detects `gsk_` keys → `api.groq.com/openai/v1` with `llama-3.3-70b-versatile` (free)
+- Gemini fallback for `AIza` keys
+- Server proxy fallback for configured setups
+
+### Cleanup (dom.js)
+Removed all references to: `apiButton`, `themeButton`, `settingsButton`, `nixieDate`, `nixieTime`, `nixieClock`, `writerBtn`, `writerEditor`, `writerTitleInput`, `writerWordCount`, `writerSaveStatus`, `writerToolbar`, `copyWriterHtmlBtn`, `writerDraftsList`, `addDraftBtn`, `aiKeyInput`
+
+### Analytics (previous sessions)
+Server-side accumulator on Belmo, analytics engine with histories/datasets/health score/warnings/assessment, pill-toggle views for Market (Overview / Full Analytics / Predictions).
+
+## Fixes Applied
+
+### Session 2 — Analytics visibility, CSS classes, edge cases
+- **Analytics was invisible**: `renderExecutiveDashboard()` was rendering HTML but ~30 CSS classes were missing from `layout.css`. Added: `.exec-summary`, `.exec-summary-row`, `.exec-label`, `.exec-value`, `.exec-chart-wrap`, `.exec-chart-svg`, `.exec-legend`, `.exec-legend-item`, `.exec-legend-dot`, `.analytics-card-body`, `.analytics-card-header`, `.market-card-header`, `.market-card-title`, `.analytics-pct`, `.analytics-interp`, `.analytics-warn`, `.analytics-warn-critical`, `.analytics-warn-warning`, `.analytics-warn-info`, `.analytics-warn-icon`, `.analytics-warn-indicator`, `.analytics-warn-reason`, `.analytics-assess-body`, `.analytics-assess-summary`, `.analytics-assess-item`.
+- **`.analytics-warn-info` used `var(--blue)`** which didn't exist in `variables.css` → changed to `var(--ink-dim)`.
+- **`.market-card-header` missing** → added with flexbox layout.
+- **No undefined CSS vars remain** — full audit confirmed all `var(--X)` have matching `--X` definitions.
+- **Intro runtime error** (previous): Removed `#introMapCanvas` canvas rendering loop from `intro.js` (element no longer exists).
+- **Infobar toast slot-machine** (previous): Added `.infobar.toasting` CSS class.
+- **Settings close handler** (previous): Detects API key changes, triggers data reload.
+- **`E.themeButton` dead ref** (previous): Removed from `theme.js`, now uses `#themeToggleBtn`.
+
+### Session 4 — Font fix, icon migration Lucide → Iconify, election removal, UI polish
+- **Font family fix**: Changed `--font-article` from "Atkinson Hyperlegible Next" (doesn't exist) to "Atkinson Hyperlegible". Added `--font-code: "Fira Code"` and `code, pre, kbd { font-family:var(--font-code) }` base.css.
+- **Icon migration Lucide → Iconify**: Replaced all `<i data-lucide="X" class="lu">` with `<iconify-icon icon="mdi:Y" class="lu">` across `index.html` + 6 JS files. Removed Lucide CDN, added Iconify CDN (`jsdelivr`). Removed all `lucide.createIcons()` calls and MutationObserver.
+- **Election injection removed from timeline**: Deleted `injectElectionEvents()` from `timeline.js` and all `electionStarted`/`electionEnded` cases from `events.js` type map, buildTitle, buildSummary, buildDetails.
+- **UI polish**: Search inputs 24px height aligned; profile modal enriched (country, MU, subscribers); article reader fixed (image overflow, fonts, layout); clock increased to 1rem flex-column with visible date; all buttons use Literata; accent changed to neutral gray (#6a6a6a/#4b4b4b); entity colors applied to `.entity-link`/`.entity-resolving`/`.ec-type`.
+- **MVI ticker**: CSS `@keyframes infobar-ticker` on `.infobar-track` for seamless loop; `updateInfobar()` duplicates pills; updates textContent/className in-place (no DOM rebuild) to preserve animation during refreshes.
+- **MVI info text**: Added below MVI list explaining Value Score calculation.
+
+### Session 5 — Company & Deposit Concentration (Jobs tab)
+- **Pill buttons**: Added `data-job-view` pills to Jobs tab toolbar: Job Market, Company Concentration, Deposit Concentration.
+- **Company Concentration**: New `js/jobs/concentration.js` — `loadCompanyConcentration()` fetches companies via `company.getCompanies` (paginated, up to 5 pages × 40), then batch-fetches details via `company.getById` (concurrency=10). Groups by region, resolves region names via `region.getById`, renders as sortable list with production-type breakdown bars (color-coded by type).
+- **Deposit Concentration**: `loadDepositConcentration()` fetches `depositDiscovered` events via `event.getEventsPaginated`, sorted by bonus percent descending. Resolves region names, shows deposit type (capitalized), bonus percent (+X%), and remaining days. Filterable by deposit type via `<select>` dropdown.
+- **Deposit filter**: Populated with 9 types (petroleum, wood, iron, limestone, grain, lead, coca, fish, livestock) on tab switch and view switch.
+- **CSS**: Added `.conc-container`, `.conc-list`, `.conc-row`, `.conc-row-head`, `.conc-bars`, `.conc-pct`, `.conc-pct-fill`, `.conc-deposit-*` classes with color-coded bar segments (red→yellow→green→blue).
+- **initJobViews()**: Exported from `jobs.js`, called from `main.js` `bindAll()` — handles pill toggle, container show/hide, lazy loading on first view switch.
+
+### Session 3 — Load more anchoring, analytics DOM structure
+- **Analytics section empty DOM**: The `<div class="analytics-section" hidden>` in `index.html:234` was a bare shell with no inner elements. When `loadMarketView("analytics")` found it existing, it skipped creating the inner structure, and `renderExecutiveDashboard()` could not find `.analytics-exec-body` / `.analytics-cards-grid` → no content rendered. Fixed by adding full inner DOM structure to the HTML template.
+- **Load more buttons pushed down**: Changed `.tab-panel` from `overflow-y: auto` to `overflow: hidden` so the panel doesn't scroll — only internal containers (`#articleList`/`#eventList`) scroll. Added `flex-shrink: 0` to all non-scrolling children in `.tl-left`/`.tl-right` and `margin-top: auto` to `.btn-load`, keeping buttons anchored at bottom of columns.
+- **Assessment at bottom**: Fixed `renderAnalytics.js` to `srv.appendChild(div)` instead of `cardsGrid.after(div)`, ensuring Economic Intelligence Assessment is always the last child of `.analytics-section` (below warnings).
+- **Market grid 2×2 → 1×4**: Changed `.market-grid` from `repeat(2, 1fr)` to `repeat(4, 1fr)` and updated `nth-child(even)` to `nth-child(4n)` so the 4 cells sit in one horizontal row.
+- **Hidden big load more buttons**: `#loadMoreArticlesButton`, `#loadMoreButton` set to `display: none !important` — the "More" mini buttons in the filter bars serve the same function.
+- **Global Events title centered**: Added `.tl-right .panel-head { justify-content: center; }`.
+- **Panel-head padding**: Added `padding: 8px 10px; margin: 0` to `.tl-left .panel-head, .tl-right .panel-head` so the "1100 articles loaded" meta text doesn't overflow the right border.
+- **feedMeta right-aligned**: Added `margin-left: auto` to `#feedMeta` so "50 shown — 50 loaded" text is right-aligned in the events column.
+- **Lucide icons**: Migrated from emoji icons to Lucide CDN (`unpkg.com/lucide@latest`). Added `.lu` CSS class for sizing, `lucide.createIcons()` + MutationObserver in `main.js` for auto-init of dynamic icons. All button icons in sidebar, topbar, modals, and toolbars replaced with corresponding Lucide icons.

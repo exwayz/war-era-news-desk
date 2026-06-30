@@ -1,5 +1,6 @@
 import { apiKey } from "../core/api.js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "../core/constants.js";
+import { loadProfile } from "../user/profile.js";
 
 const PROHIBITED_WORDS = [
   "fuck", "shit", "nigger", "nigga", "bitch", "asshole", "bastard",
@@ -110,6 +111,36 @@ export function hasMoreMessages() {
   return cachedMessages.length < totalMessages;
 }
 
+async function getWeeklyCount(ids) {
+  if (!ids.length) return 0;
+  const weekAgo = getWeekAgo();
+  try {
+    const qs = `posted_by=in.(${ids.join(",")})&created_at=gte.${weekAgo}&select=id`;
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?${qs}`, {
+      headers: { ...supabaseHeaders(), "Prefer": "count=exact" },
+    });
+    if (!res.ok) return 0;
+    return parseInt(res.headers.get("content-range")?.split("/")[1] || "0", 10);
+  } catch {
+    return 0;
+  }
+}
+
+export async function getRemainingQuota() {
+  const ids = await posterIdentifiers();
+  const count = await getWeeklyCount(ids);
+  return { used: count, remaining: Math.max(0, 5 - count), total: 5 };
+}
+
+async function posterIdentifiers() {
+  const key = apiKey()?.trim();
+  const ids = [];
+  if (key) ids.push("k_" + await sha256(key));
+  const profile = loadProfile();
+  if (profile?.userId) ids.push("u_" + profile.userId);
+  return ids;
+}
+
 export async function postMessage(author, text) {
   if (!author || !text) return { error: "Author and message required" };
   if (text.length > 500) return { error: "Message too long (max 500 chars)" };
@@ -120,19 +151,25 @@ export async function postMessage(author, text) {
   if (!key) return { error: "API key required to post" };
 
   try {
-    const postedBy = await sha256(key);
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/post_message`, {
+    const ids = await posterIdentifiers();
+    if (!ids.length) return { error: "No identifier available to post" };
+    const count = await getWeeklyCount(ids);
+    if (count >= 5) return { error: "Post limit reached (5/week)" };
+
+    const postedBy = ids[0];
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/messages`, {
       method: "POST",
-      headers: supabaseHeaders(),
+      headers: { ...supabaseHeaders(), "Prefer": "return=representation" },
       body: JSON.stringify({
-        p_author: author.trim().slice(0, 40),
-        p_text: text.trim().slice(0, 500),
-        p_posted_by: postedBy,
+        author: author.trim().slice(0, 40),
+        text: text.trim().slice(0, 500),
+        posted_by: postedBy,
+        upvotes: 0,
+        upvoters: [],
       }),
     });
     if (!res.ok) return { error: "Failed to post" };
     const msg = await res.json();
-    if (msg.error) return { error: msg.error };
     cachedMessages.unshift(msg);
     totalMessages++;
     return { success: true, message: msg };
@@ -212,7 +249,7 @@ export function renderWallMessages(containerId, messages) {
       </div>
       <p class="wall-card-text">${escHtml(msg.text)}</p>
       <div class="wall-card-actions">
-        <button class="wall-upvote-btn" data-id="${msg.id}">👍 ${msg.upvotes || 0}</button>
+        <button class="wall-upvote-btn" data-id="${msg.id}"><iconify-icon icon="mdi:thumb-up-outline" class="lu"></iconify-icon> ${msg.upvotes || 0}</button>
         <button class="wall-read-btn" data-id="${msg.id}">Read</button>
       </div>
     `;

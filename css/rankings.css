@@ -15,7 +15,7 @@
 
 .rk-cell::-webkit-scrollbar { width: 4px; }
 .rk-cell::-webkit-scrollbar-track { background: transparent; }
-.rk-cell::-webkit-scrollbar-thumb { background: var(--line-solid); border-radius: 99px; }
+.rk-cell::-webkit-scrollbar-thumb { background: var(--line); }
 
 .rk-cell-title {
   font-size: .78rem;
@@ -39,7 +39,7 @@
   padding: 5px 0;
   border-bottom: 1px solid var(--line);
   font-size: .82rem;
-  font-family: "Ubuntu Sans", sans-serif;
+  font-family: var(--font-num);
 }
 
 .rk-row:last-child { border-bottom: none; }

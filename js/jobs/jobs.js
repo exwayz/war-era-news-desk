@@ -8,6 +8,7 @@ import * as cap from "../core/captureReport.js";
 import { highlightUserData } from "../core/profileHighlighter.js";
 import { ensureLookups } from "../timeline/filters.js";
 import { nameCountry, nameRegion } from "../battles/companies.js";
+import { loadCompanyConcentration, loadDepositConcentration, populateDepositFilter } from "./concentration.js";
 
 function getCompanyId(job) {
   if (job.companyId) return job.companyId;
@@ -139,8 +140,8 @@ export function renderJobs() {
         ${created?`<span class="job-chip">🕐 ${created}</span>`:""}
       </div>
       <div class="job-actions">
-        ${cid ?`<button class="job-btn" data-cid="${cid}">🏭 View Company</button>` :`<button class="job-btn" disabled title="Company ID not available" style="opacity:.4;cursor:not-allowed">🏭 View Company</button>`}
-        <button class="job-btn copy-job" data-wage="${wage}" data-company="${company}" data-skill="${skill}" data-loc="${locationText}">📋 Copy Brief</button>
+        ${cid ?`<button class="job-btn" data-cid="${cid}"><iconify-icon icon="mdi:factory" class="lu"></iconify-icon> View Company</button>` :`<button class="job-btn" disabled title="Company ID not available" style="opacity:.4;cursor:not-allowed"><iconify-icon icon="mdi:factory" class="lu"></iconify-icon> View Company</button>`}
+        <button class="job-btn copy-job" data-wage="${wage}" data-company="${company}" data-skill="${skill}" data-loc="${locationText}"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon> Copy Brief</button>
       </div>`;
 
     card.querySelector("[data-cid]")?.addEventListener("click", function() {
@@ -214,6 +215,32 @@ export function captureJobsReport() {
     cap.section("Top Job Offers", cap.tableBlock("", ["#","Company","Boss","Location","Item","Wage","Net Wage","Value"], rows, 20)) +
     cap.pageClose();
   cap.captureHTML(html, "jobs_report_"+cap.ts()+".png");
+}
+
+export function initJobViews() {
+  document.querySelectorAll("[data-job-view]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const view = btn.dataset.jobView;
+      document.querySelectorAll("[data-job-view]").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      const marketFilters = document.getElementById("jobMarketFilters");
+      const jobsList = document.getElementById("jobsList");
+      const companyView = document.getElementById("companyConcentration");
+      const depositView = document.getElementById("depositConcentration");
+      const loadMoreBtn = document.getElementById("loadMoreJobsButton");
+      if (marketFilters) marketFilters.style.display = view === "market" ? "" : "none";
+      if (jobsList) jobsList.style.display = view === "market" ? "" : "none";
+      if (companyView) companyView.hidden = view !== "companies";
+      if (depositView) depositView.hidden = view !== "deposits";
+      if (loadMoreBtn) loadMoreBtn.style.display = view === "market" ? "" : "none";
+      if (view === "companies") loadCompanyConcentration();
+      if (view === "deposits") { populateDepositFilter(); loadDepositConcentration(""); }
+    });
+  });
+  document.getElementById("depositTypeFilter")?.addEventListener("change", () => {
+    const sel = document.getElementById("depositTypeFilter");
+    loadDepositConcentration(sel?.value || "");
+  });
 }
 
 export async function loadJobs(reset=true) {

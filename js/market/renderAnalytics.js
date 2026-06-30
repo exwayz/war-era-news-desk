@@ -153,7 +153,7 @@ function multiChart(series) {
     if (l.points.length < 2) return "";
     const path = smoothPath(l.points);
     const last = l.points[l.points.length - 1];
-    return `<path d="${path}" fill="none" stroke="${l.color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>${last ? `<circle cx="${last.x}" cy="${last.y}" r="3" fill="${l.color}" stroke="var(--ink-950)" stroke-width="1"/>` : ""}`;
+    return `<path d="${path}" fill="none" stroke="${l.color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>${last ? `<circle cx="${last.x}" cy="${last.y}" r="3" fill="${l.color}" stroke="var(--ink)" stroke-width="1"/>` : ""}`;
   }).join("");
 
   _chartConfig = { uid, lines, plotW, plotH, padL, padT, totalLen };
@@ -162,7 +162,7 @@ function multiChart(series) {
     <svg viewBox="0 0 ${W} ${H}" class="exec-chart-svg" style="cursor:crosshair">
       ${yTicks.map(v => {
         const yy = yPos(v);
-        return `<line x1="${padL}" y1="${yy}" x2="${padL + plotW}" y2="${yy}" stroke="var(--border-1)" stroke-width="0.5" stroke-dasharray="3,3"/><text x="${padL - 6}" y="${yy + 3}" fill="var(--ink-dim)" font-size="9" text-anchor="end">${v.toFixed(0)}%</text>`;
+        return `<line x1="${padL}" y1="${yy}" x2="${padL + plotW}" y2="${yy}" stroke="var(--line)" stroke-width="0.5" stroke-dasharray="3,3"/><text x="${padL - 6}" y="${yy + 3}" fill="var(--ink-dim)" font-size="9" text-anchor="end">${v.toFixed(0)}%</text>`;
       }).join("")}
       <text x="${padL}" y="${padT - 4}" fill="var(--ink-dim)" font-size="9">Relative Performance (%, baseline = first visible)</text>
       ${areas}
@@ -170,7 +170,7 @@ function multiChart(series) {
       <line class="ch-${uid}-xhair" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--ink-dim)" stroke-width="0.8" stroke-dasharray="3,3" style="display:none;pointer-events:none"/>
       <rect x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent" class="ch-${uid}-zone" style="cursor:crosshair"/>
     </svg>
-    <div class="ch-${uid}-tip chart-tooltip" style="display:none;position:absolute;pointer-events:none;background:rgba(24,32,40,0.95);backdrop-filter:blur(6px);border:1px solid var(--border-1);border-radius:6px;padding:8px 12px;font-size:.72rem;z-index:100;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.3);line-height:1.6"></div>
+    <div class="ch-${uid}-tip chart-tooltip" style="display:none;position:fixed;pointer-events:none;background:rgba(24,32,40,0.95);border:1px solid var(--line);padding:8px 12px;font-size:.72rem;z-index:99999;white-space:nowrap;line-height:1.6"></div>
   </div>
   <div class="exec-legend">${lines.map(l => {
     const pctD = l.pct != null ? fmtPct(l.pct) : "";
@@ -217,13 +217,14 @@ function initChartTools(uid, lines, plotW, plotH, padL, padT, totalLen) {
     tip.style.display = "";
 
     const svgRect = svg.getBoundingClientRect();
-    const tipX = cx * (svgRect.width / 800);
-    const tipY = padT * (svgRect.height / 220);
-    tip.style.left = tipX + "px";
-    tip.style.top = (tipY - tip.offsetHeight - 8) + "px";
+    const fx = svgRect.left + cx * (svgRect.width / 800);
+    const fy = svgRect.top + padT * (svgRect.height / 220);
+    tip.style.left = fx + "px";
+    tip.style.top = (fy - tip.offsetHeight - 8) + "px";
+    tip.style.transform = "none";
 
-    if (tipX + tip.offsetWidth > svgRect.width - 4) {
-      tip.style.left = (svgRect.width - tip.offsetWidth - 4) + "px";
+    if (fx + tip.offsetWidth > window.innerWidth - 4) {
+      tip.style.left = (window.innerWidth - tip.offsetWidth - 4) + "px";
     }
   }
 
@@ -268,11 +269,11 @@ export function renderExecutiveDashboard(a) {
   const cardsGrid = srv.querySelector(".analytics-cards-grid");
 
   const series = [
-    { label: "Commodity Basket", values: S.market.basketHistory, color: "var(--purple, #a855f7)" },
+    { label: "Commodity Basket", values: S.market.basketHistory, color: "var(--purple)" },
     { label: "Purchasing Power", values: S.market.ppHistory, color: "var(--accent, #f59e0b)" },
     { label: "Market Concentration", values: S.market.hhiHistory, color: "var(--yellow, #eab308)" },
-    { label: "Economic Circulation", values: S.market.circulationHistory, color: "var(--orange, #f97316)" },
-    { label: "Trade Efficiency", values: S.market.tradeEfficiencyHistory, color: "var(--cyan, #06b6d4)" },
+    { label: "Economic Circulation", values: S.market.circulationHistory, color: "var(--orange)" },
+    { label: "Trade Efficiency", values: S.market.tradeEfficiencyHistory, color: "var(--cyan)" },
   ];
 
   const summaryHtml = `<div class="exec-summary">
@@ -406,7 +407,7 @@ export function renderExecutiveDashboard(a) {
     extra: `<div class="analytics-meta">F: Eff = Tv ÷ Tt</div>
       <div class="analytics-meta">V: tradeVol, tradeCount</div>
       <div class="analytics-meta">Total trade volume ÷ transaction count</div>`,
-    chart: miniHistory(S.market.tradeEfficiencyHistory, "var(--cyan, #06b6d4)"),
+    chart: miniHistory(S.market.tradeEfficiencyHistory, "var(--cyan)"),
     interpretation: d?.tradeEfficiency != null
       ? `Avg ${fmtMoney(d.tradeEfficiency)} BTC per trade.`
       : "",
@@ -459,7 +460,7 @@ export function renderExecutiveDashboard(a) {
       const div = document.createElement("div");
       div.className = "analytics-assessment";
       div.innerHTML = assessHtml;
-      (document.querySelector(".analytics-cards-grid") || srv).after(div);
+      srv.appendChild(div);
     }
   } else if (assessSection) {
     assessSection.remove();

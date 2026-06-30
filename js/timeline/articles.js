@@ -9,6 +9,30 @@ import { highlightUserData } from "../core/profileHighlighter.js";
 export function setArticleStatus(msg,type="info") { if(!E.articleStatusBox) return; E.articleStatusBox.hidden=false; E.articleStatusBox.textContent=msg; E.articleStatusBox.classList.toggle("error",type==="error"); }
 export function clearArticleStatus() { if(!E.articleStatusBox) return; E.articleStatusBox.hidden=true; E.articleStatusBox.textContent=""; E.articleStatusBox.classList.remove("error"); }
 
+function populateArticleFilters(articles) {
+  const langs = new Set(); const cats = new Set();
+  for (const a of articles) {
+    if (a.language) langs.add(a.language);
+    if (a.category) cats.add(a.category);
+  }
+  const langSel = document.getElementById("articleLangFilter");
+  const catSel = document.getElementById("articleCatFilter");
+  if (langSel) {
+    const cur = langSel.value;
+    langSel.innerHTML = '<option value="">All languages</option>';
+    for (const l of [...langs].sort()) {
+      langSel.innerHTML += `<option value="${l}"${l===cur?" selected":""}>${l}</option>`;
+    }
+  }
+  if (catSel) {
+    const cur = catSel.value;
+    catSel.innerHTML = '<option value="">All categories</option>';
+    for (const c of [...cats].sort()) {
+      catSel.innerHTML += `<option value="${c}"${c===cur?" selected":""}>${c}</option>`;
+    }
+  }
+}
+
 export async function loadArticles(reset=true) {
   const k = apiKey(); if (!k) return;
   if (reset) { S.articleCursor=null; S.articles=[]; }
@@ -19,6 +43,7 @@ export async function loadArticles(reset=true) {
     await resolveUsers(items.map(a=>a.author).filter(Boolean), k);
     S.articleCursor = data?.nextCursor||null;
     S.articles = reset ? items : [...S.articles, ...items];
+    if (reset) populateArticleFilters(S.articles);
     clearArticleStatus();
     renderArticles();
   } catch (e) {
@@ -29,6 +54,10 @@ export async function loadArticles(reset=true) {
 export function renderArticles() {
   const kw=E.articleSearch.value.trim().toLowerCase();
   let arts=kw?S.articles.filter(a=>(a.title||"").toLowerCase().includes(kw)||(a.content||"").toLowerCase().includes(kw)):S.articles;
+  const artLang = document.getElementById("articleLangFilter")?.value || "";
+  const artCat = document.getElementById("articleCatFilter")?.value || "";
+  if (artLang) arts = arts.filter(a => a.language === artLang);
+  if (artCat) arts = arts.filter(a => a.category === artCat);
   const af=S.articleTimeFrom, at=S.articleTimeTo;
   if(af||at){
     const fromMs=af?new Date(af).getTime():0;
@@ -84,6 +113,10 @@ export function renderArticles() {
 export async function copyArticles() {
   const kw=E.articleSearch.value.trim().toLowerCase();
   let arts=kw?S.articles.filter(a=>(a.title||"").toLowerCase().includes(kw)||(a.content||"").toLowerCase().includes(kw)):S.articles;
+  const artLang = document.getElementById("articleLangFilter")?.value || "";
+  const artCat = document.getElementById("articleCatFilter")?.value || "";
+  if (artLang) arts = arts.filter(a => a.language === artLang);
+  if (artCat) arts = arts.filter(a => a.category === artCat);
   const af=S.articleTimeFrom, at=S.articleTimeTo;
   if(af||at){
     const fromMs=af?new Date(af).getTime():0;

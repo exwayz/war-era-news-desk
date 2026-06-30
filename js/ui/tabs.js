@@ -4,17 +4,31 @@ import { apiKey } from "../core/api.js";
 import { loadBattles } from "../battles/battles.js";
 import { loadMarketFull } from "../market/market.js";
 import { loadJobs } from "../jobs/jobs.js";
+import { populateDepositFilter } from "../jobs/concentration.js";
 import { loadCategory } from "../rankings/rankings.js";
 import { loadMessages, renderWallMessages, renderWallCount } from "../community/wall.js";
 import { loadPolitics } from "../politics/politics.js";
 import { highlightUserData } from "../core/profileHighlighter.js";
+
 export function switchTab(tab) {
   document.querySelectorAll(".overlay").forEach(o => o.classList.add("hidden"));
   S.currentTab = tab;
-  E.tabBtns.forEach(b=>b.classList.toggle("active", b.dataset.tab===tab));
-  E.tabPanels.forEach(p=>p.classList.toggle("active", p.id==="tab-"+tab));
+  document.querySelectorAll(".side-btn[data-tab]").forEach(b=>b.classList.toggle("active", b.dataset.tab===tab));
+  document.querySelectorAll(".tab-panel").forEach(p=>p.classList.toggle("active", p.id==="tab-"+tab));
   if(tab === "timeline"){
     clearTimelineBadge();
+    // Hide any active infobar toast
+    const toastEl = document.getElementById("infobarToast");
+    const infobar = document.getElementById("infobar");
+    if(toastEl && !toastEl.hidden){
+      toastEl.classList.remove("show");
+      toastEl.classList.add("hide");
+      setTimeout(() => {
+        toastEl.hidden = true;
+        if (infobar) infobar.classList.remove("toasting");
+      }, 500);
+      if (window._infobarToastTimer) clearTimeout(window._infobarToastTimer);
+    }
     isTimelineOpen();
   }
   if (tab === "community") {
@@ -28,7 +42,7 @@ export function switchTab(tab) {
   if (!k) return;
   if (tab==="battles" && S.battles.length===0) loadBattles(true);
   if (tab==="market" && !S.market.prices) loadMarketFull();
-  if (tab==="jobs" && S.jobs.length===0) loadJobs(true);
+  if (tab==="jobs") { if (S.jobs.length===0) loadJobs(true); populateDepositFilter(); }
   if (tab==="rankings") loadCategory(document.querySelector("[data-rank-cat].active")?.dataset.rankCat || "weekly");
   if (tab==="politics") loadPolitics();
 }

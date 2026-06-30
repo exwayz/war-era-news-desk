@@ -1,6 +1,15 @@
 import { S } from "../core/state.js";
-import { apiKey, fetchTrpc, fetchTrpcApi2, fetchTrpcApi5, unwrap } from "../core/api.js";
-import { fmtNum, fmtDate } from "../core/utils.js";
+import { apiKey, fetchTrpc, fetchTrpcApi2, fetchTrpcApi5, unwrap, fetchFromServer } from "../core/api.js";
+import { fmtNum, fmtDate, fmtMoney } from "../core/utils.js";
+import { resolveParty, resolveAlliance } from "../core/resolver.js";
+import { evtData, evtTime, buildTitle, buildSummary, fmtType } from "../timeline/events.js";
+
+const POLITICS_EVENT_TYPES = new Set([
+  "allianceBroken","allianceFormed","allianceMemberExcluded","allianceMemberJoined","allianceMemberLeft",
+  "bankruptcy","battleEnded","battleOpened","countryMoneyTransfer","defensivePactBroken","defensivePactFormed",
+  "financedRevolt","newPresident","peace_agreement","peaceMade","regionLiberated","regionTransfer",
+  "revolutionEnded","revolutionStarted","systemRevolt","warDeclared"
+]);
 
 let _loaded = false;
 let _countries = [];
@@ -31,6 +40,8 @@ export async function loadPolitics(force = false) {
 
     if (_selectedCountryId) {
       await loadCountryData(_selectedCountryId, k);
+    } else {
+      renderCountryGrid();
     }
   } catch (err) {
     document.getElementById("politicsStatus").textContent = "Failed to load: " + err.message;
@@ -84,6 +95,7 @@ async function loadCountryData(countryId, k) {
     await enrichGovernment(_government, k);
     await enrichCongressMembers(_government, k);
     renderPolitics();
+    generatePoliticalSummary(countryId, k);
   } catch (err) {
     status.textContent = "Error: " + err.message;
   }
@@ -165,6 +177,10 @@ function renderPolitics() {
         <h4 class="pol-section-title">Government</h4>
         <div id="polGovBody">${renderGovernment()}</div>
       </div>
+      <div class="glass-panel pol-section pol-summary">
+        <h4 class="pol-section-title">Political Summary</h4>
+        <div id="polSummaryBody" class="pol-scroll"></div>
+      </div>
       <div class="glass-panel pol-section pol-parties">
         <h4 class="pol-section-title">Parties <span class="pol-count">${_parties.length}</span></h4>
         <div id="polPartiesBody" class="pol-scroll">${renderParties()}</div>
@@ -181,22 +197,23 @@ function renderGovernment() {
   if (!_government) return '<p class="pol-empty">No government data</p>';
 
   const roles = [
-    { key: "president", label: "President", icon: "👤" },
-    { key: "vicePresident", label: "Vice President", icon: "👥" },
-    { key: "minOfDefense", label: "Minister of Defense", icon: "⚔" },
-    { key: "minOfEconomy", label: "Minister of Economy", icon: "💰" },
-    { key: "minOfForeignAffairs", label: "Foreign Affairs", icon: "🌍" },
+    { key: "president", label: "President:", icon: "👤" },
+    { key: "vicePresident", label: "Vice President:", icon: "👥" },
+    { key: "minOfDefense", label: "Minister of Defense:", icon: "⚔" },
+    { key: "minOfEconomy", label: "Minister of Economy:", icon: "💰" },
+    { key: "minOfForeignAffairs", label: "Foreign Affairs:", icon: "🌍" },
   ];
 
   const roleHtml = roles.map(r => {
     const userId = _government[r.key];
     if (!userId) return '';
     const user = S.lookups.usersById.get(userId);
+    const partyTxt = userPartyName(userId);
     return `
       <div class="pol-role-row">
         <span class="pol-role-icon">${r.icon}</span>
         <span class="pol-role-label">${r.label}</span>
-        <span class="pol-role-name">${userAvatar(user, userId)} ${escHtml(user?.username || '#' + userId.slice(-6))}</span>
+        <span class="pol-role-name"${partyTxt ? ` title="${escHtml(partyTxt)}"` : ""}>${userAvatar(user, userId)} ${escHtml(user?.username || '#' + userId.slice(-6))}</span>
       </div>
     `;
   }).join('');
@@ -213,7 +230,7 @@ function renderGovernment() {
     extraHtml += `
       <div class="pol-role-row">
         <span class="pol-role-icon">🏛</span>
-        <span class="pol-role-label">Ruling Party</span>
+        <span class="pol-role-label">Ruling Party:</span>
         <span class="pol-role-name">${pAvatar} ${escHtml(party?.name || rpId.slice(-6))}</span>
       </div>
     `;
@@ -227,7 +244,7 @@ function renderGovernment() {
     extraHtml += `
       <div class="pol-role-row">
         <span class="pol-role-icon">🤝</span>
-        <span class="pol-role-label">Alliance</span>
+        <span class="pol-role-label">Alliance:</span>
         <span class="pol-role-name">${aAvatar} ${escHtml(_alliance.allianceName || _alliance.name || _alliance._id?.slice(-6))}</span>
       </div>
     `;
@@ -239,7 +256,7 @@ function renderGovernment() {
     extraHtml += `
       <div class="pol-role-row">
         <span class="pol-role-icon">🛡</span>
-        <span class="pol-role-label">Defensive Pacts</span>
+        <span class="pol-role-label">Defensive Pacts:</span>
         <span class="pol-role-name">${pacts.length} pact${pacts.length > 1 ? 's' : ''}</span>
       </div>
     `;
@@ -252,12 +269,28 @@ function renderGovernment() {
         <summary class="pol-congress-summary">Congress <span class="pol-count">${members.length}</span> <span class="details-marker">▾</span></summary>
         <div class="pol-congress-list">${members.map(uid => {
           const u = S.lookups.usersById.get(uid);
-          return `<span class="pol-congress-item">${userAvatar(u, uid)} ${escHtml(u?.username || '#' + uid.slice(-6))}</span>`;
+          const pt = userPartyName(uid);
+          return `<span class="pol-congress-item"${pt ? ` title="${escHtml(pt)}"` : ""}>${userAvatar(u, uid)} ${escHtml(u?.username || '#' + uid.slice(-6))}</span>`;
         }).join('')}</div>
       </details>`
     : '';
 
   return roleHtml + extraHtml + memberHtml;
+}
+
+function userParty(userId) {
+  if (!userId || !_parties.length) return null;
+  for (const p of _parties) {
+    if (p._id && (p.leader === userId || p.treasurer === userId)) return p;
+    if (Array.isArray(p.councilMembers) && p.councilMembers.includes(userId)) return p;
+    if (Array.isArray(p.members) && p.members.includes(userId)) return p;
+  }
+  return null;
+}
+
+function userPartyName(userId) {
+  const p = userParty(userId);
+  return p?.name || null;
 }
 
 function userAvatar(u, uid) {
@@ -269,13 +302,13 @@ function userAvatar(u, uid) {
 
 function renderParties() {
   if (!_parties.length) return '<p class="pol-empty">No parties</p>';
-  return _parties.map(p => {
+  return _parties.map((p, i) => {
     const leader = p.leader ? S.lookups.usersById.get(p.leader) : null;
     const leaderName = leader?.username || (p.leader ? '#' + p.leader.slice(-6) : '—');
     const avatar = p.avatarUrl ? `<img class="pol-party-avatar" src="${p.avatarUrl}" alt="" loading="lazy">` : '<span class="pol-party-avatar pol-party-avatar--initials">' + (p.name?.charAt(0) || '?') + '</span>';
     const members = Array.isArray(p.members) ? p.members.length : (p.membersCount || p.memberCount || '?');
     return `
-      <div class="pol-party-card">
+      <div class="pol-party-card" data-pidx="${i}">
         <div class="pol-party-head">
           ${avatar}
           <div class="pol-party-info">
@@ -312,15 +345,481 @@ function renderElections() {
   }).join('');
 }
 
+function renderCountryGrid() {
+  const container = document.getElementById("politicsContent");
+  if (!container) return;
+  const sorted = [..._countries].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  container.innerHTML = `
+    <div class="pol-country-grid">
+      ${sorted.map(c => {
+        const flag = c.code ? `<img class="pol-grid-flag" src="https://flagcdn.com/${c.code}.svg" alt="" loading="lazy">` : "";
+        return `<button class="pol-country-card" data-id="${c._id}">${flag}<span class="pol-country-name">${escHtml(c.name || "?")}</span></button>`;
+      }).join("")}
+    </div>
+  `;
+}
+
+function showPartyDetail(party) {
+  const k = apiKey();
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
+
+  const leader = party.leader ? S.lookups.usersById.get(party.leader) : null;
+  const council = party.councilMembers || [];
+  const members = Array.isArray(party.members) ? party.members.length : (party.membersCount || party.memberCount || 0);
+
+  let councilHtml = "";
+  if (council.length) {
+    councilHtml = council.map(uid => {
+      const u = S.lookups.usersById.get(uid);
+      return `<span class="pol-detail-chip">${userAvatar(u, uid)} ${escHtml(u?.username || '#' + uid.slice(-6))}</span>`;
+    }).join("");
+  }
+
+  overlay.innerHTML = `
+    <div class="modal-card pol-detail-modal">
+      <div style="display:flex;align-items:center;gap:10px">
+        ${party.avatarUrl ? `<img src="${party.avatarUrl}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid var(--line)">` : `<span style="width:36px;height:36px;border-radius:50%;background:var(--surface-hi);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1rem">${(party.name?.charAt(0)||'?').toUpperCase()}</span>`}
+        <h2 style="margin:0;font-size:1rem">${escHtml(party.name || 'Unnamed')}</h2>
+      </div>
+      <div class="pol-detail-rows">
+        <div class="pol-detail-row"><span class="pol-detail-label">Leader</span><span class="pol-detail-val">${leader ? userAvatar(leader, party.leader) + " " + escHtml(leader.username) : escHtml(party.leader?.slice(-6) || "—")}</span></div>
+        ${party.treasurer ? `<div class="pol-detail-row"><span class="pol-detail-label">Treasurer</span><span class="pol-detail-val">${(()=>{const u=S.lookups.usersById.get(party.treasurer);return u?userAvatar(u,party.treasurer)+" "+escHtml(u.username):escHtml(party.treasurer?.slice(-6))})()}</span></div>` : ""}
+        <div class="pol-detail-row"><span class="pol-detail-label">Members</span><span class="pol-detail-val">${fmtNum(members)}</span></div>
+      </div>
+      ${council.length ? `<div><div class="pol-detail-label" style="margin-bottom:4px">Council (${council.length})</div><div class="pol-detail-chips">${councilHtml}</div></div>` : ""}
+      <button class="btn-primary pol-detail-close" style="width:100%">Close</button>
+    </div>
+  `;
+  overlay.querySelector(".pol-detail-close").addEventListener("click", () => overlay.remove());
+  document.addEventListener("keydown", function onEsc(e) { if (e.key === "Escape") { overlay.remove(); document.removeEventListener("keydown", onEsc); } });
+  document.body.appendChild(overlay);
+}
+
+async function showElectionDetail(electionId) {
+  const k = apiKey();
+  if (!k) return;
+
+  let election = _elections.find(e => e._id === electionId);
+  if (!election) return;
+
+  const candidates = election.candidates || election.results || election.candidateList || [];
+  const votesMap = election.votes || {};
+
+  const userIds = candidates.map(c => c.user).filter(Boolean);
+  await Promise.all(userIds.map(async uid => {
+    if (!S.lookups.usersById.has(uid)) {
+      try { const r = await fetchTrpcApi2("user.getUserLite", { userId: uid }, k); const u = unwrap(r); if (u) S.lookups.usersById.set(uid, u); } catch {}
+    }
+  }));
+
+  const partyIds = candidates.map(c => c.party).filter(Boolean);
+  const partyCache = {};
+  await Promise.all(partyIds.map(async pid => {
+    let p = _parties.find(x => x._id === pid);
+    if (!p) { try { p = await resolveParty(pid, k); } catch {} }
+    if (p) partyCache[pid] = p;
+  }));
+
+  const type = election.type === "president" ? "Presidential" : "Congress";
+  const candidatesHtml = candidates.length ? candidates.map(c => {
+    const uid = c.user || "";
+    const user = S.lookups.usersById.get(uid);
+    const name = user?.username || uid.slice(-6) || "?";
+    const partyId = c.party || "";
+    const party = partyCache[partyId];
+    const partyName = party?.name || "";
+    const elected = c.isElected || false;
+    const icon = elected ? `<span style="color:var(--green);font-weight:800">✓</span>` : `<span style="color:var(--red);font-weight:800">✗</span>`;
+    const voteCount = c.voteCount != null ? c.voteCount : (votesMap[uid] != null ? votesMap[uid] : 0);
+    return `
+      <div class="pol-detail-row pol-candidate-row">
+        <span class="pol-candidate-icon">${icon}</span>
+        <span class="pol-candidate-name">${user ? userAvatar(user, uid) + " " : ""}${escHtml(name)}</span>
+        <span class="pol-candidate-party">${partyName ? escHtml(partyName) : "Independent"}</span>
+        <span class="pol-candidate-votes">${voteCount > 0 ? fmtNum(voteCount) + (voteCount === 1 ? " vote" : " votes") : ""}</span>
+      </div>
+    `;
+  }).join("") : '<p style="color:var(--ink-dim);font-size:.82rem">No candidate data available.</p>';
+
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
+  overlay.innerHTML = `
+    <div class="modal-card pol-detail-modal">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h2 style="margin:0;font-size:1rem">${type} Election</h2>
+        <span style="font-size:.72rem;color:var(--ink-dim)">${election.votesCount != null ? fmtNum(election.votesCount) + " votes" : ""}</span>
+      </div>
+      <div class="pol-candidate-list">${candidatesHtml}</div>
+      <button class="btn-primary pol-detail-close" style="width:100%">Close</button>
+    </div>
+  `;
+  overlay.querySelector(".pol-detail-close").addEventListener("click", () => overlay.remove());
+  document.addEventListener("keydown", function onEsc(e) { if (e.key === "Escape") { overlay.remove(); document.removeEventListener("keydown", onEsc); } });
+  document.body.appendChild(overlay);
+}
+
 function escHtml(s) {
   const d = document.createElement("div");
   d.textContent = s;
   return d.innerHTML;
 }
 
+function timeAgoLabel(events) {
+  const times = events.map(e => new Date(e.createdAt||e.date||e.time||e.timestamp).getTime()).filter(t => !isNaN(t));
+  if (!times.length) return "recent events";
+  const oldest = Math.min(...times);
+  const diff = Date.now() - oldest;
+  const hrs = Math.floor(diff / 3600000);
+  if (hrs < 1) return "in the last hour";
+  if (hrs < 24) return `in the last ${hrs} hours`;
+  const days = Math.floor(hrs / 24);
+  return days === 1 ? "in the last day" : `in the last ${days} days`;
+}
+
+async function fetchPoliticsEvents(k) {
+  for (const fetcher of [fetchTrpcApi2, fetchTrpcApi5]) {
+    try {
+      const r = await fetcher("event.getEventsPaginated", { limit: 100 }, k);
+      const d = unwrap(r);
+      const items = d?.items || d?.events || d?.data || [];
+      if (Array.isArray(items) && items.length) return items;
+    } catch {}
+  }
+  return [];
+}
+
+async function resolveEventNames(events, k) {
+  const cids = new Set();
+  const rids = new Set();
+  const uids = new Set();
+  for (const e of events) {
+    const ed = e.data || {};
+    const ids = [ed.attackerCountry, ed.defenderCountry, ed.country, ed.countryId, ed.sourceCountry, ed.targetCountry];
+    ids.forEach(id => { if (id) cids.add(id); });
+    if (Array.isArray(e.countries)) e.countries.forEach(id => cids.add(id));
+    if (Array.isArray(ed.countries)) ed.countries.forEach(id => cids.add(id));
+    [ed.defenderRegion, ed.attackerRegion, ed.region, ed.regionId].forEach(id => { if (id) rids.add(id); });
+    [ed.user, ed.from, ed.to].forEach(id => { if (id) uids.add(id); });
+  }
+  await Promise.all([...cids].map(async id => {
+    if (!S.lookups.countriesById.has(id)) {
+      try { const r = await fetchTrpc("country.getCountryById", { countryId: id }, k); const d = unwrap(r); if (d) S.lookups.countriesById.set(id, d); } catch {}
+    }
+  }));
+  await Promise.all([...rids].map(async id => {
+    if (!S.lookups.regionsById.has(id)) {
+      try { const r = await fetchTrpc("region.getById", { regionId: id }, k); const d = unwrap(r); if (d) S.lookups.regionsById.set(id, d); } catch {}
+    }
+  }));
+  await Promise.all([...uids].map(async id => {
+    if (!S.lookups.usersById.has(id)) {
+      try { const r = await fetchTrpcApi2("user.getUserLite", { userId: id }, k); const d = unwrap(r); if (d) S.lookups.usersById.set(id, d); } catch {}
+    }
+  }));
+}
+
+async function callServerAI(prompt) {
+  const result = await fetchFromServer("/api/ai", {
+    method: "POST", timeout: 30000,
+    body: JSON.stringify({ prompt, context: {} }),
+  });
+  return result || { error: "Server unreachable" };
+}
+
+function cName(id) {
+  return S.lookups.countriesById.get(id)?.name || id?.slice(-6) || "?";
+}
+
+async function resolveCountryIds(ids, k) {
+  const needed = [...new Set(ids.filter(id => id && !S.lookups.countriesById.has(id)))];
+  if (!needed.length) return;
+  await Promise.all(needed.map(async id => {
+    try { const r = await fetchTrpc("country.getCountryById", { countryId: id }, k); const d = unwrap(r); if (d) S.lookups.countriesById.set(id, d); } catch {}
+  }));
+}
+
+async function resolveBattles(ids, k) {
+  const needed = [...new Set(ids.filter(id => id && !S.lookups.battlesById.has(id)))];
+  if (!needed.length) return;
+  await Promise.all(needed.map(async id => {
+    try { const r = await fetchTrpc("battle.getById", { battleId: id }, k); const b = unwrap(r); if (b) S.lookups.battlesById.set(id, b); } catch {}
+  }));
+}
+
+async function buildCountryContext(k) {
+  const lines = [];
+  const cd = _countryDetail;
+  if (!cd) return "";
+
+  const cTry = S.lookups.countriesById.get(_selectedCountryId);
+  const cNameTxt = cTry?.name || _selectedCountryId.slice(-6);
+
+  // Resolve all country IDs
+  const idsToResolve = new Set();
+  if (Array.isArray(cd.allies)) cd.allies.forEach(id => idsToResolve.add(id));
+  if (Array.isArray(cd.warsWith)) cd.warsWith.forEach(id => idsToResolve.add(id));
+  if (Array.isArray(cd.defensivePacts)) cd.defensivePacts.forEach(id => idsToResolve.add(id));
+  await resolveCountryIds([...idsToResolve], k);
+
+  // Resolve active battle
+  if (cd.currentBattleOrder) {
+    await resolveBattles([cd.currentBattleOrder], k);
+  }
+
+  // Resolve alliance
+  let allianceObj = _alliance;
+  if (!allianceObj && cd.allianceId) {
+    try { allianceObj = await resolveAlliance(cd.allianceId, k); } catch {}
+  }
+
+  // Treasury — use countryWealth from rankings (actual account balance)
+  const wealth = cd.rankings?.countryWealth?.value ?? cd.countryWealth;
+  lines.push(`Treasury: ${fmtMoney(wealth || 0)} (rank ${cd.rankings?.countryWealth?.rank || "?"})`);
+
+  // Taxes
+  if (cd.taxes) {
+    const t = cd.taxes;
+    lines.push(`Tax rates — Income: ${t.income != null ? t.income + "%" : "N/A"}, Market: ${t.market != null ? t.market + "%" : "N/A"}, Self-work: ${t.selfWork != null ? t.selfWork + "%" : "N/A"}`);
+  }
+
+  // Unrest — bar/barMax indicates civil war risk percentage
+  if (cd.unrest) {
+    const u = cd.unrest;
+    const pct = u.barMax > 0 ? ((u.bar / u.barMax) * 100).toFixed(1) : 0;
+    lines.push(`Unrest: ${pct}% — potential civil war risk`);
+  }
+
+  // Population
+  if (cd.currentPopulation != null) {
+    const active = cd.rankings?.countryActivePopulation?.value ?? cd.countryActivePopulation;
+    const activePct = cd.currentPopulation > 0 ? ((active / cd.currentPopulation) * 100).toFixed(1) : 0;
+    lines.push(`Population: ${fmtNum(cd.currentPopulation)} total, ${fmtNum(active || 0)} active (${activePct}% activity)`);
+  }
+
+  // Rankings snapshot
+  const r = cd.rankings || {};
+  const rankLine = [];
+  if (r.countryDevelopment) rankLine.push(`Development: ${r.countryDevelopment.value} (rank ${r.countryDevelopment.rank})`);
+  if (r.countryActivePopulation) rankLine.push(`Active pop rank: ${r.countryActivePopulation.rank}`);
+  if (r.countryDamages) rankLine.push(`Damages: ${fmtNum(r.countryDamages.value)} (rank ${r.countryDamages.rank})`);
+  if (r.weeklyCountryDamagesPerCitizen) rankLine.push(`Weekly dmg/citizen: ${fmtNum(r.weeklyCountryDamagesPerCitizen.value)} (rank ${r.weeklyCountryDamagesPerCitizen.rank})`);
+  if (r.countryBounty) rankLine.push(`Bounty: ${fmtMoney(r.countryBounty.value)} (rank ${r.countryBounty.rank})`);
+  if (r.countryProductionBonus) rankLine.push(`Production bonus: ${r.countryProductionBonus.value}% (rank ${r.countryProductionBonus.rank})`);
+  if (rankLine.length) lines.push(`Rankings — ${rankLine.join(", ")}`);
+
+  // Wars
+  if (Array.isArray(cd.warsWith) && cd.warsWith.length) {
+    const names = cd.warsWith.map(id => cName(id)).filter(Boolean).join(", ");
+    lines.push(`Currently at war with: ${names}`);
+  } else {
+    lines.push(`Currently at war with: none`);
+  }
+
+  // Active battle
+  if (cd.currentBattleOrder) {
+    const b = S.lookups.battlesById.get(cd.currentBattleOrder);
+    if (b) {
+      const atk = cName(b.attacker?.country);
+      const def = cName(b.defender?.country);
+      const reg = S.lookups.regionsById.get(b.defender?.region)?.name || "";
+      lines.push(`Active battle: ${atk} vs ${def}${reg ? " in " + reg : ""}`);
+    } else {
+      lines.push(`Active battle ongoing`);
+    }
+  }
+
+  // Alliance
+  if (allianceObj) {
+    const aName = allianceObj.allianceName || allianceObj.name || "";
+    const aMembers = allianceObj.members?.length || allianceObj.memberCount || "";
+    lines.push(`Alliance: ${aName}${aMembers ? ` (${fmtNum(aMembers)} members)` : ""}`);
+  } else if (cd.allianceId) {
+    lines.push(`Alliance member (unknown alliance)`);
+  }
+
+  // Allies
+  if (Array.isArray(cd.allies) && cd.allies.length) {
+    const names = cd.allies.map(id => cName(id)).filter(Boolean).join(", ");
+    lines.push(`Allies: ${names}`);
+  } else {
+    lines.push(`Allies: none`);
+  }
+
+  // Defensive pacts
+  if (Array.isArray(cd.defensivePacts) && cd.defensivePacts.length) {
+    const names = cd.defensivePacts.map(id => cName(id)).filter(Boolean).join(", ");
+    lines.push(`Defensive pacts with: ${names}`);
+  }
+
+  // Ruling party
+  if (cd.rulingParty) {
+    const party = _parties.find(p => p._id === cd.rulingParty);
+    if (party) {
+      let partyDesc = `Ruling party: ${party.name}`;
+      if (party.ethic || party.ideology) partyDesc += ` (${party.ethic || party.ideology})`;
+      if (party.leader) {
+        const leader = S.lookups.usersById.get(party.leader);
+        if (leader) partyDesc += `, led by ${leader.username}`;
+      }
+      lines.push(partyDesc);
+    }
+  }
+
+  // Government structure
+  if (_government) {
+    const govRoles = [];
+    const roleMap = { president: "President", vicePresident: "Vice President", minOfDefense: "Minister of Defense", minOfEconomy: "Minister of Economy", minOfForeignAffairs: "Minister of Foreign Affairs" };
+    for (const [key, label] of Object.entries(roleMap)) {
+      const uid = _government[key];
+      if (uid) {
+        const user = S.lookups.usersById.get(uid);
+        govRoles.push(`${label}: ${user?.username || uid.slice(-6)}`);
+      }
+    }
+    if (govRoles.length) lines.push(`Government — ${govRoles.join(", ")}`);
+    const congress = _government.congressMembers || [];
+    if (congress.length) lines.push(`Congress: ${fmtNum(congress.length)} members`);
+  }
+
+  return lines.join("\n");
+}
+
+async function generatePoliticalSummary(countryId, k) {
+  const body = document.getElementById("polSummaryBody");
+  if (!body) return;
+
+  const country = S.lookups.countriesById.get(countryId);
+  const countryName = country?.name || countryId.slice(-6);
+  body.innerHTML = `<span style="color:var(--ink-dim);font-size:.82rem">Analyzing events and country data...</span>`;
+
+  try {
+    // Build country context (uses _countryDetail, _government, _parties, _alliance)
+    const countryContext = await buildCountryContext(k);
+
+    // Fetch and filter events
+    const events = await fetchPoliticsEvents(k);
+    if (!events.length) {
+      body.innerHTML = `<span style="color:var(--ink-dim);font-size:.82rem">No events data available.</span>`;
+      return;
+    }
+
+    const countryEvents = events.filter(e => {
+      const cs = e.countries || e.data?.countries || [];
+      return Array.isArray(cs) && cs.includes(countryId);
+    });
+
+    const filtered = countryEvents.filter(e => POLITICS_EVENT_TYPES.has(e.type || e.data?.type));
+    if (!filtered.length) {
+      body.innerHTML = `<span style="color:var(--ink-dim);font-size:.82rem">No political events involving ${escHtml(countryName)} found in recent history.</span>`;
+      return;
+    }
+
+    await resolveEventNames(filtered, k);
+
+    const timeSpan = timeAgoLabel(filtered);
+
+    const eventLines = filtered.map(e => {
+      const ed = evtData(e);
+      const type = e.type || ed.type || "event";
+      const title = buildTitle(e, type, ed);
+      const summary = buildSummary(e, type, ed);
+      const ts = evtTime(e) || "";
+      return `[${ts}] ${fmtType(type)}: ${title} — ${summary}`;
+    });
+
+    // Money transfer breakdown
+    const moneyTransfers = filtered.filter(e => (e.type || e.data?.type) === "countryMoneyTransfer");
+    let moneySummary = "";
+    if (moneyTransfers.length) {
+      let sent = 0, received = 0;
+      const sentTo = {}, receivedFrom = {};
+      for (const e of moneyTransfers) {
+        const ed = e.data || {};
+        const amt = Number(ed.money) || 0;
+        const from = S.lookups.countriesById.get(ed.from || ed.sourceCountry)?.name || "";
+        const to = S.lookups.countriesById.get(ed.to || ed.targetCountry)?.name || "";
+        if (from === countryName || from === countryId || ed.from === countryId || ed.sourceCountry === countryId) {
+          sent += amt;
+          sentTo[to] = (sentTo[to] || 0) + amt;
+        }
+        if (to === countryName || to === countryId || ed.to === countryId || ed.targetCountry === countryId) {
+          received += amt;
+          receivedFrom[from] = (receivedFrom[from] || 0) + amt;
+        }
+      }
+      const sentStr = sent ? `Sent ${fmtMoney(sent)} ${Object.entries(sentTo).map(([k,v]) => `${fmtMoney(v)} to ${k}`).join(", ")}` : "";
+      const recvStr = received ? `Received ${fmtMoney(received)} ${Object.entries(receivedFrom).map(([k,v]) => `${fmtMoney(v)} from ${k}`).join(", ")}` : "";
+      moneySummary = [sentStr, recvStr].filter(Boolean).join(". ");
+    }
+
+    const nowStr = new Date().toISOString().replace("T", " ").slice(0, 16) + " UTC";
+    const prompt = `Current date/time: ${nowStr}
+Country: ${countryName}
+
+--- Country Snapshot ---
+${countryContext}
+
+--- Recent Events (${timeSpan}) ---
+${eventLines.join("\n")}
+${moneySummary ? `\n\nMoney transfer breakdown for ${countryName}:\n${moneySummary}` : ""}
+
+Based strictly on the country snapshot and recent events above, provide a concise geopolitical analysis covering: diplomatic relationships and alliances, international standing and conflict involvement, domestic political situation, economic patterns, and potential future developments. Only draw conclusions directly supported by the data.`;
+
+    body.innerHTML = `<span style="color:var(--ink-dim);font-size:.82rem">Generating analysis...</span>`;
+
+    const result = await callServerAI(prompt);
+
+    if (result.error) {
+      body.innerHTML = `<span style="color:var(--red);font-size:.82rem">${escHtml(result.error)}</span>`;
+      return;
+    }
+
+    const response = result.response.replace(/\n{2,}/g, "</p><p>").replace(/\n/g, " ");
+    body.innerHTML = `
+      <div class="pol-summary-header" style="font-family:Georgia,serif;font-size:.9rem;font-weight:700;color:var(--ink);margin-bottom:6px">Political Summary — ${escHtml(countryName)}</div>
+      <div class="pol-summary-body" style="font-family:Literata,serif;font-size:.82rem;line-height:1.6;color:var(--ink)"><p>${response}</p></div>
+    `;
+  } catch (err) {
+    body.innerHTML = `<span style="color:var(--red);font-size:.82rem">${escHtml(err.message)}</span>`;
+  }
+}
+
 export function initPolitics() {
   const input = document.getElementById("politicsCountryInput");
   if (!input) return;
+
+  const content = document.getElementById("politicsContent");
+  content?.addEventListener("click", e => {
+    const card = e.target.closest(".pol-country-card");
+    if (card) {
+      const id = card.dataset.id;
+      const country = _countries.find(c => c._id === id);
+      if (!country) return;
+      const inp = document.getElementById("politicsCountryInput");
+      if (inp) inp.value = country.name || "";
+      _selectedCountryId = id;
+      const k = apiKey();
+      if (!k) return;
+      loadCountryData(id, k);
+      return;
+    }
+    const partyCard = e.target.closest(".pol-party-card");
+    if (partyCard) {
+      const idx = partyCard.dataset.pidx;
+      const party = _parties[parseInt(idx)];
+      if (party) showPartyDetail(party);
+      return;
+    }
+    const electionRow = e.target.closest(".pol-election-row");
+    if (electionRow) {
+      const eid = electionRow.dataset.electionId;
+      if (eid) showElectionDetail(eid);
+      return;
+    }
+  });
 
   let debounceTimer;
   input.addEventListener("input", () => {
@@ -347,6 +846,8 @@ export function initPolitics() {
     clearBtn.addEventListener("click", () => {
       input.value = "";
       input.focus();
+      _selectedCountryId = "";
+      if (_countries.length) renderCountryGrid();
     });
   }
 }

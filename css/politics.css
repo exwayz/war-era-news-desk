@@ -21,10 +21,12 @@
 #politicsContent {
   flex: 1;
   min-height: 0;
+  padding: 0;
 }
 
+.pol-header { padding: 6px 14px 0; }
 .pol-header h3 {
-  margin: 0 0 10px;
+  margin: 0;
   font-size: 1.1rem;
   font-weight: 800;
   color: var(--accent);
@@ -40,6 +42,7 @@
   padding: 14px;
   display: flex;
   flex-direction: column;
+  max-height: 500px;
 }
 
 .pol-section-title {
@@ -69,7 +72,7 @@
 
 .pol-scroll::-webkit-scrollbar { width: 4px; }
 .pol-scroll::-webkit-scrollbar-track { background: transparent; }
-.pol-scroll::-webkit-scrollbar-thumb { background: var(--line-solid); border-radius: 99px; }
+.pol-scroll::-webkit-scrollbar-thumb { background: var(--line); }
 
 .pol-empty {
   color: var(--ink-dim);
@@ -91,7 +94,7 @@
 .pol-role-row:last-child { border-bottom: none; }
 
 .pol-role-icon { font-size: 1rem; width: 20px; text-align: center; flex-shrink: 0; }
-.pol-role-label { color: var(--ink-dim); font-weight: 700; font-size: .76rem; min-width: 100px; flex-shrink: 0; }
+.pol-role-label { color: var(--ink-dim); font-weight: 700; font-size: .76rem; text-align: right; width: 140px; flex-shrink: 0; }
 .pol-role-name { color: var(--ink); font-weight: 600; display: flex; align-items: center; gap: 6px; min-width: 0; }
 
 /* ── User / Party avatars in government rows ── */
@@ -171,7 +174,7 @@
 }
 .pol-congress-list::-webkit-scrollbar { width: 4px; }
 .pol-congress-list::-webkit-scrollbar-track { background: transparent; }
-.pol-congress-list::-webkit-scrollbar-thumb { background: var(--line-solid); border-radius: 99px; }
+.pol-congress-list::-webkit-scrollbar-thumb { background: var(--line); }
 .pol-congress-item {
   display: inline-flex;
   align-items: center;
@@ -179,7 +182,6 @@
   padding: 2px 8px 2px 4px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 999px;
   font-size: .72rem;
   font-weight: 600;
   white-space: nowrap;
@@ -189,10 +191,10 @@
 .pol-party-card {
   padding: 8px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
   margin-bottom: 6px;
   background: var(--surface);
   transition: border-color .15s;
+  cursor: pointer;
 }
 
 .pol-party-card:hover { border-color: var(--accent); }
@@ -255,34 +257,75 @@
   padding: 8px 0;
   border-bottom: 1px solid var(--line);
   font-size: .82rem;
-  cursor: default;
+  cursor: pointer;
   transition: background .15s;
 }
 
-.pol-election-row:hover { background: var(--surface-hi); border-radius: var(--radius-sm); padding: 8px 6px; }
+.pol-election-row:hover { background: var(--surface-hi); padding: 8px 6px; }
 .pol-election-row:last-child { border-bottom: none; }
 
 .pol-election-type { font-weight: 700; min-width: 90px; font-size: .78rem; }
 .pol-election-dates { flex: 1; font-size: .72rem; color: var(--ink-dim); min-width: 0; }
 .pol-election-status {
   padding: 2px 8px;
-  border-radius: 999px;
   font-size: .68rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: .04em;
   flex-shrink: 0;
 }
-.pol-status-upcoming { background: var(--accent-soft); color: var(--accent); }
+.pol-status-upcoming { background: var(--surface); color: var(--accent); }
 .pol-status-active { background: rgba(34,197,94,.15); color: #22c55e; }
 .pol-status-closed { background: var(--surface-hi); color: var(--ink-dim); }
 .pol-election-votes { font-size: .72rem; color: var(--ink-dim); flex-shrink: 0; min-width: 60px; text-align: right; }
 
+/* ── Political Summary ── */
+.pol-summary { }
+
 /* ── Elections panel spans full width ── */
-.pol-elections { grid-column: 1 / -1; }
+.pol-gap { background: none; border: none; min-height: 0; padding: 0; }
+
+/* ── Country overview grid ── */
+.pol-country-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 6px;
+  padding: 10px;
+  height: 100%;
+  align-content: start;
+}
+.pol-country-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  cursor: pointer;
+  font: inherit;
+  color: var(--ink);
+}
+.pol-country-card:hover { border-color: var(--accent); background: var(--surface-hi); }
+.pol-grid-flag { width: 32px; height: 24px; object-fit: cover; display: block; }
+.pol-country-name { font-size: .78rem; font-weight: 700; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+
+/* ── Party / Election detail modals ── */
+.pol-detail-modal { max-width: 380px; }
+.pol-detail-rows { display: flex; flex-direction: column; gap: 6px; }
+.pol-detail-row { display: flex; align-items: center; gap: 8px; font-size: .84rem; }
+.pol-detail-label { font-size: .72rem; font-weight: 700; color: var(--ink-dim); text-transform: uppercase; letter-spacing: .04em; min-width: 70px; flex-shrink: 0; }
+.pol-detail-val { display: flex; align-items: center; gap: 4px; }
+.pol-detail-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.pol-detail-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px 2px 4px; border: 1px solid var(--line); font-size: .74rem; font-weight: 600; }
+.pol-candidate-list { display: flex; flex-direction: column; gap: 4px; max-height: 360px; overflow-y: auto; }
+.pol-candidate-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--line); font-size: .8rem; }
+.pol-candidate-icon { width: 20px; text-align: center; font-size: 1rem; flex-shrink: 0; }
+.pol-candidate-name { font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pol-candidate-party { font-size: .74rem; color: var(--ink-dim); flex-shrink: 0; }
+.pol-candidate-votes { font-size: .72rem; color: var(--ink-dim); flex-shrink: 0; }
 
 /* ── Responsive ── */
 @media (max-width: 1100px) {
   .pol-grid { grid-template-columns: 1fr; }
-  .pol-elections { grid-column: 1; }
 }

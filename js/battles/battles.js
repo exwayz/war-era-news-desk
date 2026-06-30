@@ -141,9 +141,10 @@ function makeBattleCard(battle) {
   const reg = nameRegion(battle.defender?.region||battle.defenderRegion||battle.region);
 
   node.querySelector(".bc-dot").classList.add(isLive?"live":"ended");
-  node.querySelector(".bc-label").textContent = isLive ? "🔴 LIVE" : "✅ ENDED";
+  node.querySelector(".bc-label").textContent = isLive ? "LIVE" : "ENDED";
 
-  const title = (atk&&def) ? `${atk} vs ${def}${reg?" — "+reg:""}` : (battle.title||battle.name||"Battle #"+(bid||"?").slice(-6));
+  const typePhrase = battle.type === "war" ? `Battle of ${reg}` : battle.type === "resistance" ? `Resistance for ${reg}` : battle.type === "revolution" ? `Civil war of ${def}` : "";
+  const title = (atk&&def) ? `${atk} vs ${def}${typePhrase ? " — "+typePhrase : ""}` : (battle.title||battle.name||"Battle #"+(bid||"?").slice(-6));
   node.querySelector(".bc-title").textContent = title;
 
   let meta = (battle.createdAt||battle.startedAt) ? "Started: "+fmtDate(battle.createdAt||battle.startedAt) : "";
@@ -170,7 +171,7 @@ function makeBattleCard(battle) {
     await loadBattleDetail(battle, bid, false);
     if (isLive) {
       S.liveBattleTimer = setInterval(async()=>{
-        if (S.selectedBattleId===bid) { await loadBattleDetail(battle,bid,true); if (window.ecgPulse) window.ecgPulse(0.7); }
+        if (S.selectedBattleId===bid) { await loadBattleDetail(battle,bid,true); }
       }, 5000);
     }
   });
@@ -184,7 +185,7 @@ export function clearBattleDetail() {
   document.querySelectorAll(".battle-card").forEach(c => c.classList.remove("selected"));
   E.battleDetailPane.innerHTML = `
     <div class="detail-placeholder">
-      <span class="placeholder-icon">⚔</span>
+      <span class="placeholder-icon"><iconify-icon icon="mdi:sword-cross" class="lu"></iconify-icon></span>
       <p>Select a battle to view the intelligence report</p>
     </div>
   `;

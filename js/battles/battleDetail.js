@@ -261,8 +261,9 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
   let defPct = 100-atkPct;
 
   let narrative = "";
+  const battleTypeLabel = b.type === "resistance" ? "Resistance" : b.type === "revolution" ? "Civil War" : b.type === "war" ? "Battle" : "Combat";
   if (isLive) {
-    narrative = `Active combat ongoing: <strong>${atk||"Attacker"}</strong> vs <strong>${def||"Defender"}</strong>${reg?" in "+reg:""}. Damage split: ${atkPct}% vs ${defPct}%.`;
+    narrative = `${battleTypeLabel} ongoing: <strong>${atk||"Attacker"}</strong> vs <strong>${def||"Defender"}</strong>${reg?" in "+reg:""}. Damage split: ${atkPct}% vs ${defPct}%.`;
   } else {
     narrative = winner
       ? `<strong>${winner}</strong> secured victory${reg?" at "+reg:""}. Total damage: ${fmtNum(totalDmg)}. ${participantsT} fighters participated.`
@@ -319,9 +320,9 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
       <span style="color:var(--ink-dim);font-size:.68rem">First to 300 wins</span>
       <span style="color:var(--red);font-weight:800"><strong>${fmtNum(defPts)}</strong> pts ${def || "Defender"}</span>
     </div>
-    <div style="position:relative;height:16px;background:var(--line-solid);border-radius:8px;overflow:hidden;display:flex;align-items:center;">
-      <div style="position:absolute;left:0;top:0;bottom:0;width:${atkBarPct}%;background:var(--blue);border-radius:8px 0 0 8px;transition:width .5s ease;"></div>
-      <div style="position:absolute;right:0;top:0;bottom:0;width:${defBarPct}%;background:var(--red);border-radius:0 8px 8px 0;transition:width .5s ease;"></div>
+    <div style="position:relative;height:16px;background:var(--line);overflow:hidden;display:flex;align-items:center;">
+      <div style="position:absolute;left:0;top:0;bottom:0;width:${atkBarPct}%;background:var(--blue);transition:width .5s ease;"></div>
+      <div style="position:absolute;right:0;top:0;bottom:0;width:${defBarPct}%;background:var(--red);transition:width .5s ease;"></div>
       <div style="position:absolute;left:50%;top:10%;bottom:10%;width:2px;background:var(--ink-dim);opacity:.4;transform:translateX(-50%);"></div>
     </div>
     <div style="display:flex;justify-content:space-between;font-size:.64rem;color:var(--ink-dim);margin-top:3px">
@@ -376,7 +377,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
         <span style="color:var(--ink-dim);font-size:.72rem">DAMAGE SHARE</span>
         <span style="color:var(--red);font-weight:800">${defPct}% ${def||"Defender"}</span>
       </div>
-      <div class="score-bar" style="display:flex; width:100%; height:10px; overflow:hidden; border-radius:6px;">
+      <div class="score-bar">
   <div style="width:${atkPct}%; background:var(--blue);"></div>
   <div style="width:${defPct}%; background:var(--red);"></div>
 </div>
@@ -386,8 +387,8 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
       ${atk?`<div class="br-stat-box"><span class="br-stat-val" style="font-size:.85rem">${atk}</span><span class="br-stat-lbl">Attacker</span></div>`:""}
       <div class="br-stat-box"><span class="br-stat-val">${participantsA||"—"}</span><span class="br-stat-lbl"> Attacker Participants</span></div>
       <div class="br-stat-box"><span class="br-stat-val">${totalDmg?fmtNum(totalDmg):"—"}</span><span class="br-stat-lbl">Total Damage</span></div>
-      <div class="br-stat-box"><span class="br-stat-val">${isLive?"🔴 Live":"✅ Ended"}</span><span class="br-stat-lbl">Status</span></div>
-      <div class="br-stat-box"><span class="br-stat-val">${(atkGp+defGp)?fmtNum(atkGp+defGp):"—"}</span><span class="br-stat-lbl">Ground Points</span></div>
+      <div class="br-stat-box"><span class="br-stat-val">${isLive?"LIVE":"ENDED"}</span><span class="br-stat-lbl">Status</span></div>
+      <div class="br-stat-box"><span class="br-stat-val">${(b.attacker?.hitCount||0)+(b.defender?.hitCount||0) ? fmtNum((b.attacker?.hitCount||0)+(b.defender?.hitCount||0)) : "—"}</span><span class="br-stat-lbl">Total Hits</span></div>
       <div class="br-stat-box"><span class="br-stat-val">${participantsD||"—"}</span><span class="br-stat-lbl">Defender Participants</span></div>
       ${def?`<div class="br-stat-box"><span class="br-stat-val" style="font-size:.85rem">${def}</span><span class="br-stat-lbl">Defender</span></div>`:""}
       ${reg?`<div class="br-stat-box"><span class="br-stat-val" style="font-size:.82rem">${reg}</span><span class="br-stat-lbl">Region</span></div>`:""}
@@ -534,7 +535,7 @@ ${Array.from({length:maxRows}).map((_,i)=>{
   html+=`<div style="padding:8px 0;display:flex;gap:8px;flex-wrap:wrap">
     <button class="btn-primary" id="openFullReportBtn" style="flex:1">📄 Open Full Report</button>
     <button class="btn-secondary" id="exportBattleXlsBtn" style="flex:1">📊 Export XLS</button>
-    <button class="btn-secondary" id="captureBattlePaneBtn" style="flex:1">📸 Capture Report</button>
+        <button class="btn-secondary" id="captureBattlePaneBtn" style="flex:1"><iconify-icon icon="mdi:camera" class="lu"></iconify-icon> Capture Report</button>
   </div>`;
 
   E.battleDetailPane.innerHTML = html;
@@ -557,7 +558,7 @@ ${Array.from({length:maxRows}).map((_,i)=>{
   }
 
   document.getElementById("openFullReportBtn")?.addEventListener("click",()=>{
-    const title=`${atk||"?"} vs ${def||"?"}${reg?" — "+reg:""}`;
+    const title=`${battleTypeLabel}: ${atk||"?"} vs ${def||"?"}${reg?" — "+reg:""}`;
     E.battleReportTitle.textContent = "Battle Report: "+title;
     E.battleReportMeta.textContent = `${isLive?"Live":"Ended"} · ${started?fmtDate(started):""}${ended?" → "+fmtDate(ended):""}`;
     E.battleReportContent.innerHTML = html.replace(/<div[^>]*>\s*<button[^>]*id="openFullReportBtn"[^>]*>[\s\S]*?<\/div>/,"");
@@ -571,7 +572,7 @@ ${Array.from({length:maxRows}).map((_,i)=>{
 
   document.getElementById("captureBattlePaneBtn")?.addEventListener("click", async ()=>{
     const ch = await import("../core/captureReport.js");
-    const title2 = `${atk||"Attacker"} vs ${def||"Defender"}${reg?" — "+reg:""}`;
+    const title2 = `${battleTypeLabel}: ${atk||"Attacker"} vs ${def||"Defender"}${reg?" — "+reg:""}`;
     const slug = (atk||"Attacker")+"_vs_"+(def||"Defender")+(reg?"_"+reg.replace(/[\s-]+/g,"_"):"");
     const ptotalDmg = totalDmg || rankUsers.reduce((s, r) => s + getValue(r), 0);
     const ptotalGp = (atkGp + defGp) || gpUsers.reduce((s, r) => s + getPoints(r), 0);
@@ -579,7 +580,7 @@ ${Array.from({length:maxRows}).map((_,i)=>{
     const score = `${atkRoundsWon}—${defRoundsWon}`;
     const meta = [
       `Attacker: ${atk||"—"} | Defender: ${def||"—"}${reg?" · Region: "+reg:""} | Winner: ${winner||"—"} | Score: ${score}`,
-      `Damage: ${fmtNum(ptotalDmg)} | Ground Points: ${fmtNum(ptotalGp)} | Participants: ${fmtNum(parts)}`,
+      `Damage: ${fmtNum(ptotalDmg)} | Total Hits: ${(b.attacker?.hitCount||0)+(b.defender?.hitCount||0)} | Participants: ${fmtNum(parts)}`,
       `${started ? "Started: "+fmtDate(started) : ""}${ended ? "  ·  Ended: "+fmtDate(ended) : ""}${durationStr ? "  ·  "+durationStr : ""}`,
       `Generated: ${new Date().toUTCString()}`,
     ];
@@ -593,7 +594,7 @@ ${Array.from({length:maxRows}).map((_,i)=>{
       const subH = `<th colspan="3" style="${ch.STYLE.th};text-align:center">ATTACKER</th><th colspan="3" style="${ch.STYLE.th};text-align:center">DEFENDER</th>`;
       const html = ch.pageOpen("War Era Battle Report", title2, meta) +
         ch.section("Top Fighters by Damage", ch.tableBlock("", ["#","Fighter","Damage","#","Fighter","Damage"], dm, 10, subH)) +
-        ch.section("Top Fighters by Ground Points", ch.tableBlock("", ["#","Fighter","Ground Pts","#","Fighter","Ground Pts"], gp, 10, subH)) +
+        ch.section("Top Fighters by Total Hits", ch.tableBlock("", ["#","Fighter","Ground Pts","#","Fighter","Ground Pts"], gp, 10, subH)) +
         ch.pageClose();
       await ch.captureHTML(html, `battle_${slug}_fighters_${ch.ts()}.png`);
     }
@@ -607,7 +608,7 @@ ${Array.from({length:maxRows}).map((_,i)=>{
       const subH = `<th colspan="3" style="${ch.STYLE.th};text-align:center">ATTACKER</th><th colspan="3" style="${ch.STYLE.th};text-align:center">DEFENDER</th>`;
       const html = ch.pageOpen("War Era Battle Report", title2, meta) +
         ch.section("Top MUs by Damage", ch.tableBlock("", ["#","MU","Damage","#","MU","Damage"], dm, 10, subH)) +
-        ch.section("Top MUs by Ground Points", ch.tableBlock("", ["#","MU","Ground Pts","#","MU","Ground Pts"], gp, 10, subH)) +
+        ch.section("Top MUs by Total Hits", ch.tableBlock("", ["#","MU","Ground Pts","#","MU","Ground Pts"], gp, 10, subH)) +
         ch.pageClose();
       await ch.captureHTML(html, `battle_${slug}_mu_${ch.ts()}.png`);
     }
@@ -621,7 +622,7 @@ ${Array.from({length:maxRows}).map((_,i)=>{
       const subH = `<th colspan="3" style="${ch.STYLE.th};text-align:center">ATTACKER</th><th colspan="3" style="${ch.STYLE.th};text-align:center">DEFENDER</th>`;
       const html = ch.pageOpen("War Era Battle Report", title2, meta) +
         ch.section("Top Countries by Damage", ch.tableBlock("", ["#","Country","Damage","#","Country","Damage"], dm, 10, subH)) +
-        ch.section("Top Countries by Ground Points", ch.tableBlock("", ["#","Country","Ground Pts","#","Country","Ground Pts"], gp, 10, subH)) +
+        ch.section("Top Countries by Total Hits", ch.tableBlock("", ["#","Country","Ground Pts","#","Country","Ground Pts"], gp, 10, subH)) +
         ch.pageClose();
       await ch.captureHTML(html, `battle_${slug}_countries_${ch.ts()}.png`);
     }

@@ -78,7 +78,7 @@ export async function resolveEntityByType(type, id, k) {
   return null;
 }
 
-async function resolveAlliance(allianceId, k) {
+export async function resolveAlliance(allianceId, k) {
   const method = "alliance.getManyPaginated";
   for (const fetcher of [fetchTrpc, fetchTrpcApi2]) {
     try {
@@ -98,7 +98,7 @@ async function resolveAlliance(allianceId, k) {
   return null;
 }
 
-async function resolveParty(partyId, k) {
+export async function resolveParty(partyId, k) {
   const method = "party.getManyPaginated";
   for (const fetcher of [fetchTrpc, fetchTrpcApi2]) {
     try {

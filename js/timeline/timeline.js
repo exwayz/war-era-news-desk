@@ -1,6 +1,6 @@
 import { S, setUnseenTimelineEvents, getUnseenTimelineEvents } from "../core/state.js";
 import { E } from "../core/dom.js";
-import { apiKey, fetchTrpc, fetchTrpcApi5, normalizeEvents, normalizeCursor, unwrap } from "../core/api.js";
+import { apiKey, fetchTrpc, normalizeEvents, normalizeCursor } from "../core/api.js";
 import { STORE } from "../core/storage.js";
 import { fmtDate, parseLocal } from "../core/utils.js";
 import { resolveBattles, resolveUsers, ensureLookups, getFilters } from "./filters.js";
@@ -33,9 +33,8 @@ export async function loadEvents(reset) {
     S.events = reset ? evts : [...S.events, ...evts];
     await resolveBattles(evts, k);
     await resolveUsers(evts.map(e=>evtData(e).user).filter(Boolean), k);
-    await injectElectionEvents(k);
     renderTimeline();
-    if (window.ecgPulse) window.ecgPulse(1.0);
+
   } catch (err) {
     console.error(err);
     setStatus(err.message||"Failed to load events.", "error");
@@ -64,16 +63,9 @@ export async function silentRefreshEvents() {
       for(const ev of fresh) showLiveEventToast(ev);
       S.events = [...fresh, ...S.events];
     }
-    let electionsChanged = false;
-    if (!S.lastElectionInject || Date.now() - S.lastElectionInject > 60000) {
-      const beforeCount = S.events.filter(e => e._id?.startsWith?.("election-")).length;
-      await injectElectionEvents(apiKey());
-      electionsChanged = S.events.filter(e => e._id?.startsWith?.("election-")).length !== beforeCount;
-    }
-    if (hasFresh || electionsChanged) {
+    if (hasFresh) {
       renderTimeline();
-      if (hasFresh) { S.articleLimiter = 0; loadArticles(true); }
-      if (window.ecgPulse) window.ecgPulse(1.2);
+      S.articleLimiter = 0; loadArticles(true);
     }
   } catch {}
 }
@@ -88,20 +80,33 @@ export function showLiveEventToast(event) {
   setUnseenTimelineEvents(ue + 1);
   updateTimelineBadge();
 
-  const area = document.getElementById("liveEventToastArea");
-  if(!area) return;
+  const toastEl = document.getElementById("infobarToast");
+  const toastText = document.getElementById("infobarToastText");
+  const infobar = document.getElementById("infobar");
+  if(!toastEl || !toastText || !infobar) return;
 
-  const toast = document.createElement("div");
-  toast.className = "live-event-toast";
-  toast.innerHTML = `<span class="toast-title" style="color:#f87171;flex-shrink:0">LATEST EVENT HAS BEEN REGISTERED</span>`;
-  area.appendChild(toast);
+  const ed = evtData(event);
+  const type = event.type || event.eventType || ed.type || event.name || "event";
+  const title = buildTitle(event, type, ed);
+  toastText.textContent = title ? `New: ${title}` : "New event registered";
 
-  requestAnimationFrame(()=>{ toast.classList.add("show"); });
+  // Slot-machine animation: MVI scroll pushes down, toast slides in
+  infobar.classList.add("toasting");
+  toastEl.hidden = false;
+  toastEl.classList.remove("hide");
+  requestAnimationFrame(() => toastEl.classList.add("show"));
 
   playPing();
 
-  setTimeout(()=>{ toast.classList.add("hide"); }, 10000);
-  setTimeout(()=>{ toast.remove(); }, 10400);
+  if (window._infobarToastTimer) clearTimeout(window._infobarToastTimer);
+  window._infobarToastTimer = setTimeout(() => {
+    toastEl.classList.remove("show");
+    toastEl.classList.add("hide");
+    setTimeout(() => {
+      toastEl.hidden = true;
+      infobar.classList.remove("toasting");
+    }, 500);
+  }, 10000);
 }
 
 function playPing(){
@@ -189,66 +194,6 @@ export function handleEventAction(e) {
   navigator.clipboard.writeText(brief).then(()=>toast("News brief copied."));
 }
 
-async function injectElectionEvents(k) {
-  try {
-    const countryIds = S.lastFilters?.countryId
-      ? [S.lastFilters.countryId]
-      : [...S.lookups.countriesById.keys()].filter(Boolean).slice(0, 30);
-    if (!countryIds.length) return;
 
-    const now = Date.now();
-    const rangeMs = 7 * 86400000;
-    const synthetic = [];
-    const concurrency = 10;
-
-    for (let i = 0; i < countryIds.length; i += concurrency) {
-      const batch = countryIds.slice(i, i + concurrency);
-      const results = await Promise.allSettled(
-        batch.map(cid =>
-          fetchTrpcApi5("election.getElections", { countryId: cid }, k)
-            .then(r => unwrap(r))
-            .then(arr => Array.isArray(arr) ? arr : [])
-        )
-      );
-      for (const r of results) {
-        if (r.status !== "fulfilled") continue;
-        for (const el of r.value) {
-          const cid = el.countryId || el.country;
-          const start = new Date(el.votesStartAt).getTime();
-          const end = new Date(el.votesEndAt).getTime();
-          if (isNaN(start) || isNaN(end)) continue;
-          if (end < now - rangeMs) continue;
-          if (start > now + rangeMs) continue;
-
-          synthetic.push({
-            _id: `election-${el._id}-start`, type: "electionStarted",
-            createdAt: el.votesStartAt, countryId: cid,
-            data: { type: "electionStarted", country: cid, electionId: el._id,
-              electionType: el.type, candidates: el.candidates?.length || 0, votesCount: el.votesCount }
-          });
-
-          if (end < now) {
-            synthetic.push({
-              _id: `election-${el._id}-end`, type: "electionEnded",
-              createdAt: el.votesEndAt, countryId: cid,
-              data: { type: "electionEnded", country: cid, electionId: el._id,
-                electionType: el.type, votes: el.votes, votesCount: el.votesCount, candidates: el.candidates }
-            });
-          }
-        }
-      }
-    }
-
-    if (!synthetic.length) return;
-    S.events = S.events.filter(e => !e._id?.startsWith?.("election-"));
-    S.events = [...S.events, ...synthetic].sort((a, b) => new Date(evtTime(a)) - new Date(evtTime(b)));
-    S.lastElectionInject = Date.now();
-
-    const userIds = [...new Set(synthetic.flatMap(e =>
-      (e.data.candidates || []).map(c => c.userId || c.user).filter(Boolean)
-    ))];
-    if (userIds.length) await resolveUsers(userIds, k);
-  } catch {}
-}
 
 

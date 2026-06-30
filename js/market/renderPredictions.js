@@ -10,7 +10,7 @@ function fmtPct(v) {
 const CAT_COLORS = {
   "Prediction Indicator": "var(--green)",
   "Pressure Indicator": "var(--blue)",
-  "Momentum Indicator": "var(--accent)",
+  "Momentum Indicator": "var(--red)",
   "Liquidity Indicator": "var(--yellow)",
   "Confidence Indicator": "var(--ink-dim)",
   "Rank Indicator": "var(--orange)",

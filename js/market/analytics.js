@@ -96,7 +96,7 @@ export function classifyEconomy(d) {
   const t = h.tradeMom, pr = h.payrollMom, pi = h.priceMom;
   if (t == null || pr == null || pi == null) return { status: "N/A", label: "Insufficient Data" };
   if (Math.abs(pi) > 8 || (h.hhiMom != null && h.hhiMom > 15)) return { status: "volatile", label: "Volatile", color: "var(--red)" };
-  if (t < -5 && pr < -5) return { status: "contraction", label: "Contraction", color: "var(--dark-red, #8b0000)" };
+  if (t < -5 && pr < -5) return { status: "contraction", label: "Contraction", color: "var(--dark-red)" };
   if (t < 0 && pr < 0 && pi <= 0) return { status: "cooling", label: "Cooling", color: "var(--yellow)" };
   if (t > 5 && pr > 3 && pi > -3 && pi < 5) return { status: "expansion", label: "Expansion", color: "var(--green)" };
   if (t >= -3 && t <= 3 && pr >= -3 && pr <= 3 && pi >= -3 && pi <= 3) return { status: "stable", label: "Stable", color: "var(--blue)" };

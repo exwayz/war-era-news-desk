@@ -20,10 +20,10 @@ export function injectBattleSearchBar() {
   wrap.innerHTML = `
 <div class="input-wrap search-bar">
   <input id="battleSearch" type="text" placeholder="Search by country or region…">
-  <button class="clear-btn" id="clearBattleSearch" type="button">✕</button>
+  <button class="clear-btn" id="clearBattleSearch" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
 </div>
 <button id="battleLoadMini" class="btn-load-mini">More</button>
-<button id="copyBattleListBtn" class="btn-icon-sm" title="Copy all listed">📋</button>
+<button id="copyBattleListBtn" class="btn-icon-sm" title="Copy all listed"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon></button>
 `;
   panelHead.insertAdjacentElement("afterend", wrap);
 
