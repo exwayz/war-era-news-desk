@@ -73,6 +73,7 @@ function bootData() {
   loadArticles(true);
   startAutoRefresh();
   loadMarketStats();
+  loadMarketFull(false);
   loadJobs();
   loadFeatured();
 }
