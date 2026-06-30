@@ -7,7 +7,7 @@ export function apiKey() {
 }
 
 function noUndef(obj) {
-  return Object.fromEntries(Object.entries(obj).filter(([,v])=>v!==undefined));
+  return Object.fromEntries(Object.entries(obj).filter(([,v])=>v!==undefined && v!==null));
 }
 
 export async function fetchTrpc(method, input, k) {
@@ -45,7 +45,7 @@ export async function fetchTrpc(method, input, k) {
 }
 
 export async function fetchTrpcApi5(method, input, apiKeyValue) {
-  const payload = encodeURIComponent(JSON.stringify(input || {}));
+  const payload = encodeURIComponent(JSON.stringify(noUndef(input)));
   const r = await fetch(
     `${API5_BASE}/${method}?input=${payload}`,
     {
@@ -59,7 +59,7 @@ export async function fetchTrpcApi5(method, input, apiKeyValue) {
 }
 
 export async function fetchTrpcApi2(method, input, apiKeyValue) {
-  const payload = encodeURIComponent(JSON.stringify(input || {}));
+  const payload = encodeURIComponent(JSON.stringify(noUndef(input)));
   const r = await fetch(
     `${API2_BASE}/${method}?input=${payload}`,
     {
