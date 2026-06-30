@@ -12,32 +12,33 @@ import { computePredictions } from "./predictions.js";
 import { storeMarketSnapshot, loadSupabaseHistory, loadWeeklyMVI } from "./marketHistory.js";
 import { updateInfobar } from "../visuals/clock.js";
 
-export async function fetchTxLast24h(type, k, maxPages=50) {
-  const cutoff=Date.now()-86400000;
-  const items=[]; let cursor;
-  for (let p=0;p<maxPages;p++) {
+export async function fetchTxLast24h(type, k, maxPages = 10) {
+  const cutoff = Date.now() - 86400000;
+  const items = [];
+  let cursor;
+  for (let p = 0; p < maxPages; p++) {
     let res;
     try {
-      res=await Promise.race([
-        fetchTrpc("transaction.getPaginatedTransactions",{limit:100,transactionType:type,cursor},k),
-        new Promise((_,reject)=>setTimeout(()=>reject(new Error("timeout")),8000)),
+      res = await Promise.race([
+        fetchTrpc("transaction.getPaginatedTransactions", { limit: 100, transactionType: type, cursor }, k),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 3000)),
       ]);
     } catch {
-      // fallback to api2 if gateway times out
-      try { res=await fetchTrpcApi2("transaction.getPaginatedTransactions",{limit:100,transactionType:type,cursor},k); }
-      catch { break; }
+      try {
+        res = await fetchTrpcApi2("transaction.getPaginatedTransactions", { limit: 100, transactionType: type, cursor }, k);
+      } catch { break; }
     }
-    const data=unwrap(res);
-    const page=Array.isArray(data)?data:(data?.items||[]);
+    const data = unwrap(res);
+    const page = Array.isArray(data) ? data : (data?.items || []);
     if (!page.length) break;
-    let old=false;
+    let old = false;
     for (const t of page) {
-      const ts=new Date(t.createdAt||t.date||t.timestamp||0).getTime();
-      if (Number.isFinite(ts)&&ts>0&&ts<cutoff){old=true;continue;}
+      const ts = new Date(t.createdAt || t.date || t.timestamp || 0).getTime();
+      if (Number.isFinite(ts) && ts > 0 && ts < cutoff) { old = true; continue; }
       items.push(t);
     }
-    cursor=data?.nextCursor||data?.cursor||null;
-    if (old||!cursor) break;
+    cursor = data?.nextCursor || data?.cursor || null;
+    if (old || !cursor) break;
   }
   return items;
 }
