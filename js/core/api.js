@@ -37,6 +37,10 @@ export async function fetchTrpc(method, input, k) {
       lastErr=err;
     }
   }
+  // If gateway failed with a database connection error, fall back to api2
+  if (lastErr && (lastErr.message||"").match(/postgres|database|hostname|connect/i)) {
+    try { return await fetchTrpcApi2(method, input, k); } catch {}
+  }
   throw lastErr||new Error(`${method} failed after 3 retries`);
 }
 
