@@ -1,4 +1,4 @@
-import { TRPC_BASE, API2_BASE, API5_BASE, MARKET_SERVER_URL } from "./constants.js";
+import { TRPC_BASE, API2_BASE, API5_BASE, MARKET_SERVER_URL, MARKET_DATA_URL } from "./constants.js";
 import { STORE } from "./storage.js";
 import { E } from "./dom.js";
 
@@ -116,4 +116,28 @@ export async function fetchCached(key, directFetcher) {
     } catch {}
   }
   return directFetcher ? await directFetcher() : [];
+}
+
+/** Fetch 24h tx data from market-server, fall back to direct fetchTxLast24h */
+export async function fetchMarketData(k) {
+  if (MARKET_DATA_URL) {
+    try {
+      const r = await fetch(`${MARKET_DATA_URL}/api/market-data`, { signal: AbortSignal.timeout(5000) });
+      if (r.ok) {
+        const data = await r.json();
+        if (data?.wages?.length) return data;
+      }
+    } catch {}
+  }
+  // fallback: fetch direct from API
+  const [wages, trades, ws] = await Promise.allSettled([
+    fetchTrpc("transaction.getPaginatedTransactions", { limit: 100, transactionType: "wage" }, k),
+    fetchTrpc("transaction.getPaginatedTransactions", { limit: 100, transactionType: "trading" }, k),
+    fetchTrpcApi2("workOffer.getWageStats", {}, k).catch(() => {}),
+  ]);
+  return {
+    wages: wages.status === "fulfilled" ? (unwrap(wages.value)?.items || []) : [],
+    trades: trades.status === "fulfilled" ? (unwrap(trades.value)?.items || []) : [],
+    wageStats: ws.status === "fulfilled" ? unwrap(ws.value) : null,
+  };
 }
