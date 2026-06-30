@@ -53,12 +53,13 @@ export async function storeMarketSnapshot() {
   } catch {}
 
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`, {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`, {
       method: "POST",
       headers: { ...headers(), "Prefer": "return=minimal" },
       body: JSON.stringify({ snapshot }),
     });
-  } catch {}
+    if (!r.ok) console.warn("[supabase] store snapshot:", r.status);
+  } catch (e) { console.error("[supabase] store snapshot failed:", e); }
 }
 
 export async function loadSupabaseHistory(limit = 15) {
