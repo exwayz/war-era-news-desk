@@ -36,6 +36,7 @@ function populateArticleFilters(articles) {
 export async function loadArticles(reset=true) {
   const k = apiKey(); if (!k) return;
   if (reset) { S.articleCursor=null; S.articles=[]; }
+  if (!reset && !S.articleCursor) return;
   try {
     // Try cache first
     const cached = await fetchCached("articles");
