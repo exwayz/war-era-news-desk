@@ -5,7 +5,6 @@ import { resolveUsers } from "./filters.js";
 import { resolveContentLinks } from "../core/resolver.js";
 import { playRead } from "../audio/audio.js";
 
-const LANG_PRIORITY = ["en", "de", "es", "fr", "id", "nl"];
 const MAX_FEATURED = 10;
 const AUTO_INTERVAL = 10000;
 
@@ -33,7 +32,6 @@ function renderSlide(index) {
   if (imgUrl) {
     img.src = imgUrl;
     img.alt = a.title || "Article image";
-    img.loading = "lazy";
     img.style.display = "";
   } else {
     img.src = ""; img.alt = "";
@@ -66,39 +64,31 @@ function resetTimer() {
   timer = setInterval(next, AUTO_INTERVAL);
 }
 
+function pickFeatured(items) {
+  const en = items.filter(a => a.language === "en");
+  const withImgur = en.filter(a => a.content && /https?:\/\/i\.imgur\.com\/\S+/i.test(a.content));
+  withImgur.sort((a, b) => (b.stats?.score ?? 0) - (a.stats?.score ?? 0));
+  articles = withImgur.slice(0, MAX_FEATURED);
+  current = 0;
+  renderSlide(current);
+  resetTimer();
+}
+
 export async function loadFeatured() {
   const k = apiKey();
   if (!k) return;
   try {
+    // Share from S.articles if enough loaded
+    if (S.articles.length >= 50) {
+      pickFeatured(S.articles);
+      return;
+    }
     const result = await fetchTrpc("article.getArticlesPaginated", { type: "last", limit: 100 }, k);
     const data = unwrap(result);
     const items = data?.items || [];
     if (!items.length) return;
-
     await resolveUsers(items.map(a => a.author).filter(Boolean), k);
-
-    const byLang = {};
-    for (const a of items) {
-      const lang = a.language || "unknown";
-      if (!byLang[lang]) byLang[lang] = [];
-      byLang[lang].push(a);
-    }
-
-    const selected = [];
-    for (const lang of LANG_PRIORITY) {
-      if (selected.length >= 50) break;
-      if (byLang[lang]) {
-        selected.push(...byLang[lang].slice(0, 50 - selected.length));
-      }
-    }
-
-    const withImgur = selected.filter(a => a.content && /https?:\/\/i\.imgur\.com\/\S+/i.test(a.content));
-    withImgur.sort((a, b) => (b.stats?.score ?? 0) - (a.stats?.score ?? 0));
-    articles = withImgur.slice(0, MAX_FEATURED);
-
-    current = 0;
-    renderSlide(current);
-    resetTimer();
+    pickFeatured(items);
   } catch (err) {
     console.error("featured load error:", err);
   }

@@ -418,7 +418,7 @@
 .featured-stage { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; min-height: 0; }
 .featured-slide { display: flex; flex-direction: column; align-items: center; width: 100%; padding: 8px; height: 100%; justify-content: center; }
 .featured-img-wrap { position: relative; display: flex; align-items: center; justify-content: center; max-width: 100%; flex: 1; min-height: 0; width: 100%; overflow: hidden; }
-.featured-img { width: 648px; height: 240px; object-fit: cover; object-position: top; display: block; flex-shrink: 0; }
+.featured-img { width: 100%; max-height: 240px; object-fit: cover; object-position: center; display: block; flex-shrink: 0; }
 .featured-title { position: absolute; bottom: 0; left: 0; right: 0; font-family: var(--font-ui); font-size: 22px; font-weight: 700; text-align: center; margin: 0; padding: 40px 12px 10px; line-height: 1.2; color: #fff; cursor: pointer; background: linear-gradient(transparent, rgba(0,0,0,.7)); }
 .featured-title:hover { color: #fff; }
 .featured-overlay { position: absolute; top: 0; left: 0; display: flex; flex-direction: column; padding: 6px 10px; z-index: 2; }

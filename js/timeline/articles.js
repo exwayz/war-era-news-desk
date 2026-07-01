@@ -102,6 +102,8 @@ export function renderArticles() {
       E.readerContent.innerHTML=a.content||"<p>No content available.</p>";
       E.readerContent.querySelectorAll("a").forEach(l=>{ l.target="_blank"; l.rel="noopener noreferrer"; });
       E.readerContent.querySelectorAll("iframe").forEach(f=>{ f.style.width="100%"; f.style.aspectRatio="16/9"; f.style.height="auto"; });
+      const openBtn = document.getElementById("openArticleBtn");
+      if (openBtn) openBtn.dataset.id = a._id || a.id;
       E.readerModal.classList.remove("hidden");
       resolveContentLinks(E.readerContent);
     });
