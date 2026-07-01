@@ -87,6 +87,7 @@
 .side-btn:hover { background: var(--surface); }
 .side-btn.active { background: var(--surface); border-left-color: var(--accent); }
 .side-icon { font-size: 1rem; width: 24px; text-align: center; flex-shrink: 0; }
+#themeToggleBtn .side-icon { font-size: 1.25rem; display: flex; align-items: center; justify-content: center; }
 
 /* ── TIMELINE BADGE (sidebar) ──────────────────────── */
 .timeline-badge {
