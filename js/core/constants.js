@@ -2,7 +2,7 @@ export const TRPC_BASE = "https://gateway.warerastats.io/trpc";
 export const API2_BASE = "https://api2.warera.io/trpc";
 export const API5_BASE = "https://api5.warera.io/trpc";
 export const MARKET_SERVER_URL = "https://newsdesk-server-4942.onbelmo.uk";
-export const MARKET_DATA_URL = "https://market-server.rooster-5b9.workers.dev"; // ← update to your Deno Deploy URL after deploying
+export const MARKET_DATA_URL = "https://market-server-bjmjamwpmq80.exwayz.deno.net";
 export const OBJECT_ID_RE = /^[a-f\d]{24}$/i;
 export const DAY_MS = 86400000;
 // Supabase — replace with your project's values from Settings → API
