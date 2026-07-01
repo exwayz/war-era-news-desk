@@ -445,7 +445,7 @@ function bindAll() {
 
 function init() {
   E.apiKeyInput.value = localStorage.getItem(STORE.apiKey) || "";
-  applyTheme(localStorage.getItem(STORE.theme) || "dark");
+  applyTheme(localStorage.getItem(STORE.theme) || "light");
 
   populateEventTypes();
   injectJobsCountryFilter();
