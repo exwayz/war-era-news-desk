@@ -96,6 +96,7 @@ async function loadCountryData(countryId, k) {
     await enrichCongressMembers(_government, k);
     renderPolitics();
     generatePoliticalSummary(countryId, k);
+    saveGovernmentSnapshot(countryId);
   } catch (err) {
     status.textContent = "Error: " + err.message;
   }
@@ -743,7 +744,84 @@ async function buildElectionContext(k) {
   return lines.join("\n");
 }
 
+const SNAPSHOT_KEY = "wa-nd-gov-snapshots";
+
+function loadGovernmentSnapshot(countryId) {
+  try {
+    const all = JSON.parse(localStorage.getItem(SNAPSHOT_KEY) || "{}");
+    return all[countryId] || null;
+  } catch { return null; }
+}
+
+function saveGovernmentSnapshot(countryId) {
+  const snapshot = {
+    timestamp: Date.now(),
+    rulingParty: _parties.find(p => p._id === _countryDetail?.rulingParty) || null,
+    government: _government ? { ..._government } : null,
+    governmentMembers: {},
+  };
+  if (_government) {
+    const roleKeys = ["president", "vicePresident", "minOfDefense", "minOfEconomy", "minOfForeignAffairs"];
+    const ids = roleKeys.map(k => _government[k]).filter(Boolean);
+    for (const uid of ids) {
+      const u = S.lookups.usersById.get(uid);
+      if (u) snapshot.governmentMembers[uid] = u.username;
+    }
+  }
+  try {
+    const all = JSON.parse(localStorage.getItem(SNAPSHOT_KEY) || "{}");
+    all[countryId] = snapshot;
+    localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(all));
+  } catch {}
+}
+
 async function detectRulingPartyChange(election, k) {
+  const snapshot = loadGovernmentSnapshot(_selectedCountryId);
+  if (!snapshot) return "";
+
+  const isPresidentElection = election.type === "president";
+  const changes = [];
+  const roleMap = { president: "President", vicePresident: "Vice President", minOfDefense: "Minister of Defense", minOfEconomy: "Minister of Economy", minOfForeignAffairs: "Minister of Foreign Affairs" };
+
+  // Compare ruling party
+  const oldParty = snapshot.rulingParty;
+  const newPartyId = _countryDetail?.rulingParty;
+  const newParty = newPartyId ? _parties.find(p => p._id === newPartyId) : null;
+  if (oldParty && newParty && oldParty._id !== newPartyId) {
+    let change = `Ruling party changed from ${oldParty.name} to ${newParty.name}`;
+    if (oldParty.ethic !== newParty.ethic) {
+      change += ` (ethic: ${oldParty.ethic || "none"} → ${newParty.ethic || "none"})`;
+    }
+    if (oldParty.ideology !== newParty.ideology) {
+      change += ` (ideology: ${oldParty.ideology || "none"} → ${newParty.ideology || "none"})`;
+    }
+    changes.push(change);
+  }
+
+  // Compare government roles (only for presidential elections)
+  if (isPresidentElection && snapshot.government && _government) {
+    for (const [key, label] of Object.entries(roleMap)) {
+      const oldUid = snapshot.government[key];
+      const newUid = _government[key];
+      if (oldUid !== newUid) {
+        const oldName = snapshot.governmentMembers?.[oldUid] || oldUid?.slice(-6) || "vacant";
+        const newUser = S.lookups.usersById.get(newUid);
+        const newName = newUser?.username || newUid?.slice(-6) || "vacant";
+        if (oldUid && newUid) changes.push(`${label}: ${oldName} → ${newName}`);
+        else if (newUid) changes.push(`${label}: now ${newName}`);
+        else changes.push(`${label}: ${oldName} removed`);
+      }
+    }
+  }
+
+  // Compare congress size (for congress elections)
+  if (!isPresidentElection && snapshot.government && _government) {
+    const oldSize = snapshot.government.congressMembers?.length || 0;
+    const newSize = _government.congressMembers?.length || 0;
+    if (oldSize !== newSize) changes.push(`Congress size: ${oldSize} → ${newSize}`);
+  }
+
+  if (changes.length) return "Government changes: " + changes.join(". ") + ".";
   return "";
 }
 
