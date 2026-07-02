@@ -25,6 +25,7 @@ export const S = {
 
 S.lookups.muById = new Map();
 S.lookups.partiesById = new Map();
+S.lookups.articlesById = new Map();
 
 export let unseenTimelineEvents = 0;
 

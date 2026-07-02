@@ -145,15 +145,15 @@ export async function resolveContentLinks(container) {
 
   const getData = (type,id) => {
     switch(type) {
-      case "user": return S.lookups.usersById.get(id);
-      case "country": return S.lookups.countriesById.get(id);
-      case "region": return S.lookups.regionsById.get(id);
-      case "mu": return S.lookups.muById.get(id);
-      case "company": return S.lookups.companiesById.get(id);
-      case "battle": return S.lookups.battlesById.get(id);
-      case "alliance": return S.lookups.alliancesById.get(id);
-      case "article": return S.lookups.articlesById.get(id);
-      case "party": return S.lookups.partiesById.get(id);
+      case "user": return S.lookups.usersById?.get(id);
+      case "country": return S.lookups.countriesById?.get(id);
+      case "region": return S.lookups.regionsById?.get(id);
+      case "mu": return S.lookups.muById?.get(id);
+      case "company": return S.lookups.companiesById?.get(id);
+      case "battle": return S.lookups.battlesById?.get(id);
+      case "alliance": return S.lookups.alliancesById?.get(id);
+      case "article": return S.lookups.articlesById?.get(id);
+      case "party": return S.lookups.partiesById?.get(id);
     }
     return null;
   };
