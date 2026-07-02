@@ -3,8 +3,8 @@ import { renderBattleList, battleId } from "./battles.js";
 import { fmtDate, fmtNum } from "../core/utils.js";
 import { playCopy } from "../audio/audio.js";
 
-export function nameCountry(id) { if(!id) return ""; return S.lookups.countriesById.get(id)?.name||""; }
-export function nameRegion(id) { if(!id) return ""; return S.lookups.regionsById.get(String(id))?.name||""; }
+export function nameCountry(id) { if(!id) return ""; return S.lookups.countriesById.get(id)?.name||id?.slice(-6)||""; }
+export function nameRegion(id) { if(!id) return ""; return S.lookups.regionsById.get(String(id))?.name||String(id).slice(-6)||""; }
 export function nameUser(id) { if(!id) return ""; const u=S.lookups.usersById.get(id); return u?.username||u?.name||""; }
 export function nameAlliance(id) { if(!id) return ""; const al=S.lookups.alliancesById.get(id); return al?.name||al?.allianceName||""; }
 export function nameArticleTitle(id) { if(!id) return ""; return S.lookups.articlesById.get(id)?.title||""; }
