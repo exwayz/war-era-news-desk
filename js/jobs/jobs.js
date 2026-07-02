@@ -26,7 +26,7 @@ async function resolveCompaniesForJobs(jobs, k) {
       const r = await fetchTrpc("company.getById", {companyId: cid}, k);
       const c = unwrap(r);
       if (c) S.lookups.companiesById.set(cid, c);
-    } catch (err) { console.error("company.getById failed", cid, err); }
+    } catch {}
   }));
 }
 
