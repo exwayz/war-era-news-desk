@@ -25,3 +25,4 @@ api-key.txt
 .cache/
 dist/
 build/
+node_modules/

@@ -2,8 +2,14 @@
   "name": "war-era-news-desk",
   "version": "1.0.0",
   "description": "War Era News Desk",
-  "main": "server.js",
+  "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "dev": "vite",
+    "start": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^8.0.0"
   }
 }

@@ -2,12 +2,22 @@
 
 ## Dev Server
 ```
-npm start          # node server.js on port 8023
+npm run dev       # Vite dev server on port 8023 (HMR)
+npm run build     # Production build to dist/
+npm run preview   # Preview production build
 ```
-Static file server only. `file://` blocks CORS — always serve over HTTP.
+
+## Deploy (GitHub Pages)
+Base path is `/war-era-news-desk/` (set in `vite.config.js`).
+```
+npm run build
+# Push the dist/ folder to the gh-pages branch, or use GitHub Actions:
+# on: push to main → npm run build → deploy dist/ to gh-pages
+```
+Alternatively, configure GH Pages to serve from `docs/` and set `build.outDir: "docs"` in vite.config.js.
 
 ## Architecture
-- **Vanilla JS (ES modules)**, HTML5, CSS3 — no framework, no bundler
+- **Vanilla JS (ES modules)**, HTML5, CSS3 — built with Vite
 - Single-page app: `index.html` → `js/main.js` (type="module")
 - CSS load order: `variables.css` → `base.css` → `layout.css` → `intro.css` → `responsive.css` → `rankings.css` → `politics.css`
 - Tab-based SPA: 8 tabs (timeline, battles, market, jobs, politics, rankings, community), switched via sidebar `.side-btn[data-tab]` → `js/ui/tabs.js:switchTab()`
