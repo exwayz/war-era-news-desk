@@ -104,7 +104,7 @@ async function loadCountryData(countryId, k) {
 
 async function fetchElections(countryId, k) {
   const input = { countryId, limit: 50, direction: "forward" };
-  for (const fetcher of [fetchTrpc, fetchTrpcApi2, fetchTrpcApi5]) {
+  for (const fetcher of [fetchTrpc, fetchTrpcApi5]) {
     try {
       const r = await fetcher("election.getElections", input, k);
       const d = unwrap(r);
