@@ -18,15 +18,8 @@ export async function fetchTxPaginated(type, k, maxPages) {
   for (let p = 0; p < maxPages; p++) {
     let res;
     try {
-      res = await Promise.race([
-        fetchTrpc("transaction.getPaginatedTransactions", { limit: 100, transactionType: type, cursor }, k),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 3000)),
-      ]);
-    } catch {
-      try {
-        res = await fetchTrpcApi2("transaction.getPaginatedTransactions", { limit: 100, transactionType: type, cursor }, k);
-      } catch { break; }
-    }
+      res = await fetchTrpc("transaction.getPaginatedTransactions", { limit: 100, transactionType: type, cursor }, k);
+    } catch { break; }
     const data = unwrap(res);
     const page = Array.isArray(data) ? data : (data?.items || []);
     if (!page.length) break;
@@ -72,7 +65,7 @@ export function startTransactionLiteAmount(k) {
 
 export function getBestTxData() {
   if (_trueTx) return _trueTx;
-  if (_trueTxErr && _liteTx) return _liteTx;
+  if (_liteTx) return _liteTx;
   return null;
 }
 
