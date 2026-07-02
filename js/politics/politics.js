@@ -855,60 +855,53 @@ async function generatePoliticalSummary(countryId, k) {
     // Build country context (uses _countryDetail, _government, _parties, _alliance)
     const countryContext = await buildCountryContext(k);
 
-    // Fetch and filter events
+    // Fetch and filter events (optional — summary still works without them)
     const events = await fetchPoliticsEvents(k);
-    if (!events.length) {
-      body.innerHTML = `<span style="color:var(--ink-dim);font-size:.82rem">No events data available.</span>`;
-      return;
-    }
+    let eventSection = "";
+    if (events.length) {
+      const countryEvents = events.filter(e => {
+        const cs = e.countries || e.data?.countries || [];
+        return Array.isArray(cs) && cs.includes(countryId);
+      });
+      const filtered = countryEvents.filter(e => POLITICS_EVENT_TYPES.has(e.type || e.data?.type));
+      if (filtered.length) {
+        await resolveEventNames(filtered, k);
+        const timeSpan = timeAgoLabel(filtered);
+        const eventLines = filtered.map(e => {
+          const ed = evtData(e);
+          const type = e.type || ed.type || "event";
+          const title = buildTitle(e, type, ed);
+          const summary = buildSummary(e, type, ed);
+          const ts = evtTime(e) || "";
+          return `[${ts}] ${fmtType(type)}: ${title} — ${summary}`;
+        });
 
-    const countryEvents = events.filter(e => {
-      const cs = e.countries || e.data?.countries || [];
-      return Array.isArray(cs) && cs.includes(countryId);
-    });
-
-    const filtered = countryEvents.filter(e => POLITICS_EVENT_TYPES.has(e.type || e.data?.type));
-    if (!filtered.length) {
-      body.innerHTML = `<span style="color:var(--ink-dim);font-size:.82rem">No political events involving ${escHtml(countryName)} found in recent history.</span>`;
-      return;
-    }
-
-    await resolveEventNames(filtered, k);
-
-    const timeSpan = timeAgoLabel(filtered);
-
-    const eventLines = filtered.map(e => {
-      const ed = evtData(e);
-      const type = e.type || ed.type || "event";
-      const title = buildTitle(e, type, ed);
-      const summary = buildSummary(e, type, ed);
-      const ts = evtTime(e) || "";
-      return `[${ts}] ${fmtType(type)}: ${title} — ${summary}`;
-    });
-
-    // Money transfer breakdown
-    const moneyTransfers = filtered.filter(e => (e.type || e.data?.type) === "countryMoneyTransfer");
-    let moneySummary = "";
-    if (moneyTransfers.length) {
-      let sent = 0, received = 0;
-      const sentTo = {}, receivedFrom = {};
-      for (const e of moneyTransfers) {
-        const ed = e.data || {};
-        const amt = Number(ed.money) || 0;
-        const from = S.lookups.countriesById.get(ed.from || ed.sourceCountry)?.name || "";
-        const to = S.lookups.countriesById.get(ed.to || ed.targetCountry)?.name || "";
-        if (from === countryName || from === countryId || ed.from === countryId || ed.sourceCountry === countryId) {
-          sent += amt;
-          sentTo[to] = (sentTo[to] || 0) + amt;
+        // Money transfer breakdown
+        const moneyTransfers = filtered.filter(e => (e.type || e.data?.type) === "countryMoneyTransfer");
+        let moneySummary = "";
+        if (moneyTransfers.length) {
+          let sent = 0, received = 0;
+          const sentTo = {}, receivedFrom = {};
+          for (const e of moneyTransfers) {
+            const ed = e.data || {};
+            const amt = Number(ed.money) || 0;
+            const from = S.lookups.countriesById.get(ed.from || ed.sourceCountry)?.name || "";
+            const to = S.lookups.countriesById.get(ed.to || ed.targetCountry)?.name || "";
+            if (from === countryName || from === countryId || ed.from === countryId || ed.sourceCountry === countryId) {
+              sent += amt;
+              sentTo[to] = (sentTo[to] || 0) + amt;
+            }
+            if (to === countryName || to === countryId || ed.to === countryId || ed.targetCountry === countryId) {
+              received += amt;
+              receivedFrom[from] = (receivedFrom[from] || 0) + amt;
+            }
+          }
+          const sentStr = sent ? `Sent ${fmtMoney(sent)} ${Object.entries(sentTo).map(([k,v]) => `${fmtMoney(v)} to ${k}`).join(", ")}` : "";
+          const recvStr = received ? `Received ${fmtMoney(received)} ${Object.entries(receivedFrom).map(([k,v]) => `${fmtMoney(v)} from ${k}`).join(", ")}` : "";
+          moneySummary = [sentStr, recvStr].filter(Boolean).join(". ");
         }
-        if (to === countryName || to === countryId || ed.to === countryId || ed.targetCountry === countryId) {
-          received += amt;
-          receivedFrom[from] = (receivedFrom[from] || 0) + amt;
-        }
+        eventSection = `\n\n--- Recent Events (${timeSpan}) ---\n${eventLines.join("\n")}${moneySummary ? `\n\nMoney transfer breakdown for ${countryName}:\n${moneySummary}` : ""}`;
       }
-      const sentStr = sent ? `Sent ${fmtMoney(sent)} ${Object.entries(sentTo).map(([k,v]) => `${fmtMoney(v)} to ${k}`).join(", ")}` : "";
-      const recvStr = received ? `Received ${fmtMoney(received)} ${Object.entries(receivedFrom).map(([k,v]) => `${fmtMoney(v)} from ${k}`).join(", ")}` : "";
-      moneySummary = [sentStr, recvStr].filter(Boolean).join(". ");
     }
 
     const nowStr = new Date().toISOString().replace("T", " ").slice(0, 16) + " UTC";
@@ -917,12 +910,9 @@ Country: ${countryName}
 
 --- Country Snapshot ---
 ${countryContext}
+${eventSection || "\n\nNo recent political events involving this country were found."}
 
---- Recent Events (${timeSpan}) ---
-${eventLines.join("\n")}
-${moneySummary ? `\n\nMoney transfer breakdown for ${countryName}:\n${moneySummary}` : ""}
-
-Based strictly on the country snapshot and recent events above, provide a concise geopolitical analysis covering: diplomatic relationships and alliances, international standing and conflict involvement, domestic political situation, economic patterns, and potential future developments. Only draw conclusions directly supported by the data.`;
+Based strictly on the country snapshot and${eventSection ? " recent events" : ""} above, provide a concise geopolitical analysis covering: diplomatic relationships and alliances, international standing and conflict involvement, domestic political situation, economic patterns, and potential future developments. Only draw conclusions directly supported by the data.`;
 
     body.innerHTML = `<span style="color:var(--ink-dim);font-size:.82rem">Generating analysis...</span>`;
 
