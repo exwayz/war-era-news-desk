@@ -912,7 +912,7 @@ Country: ${countryName}
 ${countryContext}
 ${eventSection || "\n\nNo recent political events involving this country were found."}
 
-Based strictly on the country snapshot and${eventSection ? " recent events" : ""} above, provide a concise geopolitical analysis covering: diplomatic relationships and alliances, international standing and conflict involvement, domestic political situation, economic patterns, and potential future developments. Only draw conclusions directly supported by the data.`;
+Based strictly on the country snapshot${eventSection ? " and recent events" : ""} above, provide a concise geopolitical analysis covering: diplomatic relationships and alliances, international standing and conflict involvement, domestic political situation, economic patterns, and potential future developments. Only draw conclusions directly supported by the data.`;
 
     body.innerHTML = `<span style="color:var(--ink-dim);font-size:.82rem">Generating analysis...</span>`;
 
