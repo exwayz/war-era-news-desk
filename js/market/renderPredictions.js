@@ -247,51 +247,53 @@ function renderOutlook(p, section) {
   const existing = section.querySelector(".prediction-outlook");
   const hasHistory = p.itemsWithHistory.length > 0;
 
+  function itemHtml(name, value, color) {
+    return `<div class="outlook-item"><span class="exec-label" style="color:${color};text-transform:none;font-size:.75rem;letter-spacing:0">${name}</span><span class="exec-value">${value}</span></div>`;
+  }
+
   const bullishHtml = p.topBullish.length
     ? p.topBullish.map(k => {
         const h = p.heatScores[k];
         const name = h?.pred?.itemName || k;
-        return `<div class="exec-summary-row"><span class="exec-label" style="color:var(--green)">▲ ${name}</span><span class="exec-value">${h ? h.score.toFixed(1) : "N/A"} · ${h ? h.trend : "N/A"}</span></div>`;
+        return itemHtml(`▲ ${name}`, h ? `${h.score.toFixed(1)} · ${h.trend}` : "N/A", "var(--green)");
       }).join("")
-    : `<div class="exec-summary-row"><span class="exec-label">None</span><span class="exec-value">No bullish commodities</span></div>`;
+    : `<div class="outlook-item"><span class="exec-label">None</span><span class="exec-value">—</span></div>`;
 
   const bearishHtml = p.topBearish.length
     ? p.topBearish.map(k => {
         const h = p.heatScores[k];
         const name = h?.pred?.itemName || k;
-        return `<div class="exec-summary-row"><span class="exec-label" style="color:var(--red)">▼ ${name}</span><span class="exec-value">${h ? h.score.toFixed(1) : "N/A"} · ${h ? h.trend : "N/A"}</span></div>`;
+        return itemHtml(`▼ ${name}`, h ? `${h.score.toFixed(1)} · ${h.trend}` : "N/A", "var(--red)");
       }).join("")
-    : `<div class="exec-summary-row"><span class="exec-label">None</span><span class="exec-value">No bearish commodities</span></div>`;
+    : `<div class="outlook-item"><span class="exec-label">None</span><span class="exec-value">—</span></div>`;
 
   const changesHtml = p.potentialChanges.length
     ? p.potentialChanges.map(pc => {
         const dir = pc.rankChange > 0 ? "▲ up" : "▼ down";
         const col = pc.rankChange > 0 ? "var(--green)" : "var(--red)";
-        return `<div class="exec-summary-row"><span class="exec-label">${pc.itemName}</span><span class="exec-value" style="color:${col}">${dir} ${Math.abs(pc.rankChange)} rank${Math.abs(pc.rankChange) > 1 ? "s" : ""}</span></div>`;
+        return itemHtml(pc.itemName, `${dir} ${Math.abs(pc.rankChange)} rank${Math.abs(pc.rankChange) > 1 ? "s" : ""}`, col);
       }).join("")
-    : `<div class="exec-summary-row"><span class="exec-label">Stable</span><span class="exec-value">No significant rank changes predicted</span></div>`;
+    : `<div class="outlook-item"><span class="exec-label">Stable</span><span class="exec-value">—</span></div>`;
 
   const outlookHtml = `<div class="market-card analytics-exec-card prediction-outlook" style="grid-column:1/-1;margin-top:16px">
     <div class="market-card-header"><span class="market-card-title">Next 24–72 Hour Commodity Outlook</span> ${badge("Prediction Indicator")}</div>
     <div class="analytics-exec-body">
-      <div class="exec-outlook">
-        ${hasHistory ? `<p class="analytics-assess-summary">${p.outlook.summary}</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px">
-          <div class="exec-summary">
-            <div class="exec-summary-row" style="border:none;padding-bottom:4px"><span class="exec-label" style="font-weight:600;color:var(--accent)">Top Bullish</span><span class="exec-value"></span></div>
-            ${bullishHtml}
-          </div>
-          <div class="exec-summary">
-            <div class="exec-summary-row" style="border:none;padding-bottom:4px"><span class="exec-label" style="font-weight:600;color:var(--accent)">Top Bearish</span><span class="exec-value"></span></div>
-            ${bearishHtml}
-          </div>
-          <div class="exec-summary">
-            <div class="exec-summary-row" style="border:none;padding-bottom:4px"><span class="exec-label" style="font-weight:600;color:var(--accent)">Potential Ranking Changes</span><span class="exec-value"></span></div>
-            ${changesHtml}
-          </div>
-        </div>`
-        : `<p class="analytics-assess-summary">Insufficient history for commodity outlook. At least two data snapshots are required.</p>`}
-      </div>
+      ${hasHistory ? `<p class="analytics-assess-summary">${p.outlook.summary}</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px">
+        <div class="outlook-list">
+          <div class="outlook-col-head">Top Bullish</div>
+          ${bullishHtml}
+        </div>
+        <div class="outlook-list">
+          <div class="outlook-col-head">Top Bearish</div>
+          ${bearishHtml}
+        </div>
+        <div class="outlook-list">
+          <div class="outlook-col-head">Potential Ranking Changes</div>
+          ${changesHtml}
+        </div>
+      </div>`
+      : `<p class="analytics-assess-summary">Insufficient history for commodity outlook. At least two data snapshots are required.</p>`}
     </div>
   </div>`;
 
