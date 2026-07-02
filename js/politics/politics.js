@@ -656,7 +656,8 @@ async function buildCountryContext(k) {
     const party = _parties.find(p => p._id === cd.rulingParty);
     if (party) {
       let partyDesc = `Ruling party: ${party.name}`;
-      if (party.ethic || party.ideology) partyDesc += ` (${party.ethic || party.ideology})`;
+      const ethics = formatPartyEthics(party.ethics);
+      if (ethics) partyDesc += ` (${ethics})`;
       if (party.leader) {
         const leader = S.lookups.usersById.get(party.leader);
         if (leader) partyDesc += `, led by ${leader.username}`;
@@ -775,6 +776,17 @@ function saveGovernmentSnapshot(countryId) {
   } catch {}
 }
 
+function formatPartyEthics(ethics) {
+  if (!ethics) return "";
+  const axes = [];
+  if (ethics.militarism != null) axes.push(`militarism ${ethics.militarism}`);
+  if (ethics.isolationism != null) axes.push(`isolationism ${ethics.isolationism}`);
+  if (ethics.imperialism != null) axes.push(`imperialism ${ethics.imperialism}`);
+  if (ethics.industrialism != null) axes.push(`industrialism ${ethics.industrialism}`);
+  if (ethics.unethical) axes.push("UNETHICAL");
+  return axes.length ? `ethics: [${axes.join(", ")}]` : "";
+}
+
 async function detectRulingPartyChange(election, k) {
   const snapshot = loadGovernmentSnapshot(_selectedCountryId);
   if (!snapshot) return "";
@@ -789,11 +801,10 @@ async function detectRulingPartyChange(election, k) {
   const newParty = newPartyId ? _parties.find(p => p._id === newPartyId) : null;
   if (oldParty && newParty && oldParty._id !== newPartyId) {
     let change = `Ruling party changed from ${oldParty.name} to ${newParty.name}`;
-    if (oldParty.ethic !== newParty.ethic) {
-      change += ` (ethic: ${oldParty.ethic || "none"} → ${newParty.ethic || "none"})`;
-    }
-    if (oldParty.ideology !== newParty.ideology) {
-      change += ` (ideology: ${oldParty.ideology || "none"} → ${newParty.ideology || "none"})`;
+    const oldEthicsStr = formatPartyEthics(oldParty.ethics);
+    const newEthicsStr = formatPartyEthics(newParty.ethics);
+    if (oldEthicsStr !== newEthicsStr) {
+      change += ` (${oldEthicsStr} → ${newEthicsStr})`;
     }
     changes.push(change);
   }
