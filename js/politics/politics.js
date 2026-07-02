@@ -776,15 +776,22 @@ function saveGovernmentSnapshot(countryId) {
   } catch {}
 }
 
+const ETHICS_MAP = {
+  militarism:   {  "1": "Expansionist",       "2": "Fanatic Expansionist",  "-1": "Pacifist",            "-2": "Fanatic Pacifist" },
+  isolationism: {  "1": "Diplomatic",         "2": "Fanatic Diplomatic",    "-1": "Isolationist",        "-2": "Fanatic Isolationist" },
+  imperialism:  {  "1": "Imperialist",        "2": "Fanatic Imperialist",   "-1": "Republican",          "-2": "Fanatic Republican" },
+  industrialism:{  "1": "Industrialist",      "2": "Fanatic Industrialist", "-1": "Agrarian",            "-2": "Fanatic Agrarian" },
+};
+
 function formatPartyEthics(ethics) {
   if (!ethics) return "";
-  const axes = [];
-  if (ethics.militarism != null) axes.push(`militarism ${ethics.militarism}`);
-  if (ethics.isolationism != null) axes.push(`isolationism ${ethics.isolationism}`);
-  if (ethics.imperialism != null) axes.push(`imperialism ${ethics.imperialism}`);
-  if (ethics.industrialism != null) axes.push(`industrialism ${ethics.industrialism}`);
-  if (ethics.unethical) axes.push("UNETHICAL");
-  return axes.length ? `ethics: [${axes.join(", ")}]` : "";
+  if (ethics.unethical) return "UNETHICAL";
+  const active = [];
+  for (const [axis, value] of Object.entries(ETHICS_MAP)) {
+    const v = ethics[axis];
+    if (v && value[v]) active.push(value[v]);
+  }
+  return active.length ? active.join(", ") : "";
 }
 
 async function detectRulingPartyChange(election, k) {

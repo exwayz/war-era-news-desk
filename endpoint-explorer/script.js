@@ -286,6 +286,13 @@ limit:20
 }
 },
 
+"party.getById":{
+desc:"Party by ID",
+params:{
+partyId:""
+}
+},
+
 "party.getManyPaginated":{
 desc:"Party list",
 params:{
