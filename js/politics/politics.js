@@ -680,7 +680,71 @@ async function buildCountryContext(k) {
     if (congress.length) lines.push(`Congress: ${fmtNum(congress.length)} members`);
   }
 
+  // Election context
+  const electionContext = await buildElectionContext(k);
+  if (electionContext) lines.push(electionContext);
+
   return lines.join("\n");
+}
+
+async function buildElectionContext(k) {
+  if (!_elections.length) return "";
+  const lines = [];
+  const now = Date.now();
+  const SEVENTY_TWO_HOURS = 72 * 3600000;
+
+  // Resolve user names for candidates across relevant elections
+  const active = _elections.find(e => e.isActive === true || e.status === "voting");
+  const recentFinished = _elections.filter(e => {
+    if (e.isActive || e.status === "voting") return false;
+    const end = e.votesEndAt ? new Date(e.votesEndAt).getTime() : 0;
+    return end > 0 && (now - end) < SEVENTY_TWO_HOURS;
+  });
+  const candidatesToResolve = [];
+  if (active) candidatesToResolve.push(...(active.candidates || []));
+  for (const e of recentFinished) candidatesToResolve.push(...(e.candidates || []));
+  const userIds = [...new Set(candidatesToResolve.map(c => c.user).filter(Boolean))];
+  await Promise.all(userIds.map(async uid => {
+    if (!S.lookups.usersById.has(uid)) {
+      try { const r = await fetchTrpcApi2("user.getUserLite", { userId: uid }, k); const u = unwrap(r); if (u) S.lookups.usersById.set(uid, u); } catch {}
+    }
+  }));
+
+  // Active election
+  if (active) {
+    const type = active.type === "president" ? "Presidential" : "Congress";
+    const names = (active.candidates || []).map(c => {
+      const u = S.lookups.usersById.get(c.user);
+      const p = c.party ? _parties.find(x => x._id === c.party) : null;
+      return (u?.username || c.user.slice(-6)) + (p ? ` (${p.name})` : "");
+    });
+    lines.push(`Active ${type} election is ongoing. Total votes cast: ${active.votesCount || 0}. Candidates: ${names.join(", ")}.`);
+  }
+
+  // Recently finished elections (< 72h)
+  for (const e of recentFinished) {
+    const type = e.type === "president" ? "Presidential" : "Congress";
+    const end = new Date(e.votesEndAt).getTime();
+    const hoursAgo = Math.round((now - end) / 3600000);
+    const ago = hoursAgo < 1 ? "less than an hour ago" : hoursAgo + " hours ago";
+    const votes = e.votes || {};
+    const candidates = e.candidates || [];
+    const details = candidates.map(c => {
+      const u = S.lookups.usersById.get(c.user);
+      const name = u?.username || c.user.slice(-6) || "?";
+      const v = votes[c.user] != null ? votes[c.user] : 0;
+      return `${name}: ${v} votes${c.isElected ? " ✓ ELECTED" : ""}`;
+    });
+    const rulingPartyChange = await detectRulingPartyChange(e, k);
+    const changeNote = rulingPartyChange ? ` ${rulingPartyChange}` : "";
+    lines.push(`Recent ${type} election ended ${ago}. Total votes: ${e.votesCount || 0}. Results: ${details.join("; ")}.${changeNote}`);
+  }
+
+  return lines.join("\n");
+}
+
+async function detectRulingPartyChange(election, k) {
+  return "";
 }
 
 async function generatePoliticalSummary(countryId, k) {
