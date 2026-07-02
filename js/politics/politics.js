@@ -1,7 +1,7 @@
 import { S } from "../core/state.js";
 import { apiKey, fetchTrpc, fetchTrpcApi2, fetchTrpcApi5, unwrap, fetchFromServer } from "../core/api.js";
 import { fmtNum, fmtDate, fmtMoney } from "../core/utils.js";
-import { resolveParty, resolveAlliance } from "../core/resolver.js";
+import { resolveParty, resolveAlliance, resolveContentLinks } from "../core/resolver.js";
 import { evtData, evtTime, buildTitle, buildSummary, fmtType } from "../timeline/events.js";
 
 const POLITICS_EVENT_TYPES = new Set([
@@ -843,19 +843,72 @@ async function detectRulingPartyChange(election, k) {
   return "";
 }
 
+async function fetchArticlesForContext(countryName, k) {
+  if (!countryName || !k) return [];
+  const seen = new Set();
+  const matched = [];
+  let cursor;
+  for (let page = 0; page < 20; page++) {
+    try {
+      const result = await fetchTrpc("article.getArticlesPaginated", {
+        type: "last", limit: 100, cursor,
+      }, k);
+      const data = unwrap(result);
+      const items = data?.items || [];
+      if (!items.length) break;
+      for (const a of items) {
+        const id = a._id || a.id;
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        if (!["news", "politics", "election"].includes((a.category || "").toLowerCase())) continue;
+        const lower = countryName.toLowerCase();
+        if (!(a.title || "").toLowerCase().includes(lower) && !(a.content || "").toLowerCase().includes(lower)) continue;
+        matched.push(a);
+      }
+      cursor = data?.nextCursor || null;
+      if (!cursor) break;
+    } catch { break; }
+  }
+  return matched;
+}
+
+async function resolveArticleContentToPlainText(htmlContent) {
+  if (!htmlContent) return "";
+  const temp = document.createElement("div");
+  temp.innerHTML = htmlContent;
+  await resolveContentLinks(temp);
+  await new Promise(r => setTimeout(r, 10));
+  return temp.innerText || "";
+}
+
+async function buildArticleContext(articles, k, countryName) {
+  const lines = [];
+  const sorted = [...articles].sort((a, b) => {
+    return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+  });
+  for (const a of sorted) {
+    const date = a.createdAt ? fmtDate(a.createdAt) : "";
+    const title = a.title || "Untitled";
+    lines.push(`\n[${date}] ${title}`);
+    const text = await resolveArticleContentToPlainText(a.content);
+    if (text) lines.push(text);
+  }
+  return `\n\n--- News Articles Context ---\nThe following recent news articles mention ${countryName}:${lines.join("\n")}`;
+}
+
 async function generatePoliticalSummary(countryId, k) {
   const body = document.getElementById("polSummaryBody");
   if (!body) return;
 
   const country = S.lookups.countriesById.get(countryId);
   const countryName = country?.name || countryId.slice(-6);
-  body.innerHTML = `<span style="color:var(--ink-dim);font-size:.82rem">Analyzing events and country data...</span>`;
+  body.innerHTML = `<span style="color:var(--ink-dim);font-size:.82rem">Analyzing events and news articles...</span>`;
 
   try {
-    // Build country context (uses _countryDetail, _government, _parties, _alliance)
+    const articlePromise = fetchArticlesForContext(countryName, k);
+
     const countryContext = await buildCountryContext(k);
 
-    // Fetch and filter events (optional — summary still works without them)
     const events = await fetchPoliticsEvents(k);
     let eventSection = "";
     if (events.length) {
@@ -876,7 +929,6 @@ async function generatePoliticalSummary(countryId, k) {
           return `[${ts}] ${fmtType(type)}: ${title} — ${summary}`;
         });
 
-        // Money transfer breakdown
         const moneyTransfers = filtered.filter(e => (e.type || e.data?.type) === "countryMoneyTransfer");
         let moneySummary = "";
         if (moneyTransfers.length) {
@@ -904,15 +956,23 @@ async function generatePoliticalSummary(countryId, k) {
       }
     }
 
+    const matchedArticles = await articlePromise;
+    let articleSection = "";
+    if (matchedArticles.length) {
+      articleSection = await buildArticleContext(matchedArticles, k, countryName);
+    }
+
     const nowStr = new Date().toISOString().replace("T", " ").slice(0, 16) + " UTC";
+    const hasArticleSection = !!articleSection;
     const prompt = `Current date/time: ${nowStr}
 Country: ${countryName}
 
 --- Country Snapshot ---
 ${countryContext}
 ${eventSection || "\n\nNo recent political events involving this country were found."}
+${articleSection}
 
-Based strictly on the country snapshot${eventSection ? " and recent events" : ""} above, provide a concise geopolitical analysis covering: diplomatic relationships and alliances, international standing and conflict involvement, domestic political situation, economic patterns, and potential future developments. Only draw conclusions directly supported by the data.`;
+Based strictly on the country snapshot${eventSection ? " and recent events" : ""}${hasArticleSection ? " and news articles" : ""} above, provide a concise geopolitical analysis covering: diplomatic relationships and alliances, international standing and conflict involvement, domestic political situation, economic patterns, and potential future developments. Only draw conclusions directly supported by the data.`;
 
     body.innerHTML = `<span style="color:var(--ink-dim);font-size:.82rem">Generating analysis...</span>`;
 
