@@ -81,9 +81,9 @@
 
 /* ── SIDEBAR ────────────────────────────────────────── */
 .sidebar { width: 48px; display: flex; flex-direction: column; border-right: 1px solid var(--line); flex-shrink: 0; background: var(--bg); overflow: hidden; }
-.sidebar-top { flex: 1; display: flex; flex-direction: column; padding: 4px 0; }
-.sidebar-bottom { border-top: 1px solid var(--line); padding: 4px 0; }
-.side-btn { display: flex; align-items: center; height: 38px; padding: 0 12px; cursor: pointer; border-left: 2px solid transparent; }
+.sidebar-top { flex: 1; display: flex; flex-direction: column; padding: 6px 0; }
+.sidebar-bottom { border-top: 1px solid var(--line); padding: 6px 0; }
+.side-btn { display: flex; align-items: center; height: 42px; padding: 0 12px; cursor: pointer; border-left: 2px solid transparent; }
 .side-btn:hover { background: var(--surface); }
 .side-btn.active { background: var(--surface); border-left-color: var(--accent); }
 .side-icon { font-size: 1rem; width: 24px; text-align: center; flex-shrink: 0; }
