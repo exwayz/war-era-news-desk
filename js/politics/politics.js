@@ -104,18 +104,14 @@ async function loadCountryData(countryId, k) {
 
 async function fetchElections(countryId, k) {
   const input = { countryId, limit: 50, direction: "forward" };
-  try {
-    const r = await fetchTrpc("election.getElections", input, k);
-    const d = unwrap(r);
-    const items = Array.isArray(d) ? d : (d?.items || []);
-    if (items.length) return items;
-  } catch {}
-  try {
-    const r = await fetchTrpcApi5("election.getElections", input, k);
-    const d = unwrap(r);
-    const items = Array.isArray(d) ? d : (d?.items || []);
-    if (items.length) return items;
-  } catch {}
+  for (const fetcher of [fetchTrpc, fetchTrpcApi2, fetchTrpcApi5]) {
+    try {
+      const r = await fetcher("election.getElections", input, k);
+      const d = unwrap(r);
+      const items = Array.isArray(d) ? d : (d?.items || []);
+      if (items.length) return items;
+    } catch {}
+  }
   return [];
 }
 
