@@ -432,7 +432,7 @@ async function showElectionDetail(electionId) {
     const partyName = party?.name || "";
     const elected = c.isElected || false;
     const icon = elected ? `<span style="color:var(--green);font-weight:800">✓</span>` : `<span style="color:var(--red);font-weight:800">✗</span>`;
-    const voteCount = c.voteCount != null ? c.voteCount : (votesMap[uid] != null ? votesMap[uid] : 0);
+    const voteCount = votesMap[uid] != null ? votesMap[uid] : (c.voteCount != null ? c.voteCount : 0);
     return `
       <div class="pol-detail-row pol-candidate-row">
         <span class="pol-candidate-icon">${icon}</span>
