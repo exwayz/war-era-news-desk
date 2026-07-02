@@ -112,7 +112,7 @@ function renderEconomicOverview(md) {
     const wageVals = S.market.wageHistory.map(w=>w.avg).filter(v=>isFinite(v));
     if (wageVals.length>1) E.marketEconData.innerHTML+=miniChart(wageVals,"Avg Wage by Hour (₿)","var(--accent)");
   }
-  clrMs(E.marketEconStatus);
+  E.marketEconStatus.hidden=true; E.marketEconStatus.textContent=""; E.marketEconStatus.classList.remove("error");
 
   const a = calculateAnalytics();
   if (document.querySelector(".analytics-section")) {
