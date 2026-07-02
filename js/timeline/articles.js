@@ -1,6 +1,6 @@
 import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
-import { apiKey, fetchTrpc, fetchCached, unwrap } from "../core/api.js";
+import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
 import { fmtDate } from "../core/utils.js";
 import { resolveUsers } from "./filters.js";
 import { resolveContentLinks } from "../core/resolver.js";
@@ -33,32 +33,35 @@ function populateArticleFilters(articles) {
   }
 }
 
-export async function loadArticles(reset=true) {
-  const k = apiKey(); if (!k) return;
-  if (reset) { S.articleCursor=null; S.articles=[]; }
-  if (!reset && !S.articleCursor) return;
-  try {
-    // Try cache first
-    const cached = await fetchCached("articles");
-    if (cached.length && reset) {
-      S.articles = cached;
-      await resolveUsers(cached.map(a=>a.author).filter(Boolean), k);
-      populateArticleFilters(S.articles);
-      clearArticleStatus();
-      renderArticles();
-    }
+let _loadingArticles = false;
+export function isLoadingArticles() { return _loadingArticles; }
 
+export async function loadArticles(reset=true) {
+  if (_loadingArticles) return;
+  const k = apiKey(); if (!k) return;
+  _loadingArticles = true;
+  if (reset) { S.articleCursor=null; S.articles=[]; }
+  if (!reset && !S.articleCursor) { _loadingArticles = false; return; }
+  try {
     const result = await fetchTrpc("article.getArticlesPaginated", { type:"last", limit:100, cursor:reset?undefined:S.articleCursor }, k);
     const data = unwrap(result);
     const items = data?.items||[];
     await resolveUsers(items.map(a=>a.author).filter(Boolean), k);
     S.articleCursor = data?.nextCursor||null;
-    S.articles = reset ? items : [...S.articles, ...items];
+    if (reset) {
+      S.articles = items;
+    } else {
+      const existingIds = new Set(S.articles.map(a => a._id || a.id));
+      const deduped = items.filter(a => !existingIds.has(a._id || a.id));
+      S.articles = [...S.articles, ...deduped];
+    }
     if (reset) populateArticleFilters(S.articles);
     clearArticleStatus();
     renderArticles();
   } catch (e) {
     setArticleStatus(e.message||"Could not load articles.", "error");
+  } finally {
+    _loadingArticles = false;
   }
 }
 
