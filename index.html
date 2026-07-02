@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#f8f8dc">
+  <title>War Era · News Desk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800;900&family=Literata:opsz,wght@7..72,400;7..72,500;7..72,600;7..72,700;7..72,800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://gateway.warerastats.io">
+  <link rel="preconnect" href="https://api2.warera.io">
+  <link rel="preconnect" href="https://flagcdn.com">
+  <link rel="icon" sizes="16x16" href="/war-era-news-desk/assets/favicon-16x16-tEz_SNWP.png">
+  <link rel="icon" sizes="32x32" href="/war-era-news-desk/assets/favicon-32x32-CLdgXWM2.png">
+  <link rel="icon" sizes="48x48" href="/war-era-news-desk/assets/favicon-48x48-CKBlThFZ.png">
+  <link rel="apple-touch-icon" href="/war-era-news-desk/assets/apple-touch-icon-kumXBFiM.png">
+  <script type="module" crossorigin src="/war-era-news-desk/assets/index-O6EewrLg.js"></script>
+  <link rel="modulepreload" crossorigin href="/war-era-news-desk/assets/dom-Db8Hynqm.js">
+  <link rel="stylesheet" crossorigin href="/war-era-news-desk/assets/index-BX6qndHd.css">
+</head>
+<body>
+
+<!-- INTRO / SPLASH -->
+<div id="introOverlay" class="intro-overlay">
+  <div class="intro-content">
+    <p class="intro-eyebrow" id="introEyebrow">War Era Journalist Tool</p>
+    <h1 class="intro-title" id="introTitle">News Desk</h1>
+    <p class="intro-tagline" id="introTagline">Witness. Record. Remember.</p>
+    <div class="intro-api-box" id="introApiBox" hidden>
+      <div class="intro-api-head">
+        <h2>War Era API Key</h2>
+        <span class="intro-info-tip" id="introInfoTip" tabindex="0"><iconify-icon icon="mdi:information" class="lu"></iconify-icon>
+          <span class="intro-tooltip">
+            1. Open app.warera.io<br>
+            2. Click on your profile pic<br>
+            3. Select Settings <iconify-icon icon="mdi:cog" class="lu"></iconify-icon><br>
+            4. Scroll down to API TOKENS<br>
+            5. Click CREATE TOKEN<br>
+            6. Name it then click CREATE<br>
+            7. Copy and paste it here.
+          </span>
+        </span>
+      </div>
+      <p class="intro-api-msg">Enter your API key to access the live data</p>
+      <div class="intro-input-wrap">
+        <input id="introApiKeyInput" type="password" autocomplete="off" placeholder="Paste API key here">
+      </div>
+      <button id="introSaveBtn" type="button" class="intro-save-btn">Save &amp; Connect</button>
+      <p class="intro-status" id="introStatus" hidden></p>
+    </div>
+    <div class="intro-loading" id="introLoading" hidden>
+      <div class="intro-loading-bar"><div class="intro-loading-fill" id="introLoadingFill"></div></div>
+      <p class="intro-loading-text" id="introLoadingText">Connecting to the wire&hellip;</p>
+    </div>
+  </div>
+</div>
+
+<!-- APP SHELL -->
+<div class="app">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="clock" id="clockDisplay"><span class="clock-date" id="clockDate"></span><span id="clockTime">--:--:--</span></div>
+    </div>
+    <div class="topbar-center">
+      <h1 class="topbar-title">News Desk</h1>
+    </div>
+    <div class="topbar-right" id="topbarStats">
+      <span class="bullet-sep">│</span>
+      <div class="topbar-stat" title="Average wage last 24h">
+        <span class="topbar-stat-label">Avg Wage</span>
+        <span class="topbar-stat-value" id="statAvgWage">—</span>
+      </div>
+      <span class="bullet-sep">│</span>
+      <div class="topbar-stat" title="Average payroll last 24h">
+        <span class="topbar-stat-label">Avg Payroll</span>
+        <span class="topbar-stat-value" id="statTotalWage">—</span>
+      </div>
+      <span class="bullet-sep">│</span>
+      <div class="topbar-stat" title="Top item on market">
+        <span class="topbar-stat-label">Top Item</span>
+        <span class="topbar-stat-value" id="statTopItem">—</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- INFOBAR (MVI pills + live event toast) -->
+  <div class="infobar" id="infobar">
+    <div class="infobar-scroll" id="infobarScroll"></div>
+    <div class="infobar-toast" id="infobarToast" hidden>
+      <span class="infobar-toast-icon"><iconify-icon icon="mdi:satellite-uplink" class="lu"></iconify-icon></span>
+      <span id="infobarToastText"></span>
+    </div>
+  </div>
+
+  <!-- MAIN LAYOUT -->
+  <div class="main">
+
+    <!-- SIDEBAR NAV -->
+    <nav class="sidebar" id="sidebar">
+      <div class="sidebar-top">
+        <button class="side-btn active" data-tab="timeline" title="Timeline" style="position:relative"><span class="side-icon"><iconify-icon icon="mdi:satellite-uplink" class="lu"></iconify-icon></span><span id="timelineBadge" class="timeline-badge" hidden>0</span></button>
+        <button class="side-btn" data-tab="battles" title="Battles"><span class="side-icon"><iconify-icon icon="mdi:sword-cross" class="lu"></iconify-icon></span></button>
+        <button class="side-btn" data-tab="market" title="Market"><span class="side-icon"><iconify-icon icon="mdi:trending-up" class="lu"></iconify-icon></span></button>
+        <button class="side-btn" data-tab="jobs" title="Jobs"><span class="side-icon"><iconify-icon icon="mdi:briefcase" class="lu"></iconify-icon></span></button>
+        <button class="side-btn" data-tab="politics" title="Politics"><span class="side-icon"><iconify-icon icon="mdi:bank" class="lu"></iconify-icon></span></button>
+        <button class="side-btn" data-tab="rankings" title="Rankings"><span class="side-icon"><iconify-icon icon="mdi:trophy" class="lu"></iconify-icon></span></button>
+        <button class="side-btn" data-tab="community" title="Community"><span class="side-icon"><iconify-icon icon="mdi:message-text-outline" class="lu"></iconify-icon></span></button>
+        <button class="side-btn" id="writerRedirect" title="Writer"><span class="side-icon"><iconify-icon icon="mdi:feather" class="lu"></iconify-icon></span></button>
+      </div>
+      <div class="sidebar-bottom">
+        <button class="side-btn" id="userBtn" title="User"><span class="side-icon" id="userIcon"><iconify-icon icon="mdi:account" class="lu"></iconify-icon></span></button>
+        <button class="side-btn" id="themeToggleBtn" title="Theme"><span class="side-icon"><iconify-icon icon="mdi:weather-night" class="lu"></iconify-icon></span></button>
+        <button class="side-btn" id="settingsBtn" title="Settings"><span class="side-icon"><iconify-icon icon="mdi:cog" class="lu"></iconify-icon></span></button>
+      </div>
+    </nav>
+
+    <!-- CONTENT AREA -->
+    <div class="content">
+
+      <!-- TIMELINE -->
+      <div class="tab-panel active" id="tab-timeline">
+        <div class="timeline-grid">
+          <div class="tl-left">
+            <div class="panel-head"><h2><span id="globalEventsTitle">Global Events</span></h2></div>
+            <div class="tl-filter-bar">
+              <div class="input-wrap" style="flex:1;min-width:80px">
+                <input id="countryInput" type="text" list="countryOptions" placeholder="Country">
+                <button class="clear-btn" data-clears="countryInput" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
+              </div>
+              <datalist id="countryOptions"></datalist>
+              <select id="eventTypeSelect"><option value="">All types</option></select>
+              <input id="startTimeInput" type="datetime-local" title="From">
+              <input id="endTimeInput" type="datetime-local" title="To">
+              <input id="eventLimitInput" type="number" value="50" min="20" max="100" title="Limit">
+              <button id="eventLoadMini" class="btn-icon-sm" title="More">More</button>
+              <button class="btn-icon-sm" id="copyTimelineBtn" title="Copy"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon></button>
+              <button class="btn-icon-sm" id="applyFiltersButton" title="Refresh"><iconify-icon icon="mdi:refresh" class="lu"></iconify-icon></button>
+              <button class="btn-icon-sm" id="clearFiltersButton" title="Clear"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
+            </div>
+            <div id="statusBox" class="status-msg" hidden></div>
+            <p id="feedMeta" class="meta-text" style="flex-shrink:0;padding:4px 0">Ready.</p>
+            <div id="eventList" class="card-list"></div>
+            <button id="loadMoreButton" class="btn-load" hidden>Load More</button>
+          </div>
+          <div class="tl-right">
+              <div class="tl-right-side tl-right-side--featured">
+                <div class="featured-wrap">
+                  <div class="featured-stage" id="featuredStage">
+                    <div class="featured-slide" id="featuredSlide">
+                      <div class="featured-img-wrap">
+                        <div class="featured-overlay">
+                          <span class="featured-label">Featured</span>
+                          <span class="featured-author" id="featuredAuthor"></span>
+                        </div>
+                        <button class="featured-btn featured-btn--prev" id="featuredPrev"><iconify-icon icon="mdi:chevron-left" class="lu"></iconify-icon></button>
+                        <img class="featured-img" id="featuredImg" alt="">
+                        <button class="featured-btn featured-btn--next" id="featuredNext"><iconify-icon icon="mdi:chevron-right" class="lu"></iconify-icon></button>
+                        <div class="featured-dots" id="featuredDots"></div>
+                        <h3 class="featured-title" id="featuredTitle"></h3>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="tl-right-side">
+              <div class="panel-head"><h2><iconify-icon icon="mdi:newspaper-variant" class="lu"></iconify-icon> Articles</h2><p id="articleFeedMeta" class="meta-text">Ready.</p></div>
+              <div class="sticky-toolbar">
+                <div class="input-wrap search-bar">
+                  <input id="articleSearch" type="text" placeholder="Search articles…">
+                  <button class="clear-btn" data-clears="articleSearch" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
+                </div>
+                <button id="articleLoadMini" class="btn-icon-sm" title="More">More</button>
+                <button id="copyArticlesBtn" class="btn-icon-sm" title="Copy all"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon></button>
+              </div>
+              <div class="article-filter-row">
+                <div class="tab-pill-group">
+                  <button class="pill-btn active" data-art-sort="date">Date</button>
+                  <button class="pill-btn" data-art-sort="score">Score</button>
+                </div>
+                <select id="articleLangFilter" class="filter-select"><option value="">All languages</option></select>
+                <select id="articleCatFilter" class="filter-select"><option value="">All categories</option></select>
+                <input type="datetime-local" id="articleTimeFrom" title="From" class="art-date">
+                <input type="datetime-local" id="articleTimeTo" title="To" class="art-date">
+              </div>
+              <div id="articleStatusBox" class="status-msg" hidden></div>
+              <div id="articleList" class="card-list"></div>
+              <button id="loadMoreArticlesButton" class="btn-load" hidden>Load More</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BATTLES -->
+      <div class="tab-panel" id="tab-battles">
+        <div class="battles-layout">
+          <div class="battle-list-col">
+            <div class="panel-head"><h2><iconify-icon icon="mdi:sword-cross" class="lu"></iconify-icon> Battles</h2>
+              <div class="tab-pill-group">
+                <button class="pill-btn" id="battleTabLive"><iconify-icon icon="mdi:circle-small" class="lu" style="color:var(--red)"></iconify-icon> Live</button>
+                <button class="pill-btn active" id="battleTabHistory">History</button>
+                <button class="btn-icon-sm" id="battleRefreshBtn" title="Refresh"><iconify-icon icon="mdi:refresh" class="lu"></iconify-icon></button>
+              </div>
+            </div>
+            <div id="battleListStatus" class="status-msg" hidden></div>
+            <div id="battleList" class="card-list"></div>
+            <button id="loadMoreBattlesButton" class="btn-load" hidden>Load More</button>
+          </div>
+          <div class="battle-detail-col" id="battleDetailPane">
+            <div class="detail-placeholder"><span style="font-size:2rem"><iconify-icon icon="mdi:sword-cross" class="lu" style="font-size:2rem"></iconify-icon></span><p>Select a battle to view the intelligence report</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MARKET -->
+      <div class="tab-panel" id="tab-market">
+        <div class="market-toolbar panel-head">
+          <h2><iconify-icon icon="mdi:trending-up" class="lu"></iconify-icon> Market Intelligence</h2>
+          <div class="tab-pill-group">
+            <button class="pill-btn active" data-market-view="overview">Overview</button>
+            <button class="pill-btn" data-market-view="analytics">Full Analytics</button>
+            <button class="pill-btn" data-market-view="predictions">Predictions</button>
+          </div>
+          <div class="btn-row">
+            <button class="btn-primary" id="marketRefreshBtn"><iconify-icon icon="mdi:refresh" class="lu"></iconify-icon> Refresh</button>
+            <button class="btn-secondary" id="marketOpenBtn"><iconify-icon icon="mdi:cart" class="lu"></iconify-icon> Go To Market</button>
+            <button class="btn-secondary" id="copyMarketReportBtn"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon> Copy Report</button>
+            <button class="btn-secondary" id="captureMarketReportBtn"><iconify-icon icon="mdi:camera" class="lu"></iconify-icon> Report</button>
+          </div>
+        </div>
+        <div class="market-grid">
+          <div class="market-cell"><h3 class="cell-title"><iconify-icon icon="mdi:wallet" class="lu"></iconify-icon> Economic Overview</h3><div id="marketEconStatus" class="status-msg" hidden></div><div id="marketEconData"></div></div>
+          <div class="market-cell" style="display:flex;flex-direction:column"><h3 class="cell-title"><iconify-icon icon="mdi:package-variant-closed" class="lu"></iconify-icon> Commodity Prices</h3><div id="marketPricesStatus" class="status-msg" hidden></div><div id="marketPricesData" style="flex:1;overflow-y:auto"></div><div id="marketPricesChart" style="border-top:1px solid var(--line);padding-top:8px;margin-top:8px"></div></div>
+          <div class="market-cell"><h3 class="cell-title market-orders-title"><span><iconify-icon icon="mdi:arrow-up" class="lu"></iconify-icon> Recent Item Orders</span><span class="market-order-switch"><button id="commodityOrdersBtn" class="market-order-btn active" title="Commodities"><iconify-icon icon="mdi:barley" class="lu"></iconify-icon></button><button id="equipmentOrdersBtn" class="market-order-btn" title="Equipments"><iconify-icon icon="mdi:shoe-boot" class="lu"></iconify-icon></button></span></h3><div id="marketOrdersStatus" class="status-msg" hidden></div><div id="marketOrdersData"></div></div>
+          <div class="market-cell"><h3 class="cell-title mvicell-title"><span><iconify-icon icon="mdi:gem" class="lu"></iconify-icon> Most Valuable Items</span><button id="mviToggle" class="pill-btn" style="font-size:.65rem;padding:2px 8px;min-width:auto;margin-left:6px">Live</button></h3><div id="marketValuableData" style="flex:1;overflow-y:auto"></div><p class="mvi-info">Value Score = Sum of (Quantity × Price) across all active orders. The score estimates the total market value currently represented by a commodity in the order book. Commodities with greater trading volume, higher prices, or both will rank higher.</p></div>
+        </div>
+        <div class="analytics-section">
+          <div class="market-card analytics-exec-card" style="grid-column:1/-1">
+            <div class="market-card-header"><span class="market-card-title">Executive Economic Dashboard</span></div>
+            <div class="analytics-exec-body"></div>
+          </div>
+          <div class="analytics-cards-grid"></div>
+        </div>
+      </div>
+
+      <!-- JOBS -->
+      <div class="tab-panel" id="tab-jobs">
+        <div class="market-toolbar panel-head">
+          <h2><iconify-icon icon="mdi:briefcase" class="lu"></iconify-icon> Job Market</h2>
+          <div class="tab-pill-group">
+            <button class="pill-btn active" data-job-view="market">Job Market</button>
+            <button class="pill-btn" data-job-view="companies">Company Concentration</button>
+            <button class="pill-btn" data-job-view="deposits">Deposit Concentration</button>
+          </div>
+          <div class="btn-row">
+            <button class="btn-primary" id="jobsRefreshBtn"><iconify-icon icon="mdi:refresh" class="lu"></iconify-icon> Refresh</button>
+            <button class="btn-secondary" id="copyJobsReportBtn"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon> Copy Report</button>
+            <button class="btn-secondary" id="captureJobsReportBtn"><iconify-icon icon="mdi:camera" class="lu"></iconify-icon> Report</button>
+          </div>
+        </div>
+        <div class="jobs-search-bar" id="jobMarketFilters">
+          <div class="input-wrap"><input id="jobSearch" type="text" placeholder="Filter by company or skill…"><button class="clear-btn" data-clears="jobSearch" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button></div>
+          <div class="input-wrap"><input id="jobWageFilter" type="range" step="0.01" min="0.096" max="0.16" title="Min wage"><span id="jobWageValue" style="font-size:.7rem;color:var(--ink-dim);margin-left:4px">Min wage</span><button class="clear-btn" data-clears="jobWageFilter" type="button"><iconify-icon icon="mdi:refresh" class="lu"></iconify-icon></button></div>
+        </div>
+        <div id="jobsStatus" class="status-msg" hidden></div>
+        <div id="jobsList" class="jobs-grid"></div>
+        <div id="companyConcentration" class="conc-container" hidden></div>
+        <div id="depositConcentration" class="conc-container" hidden>
+          <div class="conc-filter-bar">
+            <select id="depositTypeFilter"><option value="">All Deposits</option></select>
+          </div>
+          <div id="depositList"></div>
+        </div>
+        <button id="loadMoreJobsButton" class="btn-load" hidden>Load More</button>
+      </div>
+
+      <!-- POLITICS -->
+      <div class="tab-panel" id="tab-politics">
+        <div class="politics-layout">
+          <div class="politics-toolbar panel-head">
+            <h2><iconify-icon icon="mdi:bank" class="lu"></iconify-icon> Politics</h2>
+            <div class="input-wrap" style="max-width:240px"><input id="politicsCountryInput" type="text" list="politicsCountryOptions" placeholder="Search country…"><button class="clear-btn" data-clears="politicsCountryInput" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button></div>
+            <datalist id="politicsCountryOptions"></datalist>
+            <button class="btn-primary" id="politicsRefreshBtn"><iconify-icon icon="mdi:refresh" class="lu"></iconify-icon> Refresh</button>
+          </div>
+          <p id="politicsStatus" class="status-msg" hidden></p>
+          <div id="politicsContent"></div>
+        </div>
+      </div>
+
+      <!-- RANKINGS -->
+      <div class="tab-panel" id="tab-rankings">
+        <div class="market-toolbar panel-head">
+          <h2><iconify-icon icon="mdi:trophy" class="lu"></iconify-icon> Rankings</h2>
+          <div class="tab-pill-group">
+            <button class="pill-btn active" data-rank-cat="weekly">Weekly Damages</button>
+            <button class="pill-btn" data-rank-cat="users">Users</button>
+            <button class="pill-btn" data-rank-cat="mu">MUs</button>
+            <button class="pill-btn" data-rank-cat="countries">Countries</button>
+            <button class="pill-btn" data-rank-cat="alliances">Alliances</button>
+          </div>
+          <div class="btn-row">
+            <button class="btn-primary" id="rankingsRefreshBtn"><iconify-icon icon="mdi:refresh" class="lu"></iconify-icon> Refresh</button>
+            <button class="btn-secondary" id="copyRankingsReportBtn"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon> Copy Report</button>
+            <button class="btn-secondary" id="captureRankingsReportBtn"><iconify-icon icon="mdi:camera" class="lu"></iconify-icon> Report</button>
+          </div>
+        </div>
+        <p id="rankingsStatus" class="status-msg" hidden></p>
+        <div id="rankingsGrid" class="rk-grid"></div>
+      </div>
+
+      <!-- COMMUNITY -->
+      <div class="tab-panel" id="tab-community">
+        <div class="panel-head"><h2><iconify-icon icon="mdi:message-text-outline" class="lu"></iconify-icon> Community Wall</h2><div class="btn-row"><button class="btn-primary" id="wallPostBtn"><iconify-icon icon="mdi:plus" class="lu"></iconify-icon> Post</button><button class="btn-secondary" id="wallPolicyBtn"><iconify-icon icon="mdi:scroll-text-outline" class="lu"></iconify-icon> Policy</button></div></div>
+        <div class="wall-toolbar">
+          <div class="tab-pill-group">
+            <button class="pill-btn active" data-wall-sort="newest">Newest</button>
+            <button class="pill-btn" data-wall-sort="top">Top</button>
+          </div>
+          <span id="wallCount" class="meta-text">0 messages</span>
+        </div>
+        <div id="wallStatus" class="status-msg" hidden></div>
+        <div id="wallGrid" class="wall-grid"></div>
+        <button id="wallLoadMore" class="btn-load" hidden>Load More</button>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- MODALS -->
+
+<!-- API KEY MODAL -->
+<div id="apiKeyModal" class="overlay hidden">
+  <div class="modal-card">
+    <h2>War Era API Key</h2>
+    <p>Enter your API key to access the live data feed.</p>
+    <div class="input-wrap">
+      <input id="apiKeyInput" type="password" autocomplete="off" placeholder="Paste API key here">
+      <button class="clear-btn" id="clearApiKeyBtn" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
+    </div>
+    <button id="saveApiKeyButton" class="btn-primary" style="width:100%">Save &amp; Connect</button>
+  </div>
+</div>
+
+<!-- PROFILE MODAL -->
+<div id="profileModal" class="overlay hidden">
+  <div class="modal-card">
+    <div id="profileRegisterView">
+      <h2><iconify-icon icon="mdi:account" class="lu"></iconify-icon> Register Profile</h2>
+      <p style="font-size:.78rem;color:var(--ink-dim)">Enter your War Era username, user ID, or profile URL.</p>
+      <div class="profile-form" style="display:flex;flex-direction:column;gap:6px">
+        <input id="regUserInput" type="text" placeholder="e.g. app.warera.io/user/69bd43...">
+        <div id="regProfileStatus" class="status-msg" hidden></div>
+        <button class="btn-primary" id="resolveProfileBtn" style="width:100%">Resolve &amp; Save</button>
+      </div>
+    </div>
+    <div id="profileDisplayView" class="hidden">
+      <h2><iconify-icon icon="mdi:account" class="lu"></iconify-icon> My Profile</h2>
+      <div id="profileDisplay" class="profile-display"></div>
+      <p id="profileQuota" style="font-size:.72rem;color:var(--ink-dim);text-align:center"></p>
+      <p style="font-size:.7rem;color:var(--ink-dim);text-align:center">No personal information is stored.</p>
+      <button class="btn-secondary" id="deleteProfileBtn" style="width:100%;color:var(--red);border-color:var(--red)">Delete User</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:6px">
+      <button class="btn-primary" id="closeProfileBtn" style="flex:1">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div id="settingsModal" class="overlay hidden">
+  <div class="modal-card">
+    <h2><iconify-icon icon="mdi:cog" class="lu"></iconify-icon> Settings</h2>
+    <div class="settings-group">
+      <label>API Key</label>
+      <input type="password" id="settingsApiKeyInput" placeholder="War Era API key" style="flex:2;padding:4px 8px;font-size:.8rem">
+    </div>
+    <div class="settings-group">
+      <label>SFX Volume</label>
+      <input type="range" id="sfxVolumeSlider" min="0" max="100" value="100">
+      <span class="settings-val" id="sfxVolumeValue">100%</span>
+    </div>
+    <div style="display:flex;gap:6px">
+      <button class="btn-primary" id="closeSettingsBtn" style="flex:1">Done</button>
+      <button class="btn-secondary" id="aboutBtn" style="flex:0;min-width:36px"><iconify-icon icon="mdi:information" class="lu"></iconify-icon></button>
+      <button class="btn-secondary" id="roosterBtn" style="flex:0;font-size:.72rem;font-family:var(--font-code)">by rooster</button>
+    </div>
+  </div>
+</div>
+
+<!-- ABOUT MODAL -->
+<div id="aboutModal" class="overlay hidden">
+  <div class="modal-card" style="max-width:480px">
+    <h2><iconify-icon icon="mdi:information" class="lu"></iconify-icon> About News Desk</h2>
+    <div style="font-size:.82rem;line-height:1.6;color:var(--ink-dim)">
+      <p><strong>Powered by:</strong><br>gateway.warerastats.io<br>api2.warera.io<br>api5.warera.io</p>
+      <p>The War Era News Desk was created to support players who take on the role of journalists, providing a centralized workspace to monitor, organize, and collect information from every significant event unfolding across the world of War Era.</p>
+      <p>Its primary purpose is to enhance the journalistic experience by making information easier to discover and analyze while preserving the core principles of journalism: credibility, transparency, and accuracy.</p>
+      <p>The project is developed as Free and Open Source Software (FOSS), allowing anyone to inspect the source code, contribute to its development, or adapt it for their own needs. The source repository is available at:</p>
+      <p><a href="https://github.com/exwayz/war-era-news-desk" target="_blank" rel="noopener">https://github.com/exwayz/war-era-news-desk</a></p>
+      <p>From its very beginning, War Era News Desk has embraced the KISS (Keep It Simple, Stupid) philosophy. Every feature is designed with practicality in mind, favoring clarity, efficiency, and reliability over unnecessary visual complexity. The goal is not to build the most elaborate interface, but to create a dependable newsroom tool that helps journalists focus on what matters most: the story.</p>
+    </div>
+    <button class="btn-primary" id="aboutCloseBtn" style="width:100%">Got it</button>
+  </div>
+</div>
+
+<!-- WALL POST MODAL -->
+<div id="wallPostModal" class="overlay hidden">
+  <div class="modal-card">
+    <h2><iconify-icon icon="mdi:pencil" class="lu"></iconify-icon> Post Message</h2>
+    <input id="wallAuthorInput" type="text" placeholder="Your name" maxlength="40" style="padding:6px 8px;border:1px solid var(--line);background:var(--surface)">
+    <textarea id="wallMessageInput" maxlength="500" placeholder="Type your message (max 500 chars)" style="width:100%;min-height:90px;resize:vertical;padding:6px;border:1px solid var(--line);background:var(--surface)"></textarea>
+    <span id="wallCharCount" style="font-size:.7rem;color:var(--ink-dim);text-align:right">0/500</span>
+    <button class="btn-primary" id="wallPublishBtn" style="width:100%">Publish</button>
+    <button class="btn-secondary" id="wallCancelBtn" style="width:100%">Cancel</button>
+  </div>
+</div>
+
+<!-- WALL POLICY MODAL -->
+<div id="wallPolicyModal" class="overlay hidden">
+  <div class="modal-card" style="max-height:70vh;overflow-y:auto">
+    <div id="wallPolicyContent" class="wall-policy-body"></div>
+    <button class="btn-primary" id="wallPolicyClose" style="width:100%;margin-top:6px">Got it</button>
+  </div>
+</div>
+
+<!-- WALL READ MODAL -->
+<div id="wallReadModal" class="overlay hidden">
+  <div class="modal-card">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span id="wallReadAuthor" style="font-weight:800;font-size:.9rem"></span>
+      <span id="wallReadTime" style="font-size:.74rem;color:var(--ink-dim)"></span>
+    </div>
+    <p id="wallReadMessage" style="font-size:.86rem;line-height:1.5;margin:6px 0"></p>
+    <div style="display:flex;gap:6px">
+      <button id="wallReadUpvote" class="pill-btn" style="flex:1"><iconify-icon icon="mdi:thumb-up-outline" class="lu"></iconify-icon> <span id="wallReadUpvoteCount">0</span></button>
+      <button id="wallReadClose" class="btn-primary" style="flex:1">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ARTICLE READER MODAL -->
+<div id="articleReaderModal" class="overlay hidden">
+  <div class="reader-window">
+    <div class="reader-head">
+      <div class="reader-head-info">
+        <h2 id="readerTitle"></h2>
+        <div id="readerAuthor" class="reader-byline"></div>
+      </div>
+      <div class="reader-head-actions">
+        <button id="copyArticleBtn" class="btn-secondary" style="font-size:.78rem"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon> Copy</button>
+        <button id="openArticleBtn" class="btn-secondary" style="font-size:.78rem"><iconify-icon icon="mdi:open-in-new" class="lu"></iconify-icon> Open in WarEra</button>
+        <button id="closeReader" class="btn-icon-sm"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
+      </div>
+    </div>
+    <div id="readerContent" class="reader-body"></div>
+  </div>
+</div>
+
+<!-- BATTLE REPORT MODAL -->
+<div id="battleReportModal" class="overlay hidden">
+  <div class="reader-window reader-window--wide">
+    <div class="reader-head">
+      <div class="reader-head-info">
+        <h2 id="battleReportTitle">Battle Intelligence Report</h2>
+        <div id="battleReportMeta" class="reader-byline"></div>
+      </div>
+      <div class="reader-head-actions">
+        <button id="openBattlePageBtn" class="btn-secondary" style="font-size:.78rem"><iconify-icon icon="mdi:sword-cross" class="lu"></iconify-icon> Open Battle</button>
+        <button id="copyBattleReportBtn" class="btn-secondary" style="font-size:.78rem"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon> Copy Report</button>
+        <button id="captureBattleReportBtn" class="btn-secondary" style="font-size:.78rem"><iconify-icon icon="mdi:camera" class="lu"></iconify-icon> Capture</button>
+        <button id="closeBattleReport" class="btn-icon-sm"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
+      </div>
+    </div>
+    <div id="battleReportContent" class="reader-body battle-report-body"></div>
+  </div>
+</div>
+
+<!-- TEMPLATES -->
+<template id="eventCardTemplate">
+  <article class="event-card">
+    <div class="ec-main">
+      <span class="ec-type"></span>
+      <h3 class="ec-title"></h3>
+      <p class="ec-summary"></p>
+      <dl class="ec-details"></dl>
+      <div class="ec-actions">
+        <a class="ec-link" target="_blank" rel="noopener">Open in War Era</a>
+        <button class="ec-copy" type="button"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon> Copy Brief</button>
+      </div>
+    </div>
+    <time class="ec-time"></time>
+  </article>
+</template>
+
+<template id="articleCardTemplate">
+  <article class="article-card">
+    <span class="ac-cat"></span>
+    <h3 class="ac-title"></h3>
+    <div class="ac-meta"></div>
+    <div class="ac-stats"></div>
+    <div class="ac-actions">
+      <button class="ac-open">Open</button>
+      <button class="ac-read">Read</button>
+    </div>
+  </article>
+</template>
+
+<template id="battleCardTemplate">
+  <article class="battle-card">
+    <div class="bc-dot"></div>
+    <div class="bc-main">
+      <span class="bc-label"></span>
+      <h3 class="bc-title"></h3>
+      <p class="bc-meta"></p>
+      <div class="bc-chips"></div>
+    </div>
+    <button class="bc-select" type="button">View Report</button>
+  </article>
+</template>
+
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/iconify-icon@2.1.0/dist/iconify-icon.min.js"></script>
+</body>
+</html>
