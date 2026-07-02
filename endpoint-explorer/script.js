@@ -105,6 +105,13 @@ limit:20
 }
 },
 
+"tradingOrder.getOrders":{
+desc:"Commodity buy/sell orders",
+params:{
+limit:20
+}
+},
+
 "itemOffer.getById":{
 desc:"Item offer",
 params:{

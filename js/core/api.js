@@ -2,6 +2,80 @@ import { TRPC_BASE, API2_BASE, API5_BASE, MARKET_SERVER_URL, MARKET_DATA_URL } f
 import { STORE } from "./storage.js";
 import { E } from "./dom.js";
 
+// ── Tiered transaction data (true/lite/cold) ──
+let _trueTx = null;   // { wages, trades } from maxPages=2000
+let _liteTx = null;   // { wages, trades } from maxPages=50
+let _trueTxErr = null;
+let _trueTxFired = false;
+let _upgradeFn = null;
+
+export function onTxUpgrade(fn) { _upgradeFn = fn; }
+
+export async function fetchTxPaginated(type, k, maxPages) {
+  const cutoff = Date.now() - 86400000;
+  const items = [];
+  let cursor;
+  for (let p = 0; p < maxPages; p++) {
+    let res;
+    try {
+      res = await Promise.race([
+        fetchTrpc("transaction.getPaginatedTransactions", { limit: 100, transactionType: type, cursor }, k),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 3000)),
+      ]);
+    } catch {
+      try {
+        res = await fetchTrpcApi2("transaction.getPaginatedTransactions", { limit: 100, transactionType: type, cursor }, k);
+      } catch { break; }
+    }
+    const data = unwrap(res);
+    const page = Array.isArray(data) ? data : (data?.items || []);
+    if (!page.length) break;
+    let old = false;
+    for (const t of page) {
+      const ts = new Date(t.createdAt || t.date || t.timestamp || 0).getTime();
+      if (Number.isFinite(ts) && ts > 0 && ts < cutoff) { old = true; continue; }
+      items.push(t);
+    }
+    cursor = data?.nextCursor || data?.cursor || null;
+    if (old || !cursor) break;
+  }
+  return items;
+}
+
+export function startTransactionTrueAmount(k) {
+  if (_trueTxFired) return;
+  _trueTxFired = true;
+  (async () => {
+    try {
+      const [wages, trades] = await Promise.all([
+        fetchTxPaginated("wage", k, 2000),
+        fetchTxPaginated("trading", k, 2000),
+      ]);
+      _trueTx = { wages, trades };
+      _upgradeFn?.("true");
+    } catch (e) { _trueTxErr = e; }
+  })();
+}
+
+export function startTransactionLiteAmount(k) {
+  (async () => {
+    try {
+      const [wages, trades] = await Promise.all([
+        fetchTxPaginated("wage", k, 50),
+        fetchTxPaginated("trading", k, 50),
+      ]);
+      _liteTx = { wages, trades };
+      _upgradeFn?.("lite");
+    } catch {}
+  })();
+}
+
+export function getBestTxData() {
+  if (_trueTx) return _trueTx;
+  if (_trueTxErr && _liteTx) return _liteTx;
+  return null;
+}
+
 export function apiKey() {
   return E.apiKeyInput.value.trim() || localStorage.getItem(STORE.apiKey) || "";
 }
@@ -118,26 +192,16 @@ export async function fetchCached(key, directFetcher) {
   return directFetcher ? await directFetcher() : [];
 }
 
-/** Fetch 24h tx data from market-server, fall back to direct fetchTxLast24h */
-export async function fetchMarketData(k) {
-  if (MARKET_DATA_URL) {
-    try {
-      const r = await fetch(`${MARKET_DATA_URL}/api/market-data`, { signal: AbortSignal.timeout(5000) });
-      if (r.ok) {
-        const data = await r.json();
-        if (data?.wages?.length) return data;
-      }
-    } catch {}
-  }
-  // fallback: fetch direct from API
+/** Fetch tx data directly from game API with configurable pagination (bypasses server proxies) */
+export async function fetchMarketData(k, maxPages = 1) {
   const [wages, trades, ws] = await Promise.allSettled([
-    fetchTrpc("transaction.getPaginatedTransactions", { limit: 100, transactionType: "wage" }, k),
-    fetchTrpc("transaction.getPaginatedTransactions", { limit: 100, transactionType: "trading" }, k),
+    fetchTxPaginated("wage", k, maxPages),
+    fetchTxPaginated("trading", k, maxPages),
     fetchTrpcApi2("workOffer.getWageStats", {}, k).catch(() => {}),
   ]);
   return {
-    wages: wages.status === "fulfilled" ? (unwrap(wages.value)?.items || []) : [],
-    trades: trades.status === "fulfilled" ? (unwrap(trades.value)?.items || []) : [],
+    wages: wages.status === "fulfilled" ? wages.value : [],
+    trades: trades.status === "fulfilled" ? trades.value : [],
     wageStats: ws.status === "fulfilled" ? unwrap(ws.value) : null,
   };
 }

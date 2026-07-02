@@ -1,6 +1,6 @@
 import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
-import { apiKey, fetchTrpc, fetchTrpcApi2, fetchFromServer, fetchMarketData, unwrap } from "../core/api.js";
+import { apiKey, fetchTrpc, fetchTrpcApi2, fetchMarketData, fetchTxPaginated, startTransactionTrueAmount, startTransactionLiteAmount, getBestTxData, onTxUpgrade, unwrap } from "../core/api.js";
 import { fmtMoney, fmtNum, formatShortNumber, marketItemName, commodityBars, miniChart } from "../core/utils.js";
 import { toast } from "../ui/toast.js";
 import * as cap from "../core/captureReport.js";
@@ -12,81 +12,113 @@ import { computePredictions } from "./predictions.js";
 import { storeMarketSnapshot, loadSupabaseHistory, loadWeeklyMVI } from "./marketHistory.js";
 import { updateInfobar } from "../visuals/clock.js";
 
-export async function fetchTxLast24h(type, k, maxPages = 10) {
-  const cutoff = Date.now() - 86400000;
-  const items = [];
-  let cursor;
-  for (let p = 0; p < maxPages; p++) {
-    let res;
-    try {
-      res = await Promise.race([
-        fetchTrpc("transaction.getPaginatedTransactions", { limit: 100, transactionType: type, cursor }, k),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 3000)),
-      ]);
-    } catch {
-      try {
-        res = await fetchTrpcApi2("transaction.getPaginatedTransactions", { limit: 100, transactionType: type, cursor }, k);
-      } catch { break; }
-    }
-    const data = unwrap(res);
-    const page = Array.isArray(data) ? data : (data?.items || []);
-    if (!page.length) break;
-    let old = false;
-    for (const t of page) {
-      const ts = new Date(t.createdAt || t.date || t.timestamp || 0).getTime();
-      if (Number.isFinite(ts) && ts > 0 && ts < cutoff) { old = true; continue; }
-      items.push(t);
-    }
-    cursor = data?.nextCursor || data?.cursor || null;
-    if (old || !cursor) break;
-  }
-  return items;
-}
+
 
 export function txAmt(t) { const v=Number(t.amount??t.value??t.money??t.total??t.price??0); return Number.isFinite(v)?v:0; }
 
 export function loadMarketStats() {
   const k=apiKey(); if(!k) return;
   const updateAvgPayroll = () => {
-    fetchTxLast24h("wage",k).then(wages => {
+    fetchTxPaginated("wage",k,1).then(wages => {
       if (!wages.length) return;
       const sum = wages.reduce((s,t)=>s+Number(t.money??t.amount??t.value??0),0);
       E.statTotalWage.textContent = fmtMoney(wages.length > 0 ? sum / wages.length : 0, 3) + " ₿";
     });
   };
-  const fallback = () => {
-    try {
-      fetchTrpcApi2("workOffer.getWageStats", {}, k).then(raw => {
-        const d = unwrap(raw);
-        if (d?.allowedRange?.average != null) {
-          E.statAvgWage.textContent = fmtMoney(d.allowedRange.average, 3) + " ₿";
-        }
-        updateAvgPayroll();
-      }).catch(() => {
-        fetchTxLast24h("wage",k).then(wages => {
-          if (!wages.length) return;
-          const sum = wages.reduce((s,t)=>s+Number(t.money??t.amount??t.value??0),0);
-          const qty = wages.reduce((s,t)=>s+Number(t.quantity??t.workerCount??0),0);
-          E.statAvgWage.textContent = fmtMoney(qty > 0 ? sum / qty : 0, 3) + " ₿";
-          E.statTotalWage.textContent = fmtMoney(wages.length > 0 ? sum / wages.length : 0, 3) + " ₿";
-        });
+  try {
+    fetchTrpcApi2("workOffer.getWageStats", {}, k).then(raw => {
+      const d = unwrap(raw);
+      if (d?.allowedRange?.average != null) {
+        E.statAvgWage.textContent = fmtMoney(d.allowedRange.average, 3) + " ₿";
+      }
+      updateAvgPayroll();
+    }).catch(() => {
+      fetchTxPaginated("wage",k,1).then(wages => {
+        if (!wages.length) return;
+        const sum = wages.reduce((s,t)=>s+Number(t.money??t.amount??t.value??0),0);
+        const qty = wages.reduce((s,t)=>s+Number(t.quantity??t.workerCount??0),0);
+        E.statAvgWage.textContent = fmtMoney(qty > 0 ? sum / qty : 0, 3) + " ₿";
+        E.statTotalWage.textContent = fmtMoney(wages.length > 0 ? sum / wages.length : 0, 3) + " ₿";
       });
-    } catch {}
-  };
-  fetchFromServer("/api/market-stats").then(srv => {
-    if (!srv || srv.status !== "ok") throw null;
-    if (srv.wageRates?.avg != null) {
-      E.statAvgWage.textContent = fmtMoney(srv.wageRates.avg, 3) + " ₿";
-    }
-    if (srv.avgPayroll != null) {
-      E.statTotalWage.textContent = fmtMoney(srv.avgPayroll, 3) + " ₿";
-    }
-    updateAvgPayroll();
-  }).catch(fallback);
+    });
+  } catch {}
   if (S.market.topValuable?.length) {
     const top = S.market.topValuable[0];
     E.statTopItem.textContent = `${top.item}:  ${formatShortNumber(top.value)}`;
   }
+}
+
+function renderEconomicOverview(md) {
+  const wages = md?.wages || [];
+  const trades = md?.trades || [];
+  const ws = md?.wageStats || null;
+  const globalAvgWage = ws?.allowedRange?.average ?? null;
+  const totalPayroll = wages.reduce((s,t)=>s+Number(t.money??t.amount??t.value??0),0);
+  const totalQuantity = wages.reduce((s,t)=>s+Number(t.quantity??t.workerCount??0),0);
+  const avgWage = globalAvgWage ?? (totalQuantity > 0 ? totalPayroll / totalQuantity : 0);
+  const avgPayroll = wages.length > 0 ? totalPayroll / wages.length : 0;
+  let wageMin = ws?.allowedRange?.min ?? null;
+  let wageMax = ws?.allowedRange?.max ?? null;
+  let topOffer = ws?.topOffer ?? null;
+  if (wageMin == null) {
+    for (const t of wages) {
+      const q = Number(t.quantity??t.workerCount??0);
+      if (q > 0) {
+        const w = Number(t.money??t.amount??t.value??0) / q;
+        if (wageMin === null || w < wageMin) wageMin = w;
+        if (wageMax === null || w > wageMax) wageMax = w;
+      }
+    }
+    topOffer = wageMax;
+  }
+  const tradeVol=trades.reduce((s,t)=>s+txAmt(t),0);
+  S.market.econ = { avgWage, avgPayroll, totalPayroll, totalQuantity, tradeVol, wageCount:wages.length, tradeCount:trades.length, wageMin, wageMax, topOffer };
+
+  const wageByH={};
+  for (const t of wages) {
+    const h=new Date(t.createdAt||t.date||0).toISOString().slice(0,16);
+    if(!wageByH[h]){ wageByH[h] = { payroll:0, qty:0 }; }
+    wageByH[h].payroll += Number(t.money || 0);
+    wageByH[h].qty += Number(t.quantity || 0);
+  }
+
+  const _wageSorted = Object.entries(wageByH).sort((a,b)=>a[0].localeCompare(b[0]));
+  S.market.wageHistory = _wageSorted.map(([h,v])=>({ h, avg: v.qty > 0 ? v.payroll / v.qty : 0 }));
+  S.market.payrollHistory = _wageSorted.map(([h,v])=>v.payroll);
+  S.market.wageHistory.push({ t: Date.now(), avg: avgWage });
+
+  const tradeByH={};
+  for (const t of trades) {
+    const h=new Date(t.createdAt||t.date||0).toISOString().slice(0,16);
+    if(!tradeByH[h]){ tradeByH[h] = { vol:0, count:0 }; }
+    tradeByH[h].vol += txAmt(t);
+    tradeByH[h].count += 1;
+  }
+  S.market.tradeVolHistory = Object.entries(tradeByH).sort((a,b)=>a[0].localeCompare(b[0])).map(([h,v])=>v.vol);
+
+  const ec = S.market.econ;
+  E.marketEconData.innerHTML = [
+    { label:"Avg Wage (24h)", value:fmtMoney(ec.avgWage, 3)+" ₿" },
+    ...(ec.wageMin!=null ? [{ label:"Wage Range", value:fmtMoney(ec.wageMin,3)+" → "+fmtMoney(ec.wageMax,3)+" ₿" }] : []),
+    ...(ec.topOffer!=null ? [{ label:"Top Wage Offer", value:fmtMoney(ec.topOffer,3)+" ₿" }] : []),
+    { label:"Total Payroll (24h)", value:fmtMoney(ec.totalPayroll)+" ₿" },
+    { label:"Total Work Done (24h)", value:fmtNum(ec.totalQuantity) },
+    { label:"Wage Transactions", value:fmtNum(ec.wageCount) },
+    { label:"Trade Volume (24h)", value:fmtMoney(ec.tradeVol)+" ₿" },
+    { label:"Trade Transactions", value:fmtNum(ec.tradeCount) }
+  ].map(r=>`<div class="econ-row"><span class="econ-row-label">${r.label}</span><span class="econ-row-val">${r.value}</span></div>`).join("");
+
+  if (S.market.wageHistory.length>1) {
+    const wageVals = S.market.wageHistory.map(w=>w.avg).filter(v=>isFinite(v));
+    if (wageVals.length>1) E.marketEconData.innerHTML+=miniChart(wageVals,"Avg Wage by Hour (₿)","var(--accent)");
+  }
+  clrMs(E.marketEconStatus);
+
+  const a = calculateAnalytics();
+  if (document.querySelector(".analytics-section")) {
+    renderExecutiveDashboard(a);
+  }
+  updateHistories(a.p, a.d);
 }
 
 export async function loadMarketFull(showLoading=true) {
@@ -94,120 +126,14 @@ export async function loadMarketFull(showLoading=true) {
   function setMs(el,msg,err=false) { el.hidden=false; el.textContent=msg; el.classList.toggle("error",err); }
   function clrMs(el) { el.hidden=true; el.textContent=""; el.classList.remove("error"); }
   if(showLoading){
-    setMs(E.marketEconStatus,"Loading economic data…");
     setMs(E.marketPricesStatus,"Loading commodity prices…");
     setMs(E.marketOrdersStatus,"Loading trading orders…");
   }
 
-  const [marketDataR,pricesR] = await Promise.allSettled([
-    fetchMarketData(k),
-    fetchTrpc("itemTrading.getPrices",{},k),
-  ]);
-
+  // ── Group A: Prices → Orders → MVI (fast, no wage/trade dependency) ──
   try {
-    const md = marketDataR.status==="fulfilled" ? marketDataR.value : null;
-    const wages = md?.wages || [];
-    const trades = md?.trades || [];
-    const ws = md?.wageStats || null;
-    const globalAvgWage = ws?.allowedRange?.average ?? null;
-    const totalPayroll = wages.reduce((s,t)=>s+Number(t.money??t.amount??t.value??0),0);
-    const totalQuantity = wages.reduce((s,t)=>s+Number(t.quantity??t.workerCount??0),0);
-    const avgWage = globalAvgWage ?? (totalQuantity > 0 ? totalPayroll / totalQuantity : 0);
-    const avgPayroll = wages.length > 0 ? totalPayroll / wages.length : 0;
-    let wageMin = ws?.allowedRange?.min ?? null;
-    let wageMax = ws?.allowedRange?.max ?? null;
-    let topOffer = ws?.topOffer ?? null;
-    if (wageMin == null) {
-      for (const t of wages) {
-        const q = Number(t.quantity??t.workerCount??0);
-        if (q > 0) {
-          const w = Number(t.money??t.amount??t.value??0) / q;
-          if (wageMin === null || w < wageMin) wageMin = w;
-          if (wageMax === null || w > wageMax) wageMax = w;
-        }
-      }
-      topOffer = wageMax;
-    }
-    const tradeVol=trades.reduce((s,t)=>s+txAmt(t),0);
-    S.market.econ = { avgWage, avgPayroll, totalPayroll, totalQuantity, tradeVol, wageCount:wages.length, tradeCount:trades.length, wageMin, wageMax, topOffer };
-
-    const wageByH={};
-    for (const t of wages) {
-      const h=new Date(t.createdAt||t.date||0).toISOString().slice(0,16);
-      if(!wageByH[h]){ wageByH[h] = { payroll:0, qty:0 }; }
-      wageByH[h].payroll += Number(t.money || 0);
-      wageByH[h].qty += Number(t.quantity || 0);
-    }
-
-    const _wageSorted = Object.entries(wageByH).sort((a,b)=>a[0].localeCompare(b[0]));
-    S.market.wageHistory = _wageSorted.map(([h,v])=>({ h, avg: v.qty > 0 ? v.payroll / v.qty : 0 }));
-    S.market.payrollHistory = _wageSorted.map(([h,v])=>v.payroll);
-    S.market.wageHistory.push({ t: Date.now(), avg: avgWage });
-
-    const tradeByH={};
-    for (const t of trades) {
-      const h=new Date(t.createdAt||t.date||0).toISOString().slice(0,16);
-      if(!tradeByH[h]){ tradeByH[h] = { vol:0, count:0 }; }
-      tradeByH[h].vol += txAmt(t);
-      tradeByH[h].count += 1;
-    }
-    S.market.tradeVolHistory = Object.entries(tradeByH).sort((a,b)=>a[0].localeCompare(b[0])).map(([h,v])=>v.vol);
-
-    E.marketEconData.innerHTML=[
-      { label:"Avg Wage (24h)", value:fmtMoney(avgWage, 3)+" ₿" },
-      ...(wageMin!=null ? [{ label:"Wage Range", value:fmtMoney(wageMin,3)+" → "+fmtMoney(wageMax,3)+" ₿" }] : []),
-      ...(topOffer!=null ? [{ label:"Top Wage Offer", value:fmtMoney(topOffer,3)+" ₿" }] : []),
-      { label:"Total Payroll (24h)", value:fmtMoney(totalPayroll)+" ₿" },
-      { label:"Total Work Done (24h)", value:fmtNum(totalQuantity) },
-      { label:"Wage Transactions", value:fmtNum(wages.length) },
-      { label:"Trade Volume (24h)", value:fmtMoney(tradeVol)+" ₿" },
-      { label:"Trade Transactions", value:fmtNum(trades.length) }
-    ].map(r=>`<div class="econ-row"><span class="econ-row-label">${r.label}</span><span class="econ-row-val">${r.value}</span></div>`).join("");
-
-    if (S.market.wageHistory.length>1) {
-      const wageVals = S.market.wageHistory.map(w=>w.avg).filter(v=>isFinite(v));
-      if (wageVals.length>1) E.marketEconData.innerHTML+=miniChart(wageVals,"Avg Wage by Hour (₿)","var(--accent)");
-    }
-    clrMs(E.marketEconStatus);
-    fetchFromServer("/api/market-stats").then(srv => {
-      const ec = S.market.econ;
-      if (srv && srv.status === "ok" && ec) {
-        if (srv.wageTotal24h > 0) ec.totalPayroll = srv.wageTotal24h;
-        if (srv.wageCount > 0) ec.wageCount = srv.wageCount;
-        if (srv.wageRates?.avg != null) ec.avgWage = srv.wageRates.avg;
-        if (srv.wageRates?.min != null) ec.wageMin = srv.wageRates.min;
-        if (srv.wageRates?.max != null) ec.wageMax = srv.wageRates.max;
-        if (srv.wageRates?.topOffer != null) ec.topOffer = srv.wageRates.topOffer;
-      }
-      if (ec) {
-        E.marketEconData.innerHTML = [
-          { label:"Avg Wage (24h)", value:fmtMoney(ec.avgWage, 3)+" ₿" },
-          ...(ec.wageMin!=null ? [{ label:"Wage Range", value:fmtMoney(ec.wageMin,3)+" → "+fmtMoney(ec.wageMax,3)+" ₿" }] : []),
-          ...(ec.topOffer!=null ? [{ label:"Top Wage Offer", value:fmtMoney(ec.topOffer,3)+" ₿" }] : []),
-          { label:"Total Payroll (24h)", value:fmtMoney(ec.totalPayroll)+" ₿" },
-          { label:"Total Work Done (24h)", value:fmtNum(ec.totalQuantity) },
-          { label:"Wage Transactions", value:fmtNum(ec.wageCount) },
-          { label:"Trade Volume (24h)", value:fmtMoney(ec.tradeVol)+" ₿" },
-          { label:"Trade Transactions", value:fmtNum(ec.tradeCount) }
-        ].map(r=>`<div class="econ-row"><span class="econ-row-label">${r.label}</span><span class="econ-row-val">${r.value}</span></div>`).join("");
-        if (S.market.wageHistory.length>1) {
-          const wageVals = S.market.wageHistory.map(w=>w.avg).filter(v=>isFinite(v));
-          if (wageVals.length>1) E.marketEconData.innerHTML+=miniChart(wageVals,"Avg Wage by Hour (₿)","var(--accent)");
-        }
-      }
-      const a = calculateAnalytics();
-      if (document.querySelector(".analytics-section")) {
-        renderExecutiveDashboard(a);
-      }
-      updateHistories(a.p, a.d);
-    }).catch(() => {
-      const a = calculateAnalytics();
-      updateHistories(a.p, a.d);
-    });
-  } catch(e) { setMs(E.marketEconStatus,"Could not load economic data: "+(e.message||""),true); }
-
-  try {
-    const prices=unwrap(pricesR.value);
+    const pricesR = await fetchTrpc("itemTrading.getPrices",{},k);
+    const prices=unwrap(pricesR);
     const arr=(Array.isArray(prices)?prices:Object.entries(prices||{}).map(([k,v])=>({itemCode:k,price:v})))
       .sort((a,b)=>Number(b.price||b.value||0)-Number(a.price||a.value||0));
     S.market.prices=arr;
@@ -306,11 +232,25 @@ export async function loadMarketFull(showLoading=true) {
   renderMVI();
   updateInfobar();
 
-  const _init = calculateAnalytics();
-  updateHistories(_init.p, _init.d);
+  // ── Group B: Economic overview (wage/trade tx data) ──
+  const existingBest = getBestTxData();
+  if (existingBest) {
+    renderEconomicOverview(existingBest);
+  } else {
+    setMs(E.marketEconStatus,"Loading economic data…");
+    const coldMd = await fetchMarketData(k, 1);
+    renderEconomicOverview(coldMd);
+  }
+  // Kick off background deep fetches (guarded — only fire once)
+  startTransactionTrueAmount(k);
+  startTransactionLiteAmount(k);
+  onTxUpgrade((source) => {
+    const best = getBestTxData();
+    if (best) renderEconomicOverview(best);
+  });
 
+  // ── Post-render tasks ──
   loadMarketStats();
-
   highlightUserData();
   loadMarketView(_marketView);
   storeMarketSnapshot();
