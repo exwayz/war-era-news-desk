@@ -157,7 +157,7 @@ export async function loadMarketFull(showLoading=true) {
   try {
     const topItems = (S.market.prices||[]).slice(0,23).map(i=>i.itemCode||i.item||i.name).filter(Boolean);
     if (topItems.length) {
-      const rs = await Promise.allSettled(topItems.map(ic => fetchTrpc("tradingOrder.getTopOrders", { itemCode:ic, limit:20 }, k)));
+      const rs = await Promise.allSettled(topItems.map(ic => fetchTrpc("tradingOrder.getTopOrders", { itemCode:ic, limit:100 }, k)));
       for (let i=0;i<rs.length;i++) {
         if (rs[i].status==="fulfilled") {
           const d = unwrap(rs[i].value);
