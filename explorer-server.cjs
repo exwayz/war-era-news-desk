@@ -1,6 +1,6 @@
 const http = require('http'), fs = require('fs'), path = require('path');
 const PORT = 8021;
-const ROOT = path.join('D:\\DEVVV\\WareEraTools\\newsdesk\\endpoint-explorer');
+const ROOT = path.join(__dirname, 'endpoint-explorer');
 const MIME = { '.html':'text/html;charset=utf-8', '.js':'application/javascript;charset=utf-8', '.css':'text/css;charset=utf-8', '.json':'application/json' };
 http.createServer((req,res)=>{
   let p = req.url.split('?')[0];
