@@ -882,18 +882,23 @@ async function resolveArticleContentToPlainText(htmlContent) {
 }
 
 async function buildArticleContext(articles, k, countryName) {
+  const MAX_ARTICLES = 5;
+  const MAX_CHARS = 600;
   const lines = [];
   const sorted = [...articles].sort((a, b) => {
     return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
   });
-  for (const a of sorted) {
+  const subset = sorted.slice(0, MAX_ARTICLES);
+  for (const a of subset) {
     const date = a.createdAt ? fmtDate(a.createdAt) : "";
     const title = a.title || "Untitled";
-    lines.push(`\n[${date}] ${title}`);
     const text = await resolveArticleContentToPlainText(a.content);
-    if (text) lines.push(text);
+    const excerpt = text ? text.slice(0, MAX_CHARS) + (text.length > MAX_CHARS ? "…" : "") : "";
+    lines.push(`\n[${date}] ${title}\n${excerpt}`);
   }
-  return `\n\n--- News Articles Context ---\nThe following recent news articles mention ${countryName}:${lines.join("\n")}`;
+  const total = articles.length;
+  const note = total > MAX_ARTICLES ? ` (showing ${MAX_ARTICLES} of ${total} recent articles)` : "";
+  return `\n\n--- News Articles Context ---\nThe following recent news articles mention ${countryName}${note}:\n${lines.join("\n")}`;
 }
 
 async function generatePoliticalSummary(countryId, k) {
