@@ -2,15 +2,8 @@ import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
 import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
 import { fmtDate, fmtNum, getValue, getPoints, normalizeRankRow } from "../core/utils.js";
-import { nameCountry, nameRegion, nameUser } from "./companies.js";
+import { nameCountry, nameRegion, nameUser, nameMu } from "./companies.js";
 import { clearBattleDetail, buildAndDownloadXLS, battleId } from "./battles.js";
-
-function nameMu(id) {
-  if (!id) return "";
-  const mu = S.lookups.muById.get(id);
-  if (!mu) return "";
-  return mu.name ?? mu.muName ?? mu.displayName ?? mu.fullName ?? "";
-}
 
 function orderIssuer(o) {
   if (o.mu) return nameMu(o.mu) || `MU ${String(o.mu).slice(-6)}`;
@@ -159,6 +152,18 @@ export async function loadBattleDetail(battle, bid, silent=false) {
       }));
     }
 
+    // Resolve tournament team MUs
+    if (bdDetail.type === "tournament") {
+      const tMuIds = [bdDetail.attacker?.tournamentTeam, bdDetail.defender?.tournamentTeam].filter(id => id && !S.lookups.muById.has(id));
+      await Promise.all(tMuIds.map(async mid => {
+        try {
+          const res = await fetchTrpc("mu.getById", { muId: mid }, k);
+          const mu = unwrap(res);
+          if (mu) S.lookups.muById.set(mid, mu);
+        } catch {}
+      }));
+    }
+
     const allRoundIds = [
       ...(Array.isArray(bdDetail.rounds) ? bdDetail.rounds : []),
       ...(Array.isArray(bdDetail.roundsHistory) ? bdDetail.roundsHistory : []),
@@ -218,14 +223,28 @@ export async function loadBattleDetail(battle, bid, silent=false) {
 }
 
 function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpMu, gpCountry, orders, atkPar, defPar, roundsData, roundGpData) {
-  const atk = nameCountry(b.attacker?.country||b.attackerCountry||b.attacker?.countryId);
-  const def = nameCountry(b.defender?.country||b.defenderCountry||b.defender?.countryId);
-  const atkId = b.attacker?.country||b.attackerCountry||b.attacker?.countryId;
-  const defId = b.defender?.country||b.defenderCountry||b.defender?.countryId;
-  const atkCode = (S.lookups.countriesById.get(atkId)?.code||"").toLowerCase();
-  const defCode = (S.lookups.countriesById.get(defId)?.code||"").toLowerCase();
-  const atkFlag = atkCode ? `<img src="https://flagcdn.com/${atkCode}.svg" alt="" style="width:28px;height:28px;object-fit:cover;display:block">` : "";
-  const defFlag = defCode ? `<img src="https://flagcdn.com/${defCode}.svg" alt="" style="width:28px;height:28px;object-fit:cover;display:block">` : "";
+  const isTournament = b.type === "tournament";
+  let atk, def, atkId, defId, atkAvatar, defAvatar;
+  if (isTournament) {
+    atk = nameMu(b.attacker?.tournamentTeam);
+    def = nameMu(b.defender?.tournamentTeam);
+    atkId = b.attacker?.tournamentTeam;
+    defId = b.defender?.tournamentTeam;
+    const atkMu = S.lookups.muById.get(atkId);
+    const defMu = S.lookups.muById.get(defId);
+    const muAvatar = (mu) => mu?.avatarUrl ? `<img src="${mu.avatarUrl}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;display:block">` : "";
+    atkAvatar = muAvatar(atkMu);
+    defAvatar = muAvatar(defMu);
+  } else {
+    atk = nameCountry(b.attacker?.country||b.attackerCountry||b.attacker?.countryId);
+    def = nameCountry(b.defender?.country||b.defenderCountry||b.defender?.countryId);
+    atkId = b.attacker?.country||b.attackerCountry||b.attacker?.countryId;
+    defId = b.defender?.country||b.defenderCountry||b.defender?.countryId;
+    const atkCode = (S.lookups.countriesById.get(atkId)?.code||"").toLowerCase();
+    const defCode = (S.lookups.countriesById.get(defId)?.code||"").toLowerCase();
+    atkAvatar = atkCode ? `<img src="https://flagcdn.com/${atkCode}.svg" alt="" style="width:28px;height:28px;object-fit:cover;display:block">` : "";
+    defAvatar = defCode ? `<img src="https://flagcdn.com/${defCode}.svg" alt="" style="width:28px;height:28px;object-fit:cover;display:block">` : "";
+  }
   const reg = nameRegion(b.defender?.region||b.defenderRegion||b.region);
   const isLive = !b.endedAt || b.isActive===true || b.active===true;
   const started = b.createdAt||b.startedAt||"";
@@ -261,7 +280,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
   let defPct = 100-atkPct;
 
   let narrative = "";
-  const battleTypeLabel = b.type === "resistance" ? "Resistance" : b.type === "revolution" ? "Civil War" : b.type === "war" ? "Battle" : "Combat";
+  const battleTypeLabel = b.type === "resistance" ? "Resistance" : b.type === "revolution" ? "Civil War" : b.type === "war" ? "Battle" : b.type === "tournament" ? "MU Tournament" : "Combat";
   if (isLive) {
     narrative = `${battleTypeLabel} ongoing: <strong>${atk||"Attacker"}</strong> vs <strong>${def||"Defender"}</strong>${reg?" in "+reg:""}. Damage split: ${atkPct}% vs ${defPct}%.`;
   } else {
@@ -333,7 +352,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
 
   const battleScoreHtml = `
   <div style="display:grid;grid-template-columns:28px 1fr 28px;align-items:center;gap:12px;padding:12px;background:var(--surface-hi);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:12px">
-    <div>${atkFlag}</div>
+    <div>${atkAvatar}</div>
     <div style="display:flex;justify-content:center;align-items:center;gap:16px">
       <div style="text-align:center">
         <div style="font-size:2rem;font-weight:900;color:var(--blue);line-height:1">${atkRoundsWon}</div>
@@ -348,7 +367,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
         <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;color:var(--ink-dim);margin-top:2px">${def||"Defender"}</div>
       </div>
     </div>
-    <div>${defFlag}</div>
+    <div>${defAvatar}</div>
   </div>`;
 
   let html = `<div class="br-section">

@@ -6,6 +6,25 @@ import { toast } from "../ui/toast.js";
 import { highlightUserData } from "../core/profileHighlighter.js";
 
 
+async function resolveTournamentMUs(k) {
+  const muIds = new Set();
+  for (const b of S.battles) {
+    if (b.type !== "tournament") continue;
+    const atkMu = b.attacker?.tournamentTeam;
+    const defMu = b.defender?.tournamentTeam;
+    if (atkMu && !S.lookups.muById.has(atkMu)) muIds.add(atkMu);
+    if (defMu && !S.lookups.muById.has(defMu)) muIds.add(defMu);
+  }
+  if (!muIds.size) return;
+  await Promise.all([...muIds].map(async mid => {
+    try {
+      const r = await fetchTrpc("mu.getById", { muId: mid }, k);
+      const mu = unwrap(r);
+      if (mu) S.lookups.muById.set(mid, mu);
+    } catch {}
+  }));
+}
+
 export function stopBattlePolling() {
   clearInterval(S.liveBattleTimer); S.liveBattleTimer=null;
 }
@@ -69,6 +88,7 @@ export async function loadBattles(reset=true) {
       const id=battleId(b); if(id) S.lookups.battlesById.set(id,b);
     }
     S.battles = reset ? battles : [...S.battles, ...battles];
+    await resolveTournamentMUs(k);
     renderBattleList();
     clearBattleStatus();
     if (S.battleMode === "history") refreshBattleDamageCache();
@@ -84,8 +104,14 @@ export function renderBattleList() {
   let list = S.battles;
   if (kw) {
     list = list.filter(b => {
-      const atk = nameCountry(b.attacker?.country||b.attackerCountry||b.attacker?.countryId).toLowerCase();
-      const def = nameCountry(b.defender?.country||b.defenderCountry||b.defender?.countryId).toLowerCase();
+      let atk, def;
+      if (b.type === "tournament") {
+        atk = nameMu(b.attacker?.tournamentTeam).toLowerCase();
+        def = nameMu(b.defender?.tournamentTeam).toLowerCase();
+      } else {
+        atk = nameCountry(b.attacker?.country||b.attackerCountry||b.attacker?.countryId).toLowerCase();
+        def = nameCountry(b.defender?.country||b.defenderCountry||b.defender?.countryId).toLowerCase();
+      }
       const reg = nameRegion(b.defender?.region||b.defenderRegion||b.region).toLowerCase();
       const title = (b.title||b.name||"").toLowerCase();
       return atk.includes(kw)||def.includes(kw)||reg.includes(kw)||title.includes(kw);
@@ -130,20 +156,26 @@ export function renderBattleList() {
   highlightUserData();
 }
 
-import { nameCountry, nameRegion } from "./companies.js";
+import { nameCountry, nameRegion, nameMu } from "./companies.js";
 
 function makeBattleCard(battle) {
   const node = E.tplBattle.content.firstElementChild.cloneNode(true);
   const bid = battleId(battle);
   const isLive = !battle.endedAt || battle.isActive===true || battle.active===true;
-  const atk = nameCountry(battle.attacker?.country||battle.attackerCountry||battle.attacker?.countryId);
-  const def = nameCountry(battle.defender?.country||battle.defenderCountry||battle.defender?.countryId);
+  let atk, def;
+  if (battle.type === "tournament") {
+    atk = nameMu(battle.attacker?.tournamentTeam);
+    def = nameMu(battle.defender?.tournamentTeam);
+  } else {
+    atk = nameCountry(battle.attacker?.country||battle.attackerCountry||battle.attacker?.countryId);
+    def = nameCountry(battle.defender?.country||battle.defenderCountry||battle.defender?.countryId);
+  }
   const reg = nameRegion(battle.defender?.region||battle.defenderRegion||battle.region);
 
   node.querySelector(".bc-dot").classList.add(isLive?"live":"ended");
   node.querySelector(".bc-label").textContent = isLive ? "LIVE" : "ENDED";
 
-  const typePhrase = battle.type === "war" ? `Battle of ${reg}` : battle.type === "resistance" ? `Resistance for ${reg}` : battle.type === "revolution" ? `Civil war of ${def}` : "";
+  const typePhrase = battle.type === "war" ? `Battle of ${reg}` : battle.type === "resistance" ? `Resistance for ${reg}` : battle.type === "revolution" ? `Civil war of ${def}` : battle.type === "tournament" ? `MU Tournament` : "";
   const title = (atk&&def) ? `${atk} vs ${def}${typePhrase ? " — "+typePhrase : ""}` : (battle.title||battle.name||"Battle #"+(bid||"?").slice(-6));
   node.querySelector(".bc-title").textContent = title;
 
