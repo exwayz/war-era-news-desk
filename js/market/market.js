@@ -74,6 +74,21 @@ function renderEconomicOverview(md) {
   const tradeVol=trades.reduce((s,t)=>s+txAmt(t),0);
   S.market.econ = { avgWage, avgPayroll, totalPayroll, totalQuantity, tradeVol, wageCount:wages.length, tradeCount:trades.length, wageMin, wageMax, topOffer };
 
+  S.market.trade.volume = tradeVol;
+  S.market.trade.count = trades.length;
+  S.market.trade.turnover = tradeVol;
+  const tradeQtys = trades.map(t=>Number(t.quantity??0)).filter(v=>v>0);
+  const tradeTotalQty = tradeQtys.reduce((s,v)=>s+v,0);
+  S.market.trade.VWAP = tradeTotalQty > 0 ? tradeVol / tradeTotalQty : 0;
+  const tradeAmts = trades.map(t=>txAmt(t)).filter(v=>v>0);
+  if (tradeAmts.length) {
+    const sorted=[...tradeAmts].sort((a,b)=>a-b);
+    S.market.trade.high=Math.max(...tradeAmts);
+    S.market.trade.low=Math.min(...tradeAmts);
+    S.market.trade.average=tradeAmts.reduce((s,v)=>s+v,0)/tradeAmts.length;
+    S.market.trade.median=sorted.length%2?sorted[Math.floor(sorted.length/2)]:(sorted[sorted.length/2-1]+sorted[sorted.length/2])/2;
+  }
+
   const wageByH={};
   for (const t of wages) {
     const h=new Date(t.createdAt||t.date||0).toISOString().slice(0,16);
@@ -95,6 +110,7 @@ function renderEconomicOverview(md) {
     tradeByH[h].count += 1;
   }
   S.market.tradeVolHistory = Object.entries(tradeByH).sort((a,b)=>a[0].localeCompare(b[0])).map(([h,v])=>v.vol);
+  S.market.trade.volHistory = S.market.tradeVolHistory;
 
   const ec = S.market.econ;
   E.marketEconData.innerHTML = [
@@ -137,9 +153,17 @@ export async function loadMarketFull(showLoading=true) {
     const arr=(Array.isArray(prices)?prices:Object.entries(prices||{}).map(([k,v])=>({itemCode:k,price:v})))
       .sort((a,b)=>Number(b.price||b.value||0)-Number(a.price||a.value||0));
     S.market.prices=arr;
+    S.market.trade.prices=arr;
     const pi = arr.length ? arr.slice(0,10).reduce((s,i)=>s+Number(i.price||i.value||0),0) / Math.min(10,arr.length) : 0;
     S.market.priceHistory.push({t:Date.now(),i:pi});
     if(S.market.priceHistory.length>48) S.market.priceHistory.shift();
+    S.market.trade.priceHistory = S.market.priceHistory;
+    if (S.market.trade.lastPrices && S.market.trade.prices) {
+      const avg = arr.reduce((s,i)=>s+Number(i.price||i.value||0),0) / Math.max(1,arr.length);
+      const prevAvg = S.market.trade.lastPrices.reduce((s,i)=>s+Number(i.price||i.value||0),0) / Math.max(1,S.market.trade.lastPrices.length);
+      S.market.trade.velocity = prevAvg > 0 ? (avg - prevAvg) / prevAvg : 0;
+    }
+    S.market.trade.lastPrices = arr.map(i => ({...i}));
     E.marketPricesData.innerHTML=arr.slice(0,30).map(item=>{
       const name=marketItemName(item.itemCode||item.item||item.name||"Unknown");
       const price=Number(item.price||item.value||0);
@@ -194,6 +218,25 @@ export async function loadMarketFull(showLoading=true) {
     } catch(err){ console.error("equipment orders failed", err); }
 
     S.market.commodityOrders = commodityOrders;
+    S.market.orderbook.commodityOrders = commodityOrders;
+    // Compute aggregate order book metrics
+    let bestBid=-Infinity, bestAsk=Infinity, buyLiq=0, sellLiq=0;
+    for (const o of commodityOrders) {
+      const side=(o._side||o.orderType||o.type||o.side||"").toUpperCase();
+      if (side==="BUY") { if (o._price>bestBid) bestBid=o._price; buyLiq+=o._qty; }
+      else if (side==="SELL") { if (o._price<bestAsk) bestAsk=o._price; sellLiq+=o._qty; }
+    }
+    const dpt=buyLiq+sellLiq;
+    S.market.orderbook.bestBid=bestBid===-Infinity?null:bestBid;
+    S.market.orderbook.bestAsk=bestAsk===Infinity?null:bestAsk;
+    S.market.orderbook.midPrice=(bestBid!==-Infinity&&bestAsk!==Infinity)?(bestBid+bestAsk)/2:null;
+    S.market.orderbook.spread=(bestBid!==-Infinity&&bestAsk!==Infinity)?(bestAsk-bestBid):null;
+    S.market.orderbook.markPrice=S.market.orderbook.midPrice;
+    S.market.orderbook.depth=dpt;
+    S.market.orderbook.buyLiquidity=buyLiq;
+    S.market.orderbook.sellLiquidity=sellLiq;
+    S.market.orderbook.bookVolume=dpt;
+    S.market.orderbook.imbalance=dpt>0?(buyLiq-sellLiq)/dpt:null;
     S.market.equipmentOrders = equipmentOrders;
     allOrders = S.market.orderView === "equipment" ? equipmentOrders : commodityOrders;
     S.market.orders = allOrders;

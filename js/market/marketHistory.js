@@ -29,6 +29,20 @@ export async function storeMarketSnapshot() {
     } : null,
     analytics: a.p ? { p: a.p, d: a.d } : null,
     priceIndex: { t: Date.now(), i: pi },
+    trade: S.market.trade ? {
+      prices: S.market.trade.prices, volume: S.market.trade.volume,
+      count: S.market.trade.count, VWAP: S.market.trade.VWAP,
+      turnover: S.market.trade.turnover, high: S.market.trade.high,
+      low: S.market.trade.low, average: S.market.trade.average,
+      median: S.market.trade.median, velocity: S.market.trade.velocity,
+    } : null,
+    orderbook: S.market.orderbook ? {
+      bestBid: S.market.orderbook.bestBid, bestAsk: S.market.orderbook.bestAsk,
+      spread: S.market.orderbook.spread, midPrice: S.market.orderbook.midPrice,
+      markPrice: S.market.orderbook.markPrice, depth: S.market.orderbook.depth,
+      buyLiquidity: S.market.orderbook.buyLiquidity, sellLiquidity: S.market.orderbook.sellLiquidity,
+      bookVolume: S.market.orderbook.bookVolume, imbalance: S.market.orderbook.imbalance,
+    } : null,
   };
   const cutoff = new Date(Date.now() - RETENTION_MS).toISOString();
   try {

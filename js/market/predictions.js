@@ -2,6 +2,15 @@ import { S } from "../core/state.js";
 import { marketItemName } from "../core/utils.js";
 
 export function computePredictions() {
+  // ── Trade-derived value metrics (last trade prices, NOT order book) ──
+  const tradePrices = S.market.trade?.prices || S.market.prices || [];
+  const prevTradePrices = S.market.trade?.lastPrices || [];
+  const tradeByCode = {};
+  for (const p of tradePrices) tradeByCode[p.itemCode||p.item||p.name] = Number(p.price||p.value||0);
+  const prevByCode = {};
+  for (const p of prevTradePrices) prevByCode[p.itemCode||p.item||p.name] = Number(p.price||p.value||0);
+
+  // ── Order-book-derived rank data (still from topValuable for market share) ──
   const topValuable = S.market.topValuable || [];
   let prevScores = S.market._prevScoresSnapshot || S.market.prevCommodityScores || {};
   if (Object.keys(prevScores).length === 0 && S.market._supabaseHistory && S.market._supabaseHistory.length > 1) {
@@ -11,13 +20,20 @@ export function computePredictions() {
       for (const item of prev.topValuable) prevScores[item.item] = item.value;
     }
   }
-  const commodityOrders = S.market.commodityOrders || [];
+  // ── Order book pressure data ──
+  const commodityOrders = S.market.trade ? S.market.orderbook?.commodityOrders || [] : S.market.commodityOrders || [];
   const orders = S.market.orders || [];
 
   const now = Date.now();
   const prevTime = S.market._lastUpdateTime || now;
   const deltaT = now - prevTime;
   S.market._lastUpdateTime = now;
+
+  // Build combined item list from trade prices + topValuable ranks
+  const itemNames = new Set();
+  for (const p of tradePrices) itemNames.add(marketItemName(p.itemCode||p.item||p.name));
+  for (const tv of topValuable) itemNames.add(tv.item);
+  const allItems = [...itemNames];
 
   const currentRanks = {};
   topValuable.forEach((item, idx) => { currentRanks[item.item || item.itemCode] = idx + 1; });
@@ -29,31 +45,24 @@ export function computePredictions() {
   const totalValue = topValuable.reduce((s, i) => s + (i.value || 0), 0);
   const predictions = [];
 
-  for (const item of topValuable) {
-    const itemKey = item.item || item.itemCode;
-    const currentValue = item.value || 0;
-    const previousValue = prevScores[itemKey];
-    const currentRank = currentRanks[itemKey] || 0;
-    const previousRank = prevRanks[itemKey] || 0;
+  for (const itemName of allItems) {
+    const currentValue = tradeByCode[itemName] != null ? tradeByCode[itemName] : 0;
+    const previousValue = prevByCode[itemName] != null ? prevByCode[itemName] : null;
 
     const valueGrowth = (previousValue != null && previousValue > 0) ? ((currentValue - previousValue) / previousValue) * 100 : null;
 
     const deltaValue = (previousValue != null) ? currentValue - previousValue : null;
     const valueVelocity = (deltaValue != null && deltaT > 0) ? deltaValue / (deltaT / 1000) : null;
 
-    const prevVelocity = S.market._prevVelocities ? S.market._prevVelocities[itemKey] : null;
+    const prevVelocity = S.market._prevVelocities ? S.market._prevVelocities[itemName] : null;
     const valueAcceleration = (valueVelocity != null && prevVelocity != null) ? valueVelocity - prevVelocity : null;
 
     if (!S.market._prevVelocities) S.market._prevVelocities = {};
-    S.market._prevVelocities[itemKey] = valueVelocity;
+    S.market._prevVelocities[itemName] = valueVelocity;
 
-    const itemOrders = commodityOrders.filter(o => marketItemName(o._itemCode || o.itemCode || o.item) === itemKey);
+    const itemOrders = commodityOrders.filter(o => marketItemName(o._itemCode || o.itemCode || o.item) === itemName);
     const buyOrders = itemOrders.filter(o => (o._side || o.orderType || o.type || o.side || "").toUpperCase() === "BUY");
     const sellOrders = itemOrders.filter(o => (o._side || o.orderType || o.type || o.side || "").toUpperCase() === "SELL");
-    const undefOrders = itemOrders.filter(o => {
-      const s = (o._side || o.orderType || o.type || o.side || "").toUpperCase();
-      return s !== "BUY" && s !== "SELL";
-    });
     const buyQty = buyOrders.reduce((s, o) => s + (o._qty || o.quantity || 0), 0);
     const sellQty = sellOrders.reduce((s, o) => s + (o._qty || o.quantity || 0), 0);
     const totalItemQty = buyQty + sellQty;
@@ -72,12 +81,14 @@ export function computePredictions() {
     const largeOrderWeight = totalItemQty > 0 ? largestQty / totalItemQty : 0;
     const whaleDetected = largeOrderWeight >= 0.35;
 
-    const marketShare = totalValue > 0 ? currentValue / totalValue : 0;
+    const currentRank = currentRanks[itemName] || 0;
+    const previousRank = prevRanks[itemName] || 0;
+    const marketShare = totalValue > 0 ? (topValuable.find(t => (t.item||t.itemCode) === itemName)?.value || 0) / totalValue : 0;
     const rankChange = previousRank > 0 ? previousRank - currentRank : null;
     const rankGain = rankChange != null ? Math.max(0, rankChange) : null;
 
     predictions.push({
-      itemKey, itemName: marketItemName(itemKey),
+      itemKey: itemName, itemName,
       currentValue, previousValue, valueGrowth,
       valueVelocity, valueAcceleration,
       buyPressure, sellPressure, pressureRatio,
@@ -125,7 +136,20 @@ export function computePredictions() {
   const rankCount = Object.keys(prevScores).length;
   const rankScore = Math.min(1, rankCount / 20);
 
-  const confidence = ((0.40 * historyCompleteness) + (0.30 * momConsistency) + (0.20 * liqNorm) + (0.10 * rankScore)) * 100;
+  let confidence = ((0.40 * historyCompleteness) + (0.30 * momConsistency) + (0.20 * liqNorm) + (0.10 * rankScore)) * 100;
+
+  // ── Order book confidence modifier ──
+  const imbalance = S.market.orderbook?.imbalance;
+  const bullishCount = Object.values(heatScores).filter(h => h.score >= 60).length;
+  const bearishCount = Object.values(heatScores).filter(h => h.score < 40).length;
+  const netBias = bullishCount - bearishCount;
+  if (imbalance != null && netBias !== 0) {
+    if (netBias > 0 && imbalance < -0.3) {
+      confidence *= 0.85; // Prediction bullish but order book is sell-heavy
+    } else if (netBias < 0 && imbalance > 0.3) {
+      confidence *= 0.85; // Prediction bearish but order book is buy-heavy
+    }
+  }
 
   const sortedHeat = Object.entries(heatScores).sort((a, b) => b[1].score - a[1].score);
   const topBullish = sortedHeat.filter(([k, v]) => v.score >= 60).slice(0, 3);
