@@ -6,9 +6,9 @@ export function computePredictions() {
   const tradePrices = S.market.trade?.prices || S.market.prices || [];
   const prevTradePrices = S.market.trade?.lastPrices || [];
   const tradeByCode = {};
-  for (const p of tradePrices) tradeByCode[p.itemCode||p.item||p.name] = Number(p.price||p.value||0);
+  for (const p of tradePrices) tradeByCode[marketItemName(p.itemCode||p.item||p.name)] = Number(p.price||p.value||0);
   const prevByCode = {};
-  for (const p of prevTradePrices) prevByCode[p.itemCode||p.item||p.name] = Number(p.price||p.value||0);
+  for (const p of prevTradePrices) prevByCode[marketItemName(p.itemCode||p.item||p.name)] = Number(p.price||p.value||0);
 
   // ── Order-book-derived rank data (still from topValuable for market share) ──
   const topValuable = S.market.topValuable || [];
@@ -21,7 +21,7 @@ export function computePredictions() {
     }
   }
   // ── Order book pressure data ──
-  const commodityOrders = S.market.trade ? S.market.orderbook?.commodityOrders || [] : S.market.commodityOrders || [];
+  const commodityOrders = S.market.orderbook?.commodityOrders || S.market.commodityOrders || [];
   const orders = S.market.orders || [];
 
   const now = Date.now();

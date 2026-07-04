@@ -152,6 +152,8 @@ export async function loadMarketFull(showLoading=true) {
     const prices=unwrap(pricesR);
     const arr=(Array.isArray(prices)?prices:Object.entries(prices||{}).map(([k,v])=>({itemCode:k,price:v})))
       .sort((a,b)=>Number(b.price||b.value||0)-Number(a.price||a.value||0));
+    // Preserve previous cycle's prices before overwriting
+    S.market.trade.lastPrices = S.market.trade.prices ? S.market.trade.prices.map(i => ({...i})) : S.market.trade.lastPrices;
     S.market.prices=arr;
     S.market.trade.prices=arr;
     const pi = arr.length ? arr.slice(0,10).reduce((s,i)=>s+Number(i.price||i.value||0),0) / Math.min(10,arr.length) : 0;
@@ -163,7 +165,6 @@ export async function loadMarketFull(showLoading=true) {
       const prevAvg = S.market.trade.lastPrices.reduce((s,i)=>s+Number(i.price||i.value||0),0) / Math.max(1,S.market.trade.lastPrices.length);
       S.market.trade.velocity = prevAvg > 0 ? (avg - prevAvg) / prevAvg : 0;
     }
-    S.market.trade.lastPrices = arr.map(i => ({...i}));
     E.marketPricesData.innerHTML=arr.slice(0,30).map(item=>{
       const name=marketItemName(item.itemCode||item.item||item.name||"Unknown");
       const price=Number(item.price||item.value||0);
