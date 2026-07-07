@@ -169,7 +169,8 @@ export async function postMessage(author, text) {
       }),
     });
     if (!res.ok) return { error: "Failed to post" };
-    const msg = await res.json();
+    let msg = await res.json();
+    if (Array.isArray(msg)) msg = msg[0];
     cachedMessages.unshift(msg);
     totalMessages++;
     return { success: true, message: msg };
@@ -203,10 +204,11 @@ export async function upvoteMessage(id) {
       }),
     });
     if (!patchRes.ok) return false;
-    const updated = await patchRes.json();
+    let updated = await patchRes.json();
+    if (Array.isArray(updated)) updated = updated[0];
     const idx = cachedMessages.findIndex((m) => m.id === id);
     if (idx !== -1) cachedMessages[idx] = updated;
-    return true;
+    return { success: true, upvotes: updated?.upvotes ?? (rows[0].upvotes || 0) + 1 };
   } catch {
     return false;
   }
@@ -227,6 +229,26 @@ export async function deleteMessage(id) {
   }
 }
 
+export function createWallCard(msg) {
+  const card = document.createElement("article");
+  card.className = "wall-card";
+  card.dataset.wallId = msg.id;
+  const date = new Date(msg.created_at);
+  const timeStr = date.toLocaleDateString() + " " + date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  card.innerHTML = `
+    <div class="wall-card-head">
+      <span class="wall-card-author">${escHtml(msg.author)}</span>
+      <span class="wall-card-time">${timeStr}</span>
+    </div>
+    <p class="wall-card-text">${escHtml(msg.text)}</p>
+    <div class="wall-card-actions">
+      <button class="wall-upvote-btn" data-id="${msg.id}"><iconify-icon icon="mdi:thumb-up-outline" class="lu"></iconify-icon> ${msg.upvotes || 0}</button>
+      <button class="wall-read-btn" data-id="${msg.id}">Read</button>
+    </div>
+  `;
+  return card;
+}
+
 export function renderWallMessages(containerId, messages) {
   const grid = document.getElementById(containerId);
   if (!grid) return;
@@ -236,25 +258,30 @@ export function renderWallMessages(containerId, messages) {
     grid.innerHTML = '<p class="wall-empty">No messages yet. Be the first to post!</p>';
     return;
   }
-  for (const msg of msgs) {
-    const card = document.createElement("article");
-    card.className = "wall-card";
-    card.dataset.wallId = msg.id;
-    const date = new Date(msg.created_at);
-    const timeStr = date.toLocaleDateString() + " " + date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    card.innerHTML = `
-      <div class="wall-card-head">
-        <span class="wall-card-author">${escHtml(msg.author)}</span>
-        <span class="wall-card-time">${timeStr}</span>
-      </div>
-      <p class="wall-card-text">${escHtml(msg.text)}</p>
-      <div class="wall-card-actions">
-        <button class="wall-upvote-btn" data-id="${msg.id}"><iconify-icon icon="mdi:thumb-up-outline" class="lu"></iconify-icon> ${msg.upvotes || 0}</button>
-        <button class="wall-read-btn" data-id="${msg.id}">Read</button>
-      </div>
-    `;
-    grid.appendChild(card);
+  const frag = document.createDocumentFragment();
+  for (const msg of msgs) frag.appendChild(createWallCard(msg));
+  grid.appendChild(frag);
+}
+
+export function prependWallCard(containerId, msg) {
+  const grid = document.getElementById(containerId);
+  if (!grid) return;
+  const empty = grid.querySelector(".wall-empty");
+  if (empty) empty.remove();
+  grid.insertBefore(createWallCard(msg), grid.firstChild);
+}
+
+export function updateUpvoteDisplay(containerId, id, upvotes) {
+  const grid = document.getElementById(containerId);
+  if (!grid) return;
+  const card = grid.querySelector(`[data-wall-id="${id}"]`);
+  if (!card) return;
+  const btn = card.querySelector(".wall-upvote-btn");
+  if (!btn) return;
+  for (const node of [...btn.childNodes]) {
+    if (node.nodeType === 3) node.remove();
   }
+  btn.append(" " + (upvotes ?? 0));
 }
 
 export function renderWallCount(countElId, count) {

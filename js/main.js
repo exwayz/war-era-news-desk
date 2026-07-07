@@ -21,7 +21,7 @@ import { initRankings, copyRankingsReport, captureRankingsReport, refreshRanking
 import { playClick, playRead, playCopy, playApiSaved, setSfxVolume, getSfxVolume } from "./audio/audio.js";
 import { loadProfile, saveProfile, deleteProfile, isRegistered, formatProfileLink, resolveProfile } from "./user/profile.js";
 import { POLICY_TEXT } from "./community/policy.js";
-import { loadMessages, loadMoreMessages, postMessage, upvoteMessage, renderWallMessages, renderWallCount, getMessageById, hasMoreMessages, getRemainingQuota } from "./community/wall.js";
+import { loadMessages, loadMoreMessages, postMessage, upvoteMessage, renderWallMessages, renderWallCount, getMessageById, hasMoreMessages, getRemainingQuota, prependWallCard, updateUpvoteDisplay } from "./community/wall.js";
 import { loadPolitics, initPolitics } from "./politics/politics.js";
 import { highlightUserData } from "./core/profileHighlighter.js";
 import { initClock, updateInfobar } from "./visuals/clock.js";
@@ -349,7 +349,7 @@ function bindAll() {
     const result = await postMessage(author, text);
     if (result.error) { toast(result.error); return; }
     E.wallPostModal.classList.add("hidden"); toast("Message posted!");
-    renderWallMessages("wallGrid"); renderWallCount("wallCount"); updateWallLoadMore();
+    prependWallCard("wallGrid", result.message); renderWallCount("wallCount"); updateWallLoadMore();
   });
   E.wallPolicyBtn?.addEventListener("click",()=>{ E.wallPolicyContent.innerHTML = POLICY_TEXT; E.wallPolicyModal.classList.remove("hidden"); });
   E.wallPolicyClose?.addEventListener("click",()=>E.wallPolicyModal.classList.add("hidden"));
@@ -362,7 +362,7 @@ function bindAll() {
     const ok = await upvoteMessage(id);
     if (ok === "no-key") toast("Save your API key first (Settings → API Key)");
     else if (ok === "already") toast("You already upvoted this message");
-    else if (ok) { const msg = getMessageById(id); if (msg) E.wallReadUpvoteCount.textContent = msg.upvotes; renderWallMessages("wallGrid"); updateWallLoadMore(); }
+    else if (ok?.success) { E.wallReadUpvoteCount.textContent = ok.upvotes; updateUpvoteDisplay("wallGrid", id, ok.upvotes); updateWallLoadMore(); }
     E.wallReadUpvote.disabled = false;
   });
 
@@ -389,7 +389,7 @@ function bindAll() {
       upvoteMessage(id).then(ok=>{
         if (ok === "no-key") toast("Save your API key first (Settings → API Key)");
         else if (ok === "already") toast("You already upvoted this message");
-        else if (ok) { renderWallMessages("wallGrid"); updateWallLoadMore(); }
+        else if (ok?.success) { updateUpvoteDisplay("wallGrid", id, ok.upvotes); updateWallLoadMore(); }
         upvoteBtn.disabled = false;
       });
     }
