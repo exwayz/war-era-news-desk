@@ -189,6 +189,11 @@
 }
 .modal-card h2 { margin: 0; font-family: var(--font-ui); font-size: 1.1rem; }
 .modal-card p { margin: 0; font-size: .84rem; color: var(--ink-dim); }
+.modal-card .wall-policy-body h2 { margin-bottom: 12px; }
+.modal-card .wall-policy-body h3 { margin: 14px 0 6px; font-size: .92rem; color: var(--ink); }
+.modal-card .wall-policy-body p + h3 { margin-top: 14px; }
+.modal-card .wall-policy-body ul { margin: 6px 0; padding-left: 20px; }
+.modal-card .wall-policy-body li { font-size: .84rem; color: var(--ink-dim); margin-bottom: 2px; }
 
 /* ── READER MODALS ─────────────────────────────────── */
 .reader-window {
