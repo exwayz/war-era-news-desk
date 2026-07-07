@@ -27,6 +27,9 @@ export function injectBattleSearchBar() {
 <button id="copyBattleListBtn" class="btn-icon-sm" title="Copy all listed"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon></button>
 `;
   panelHead.insertAdjacentElement("afterend", wrap);
+  document.getElementById("battleLoadMini")?.addEventListener("click", () => {
+    document.getElementById("loadMoreBattlesButton")?.click();
+  });
 
   const fr = document.createElement("div");
   fr.className = "battle-filter-row";
