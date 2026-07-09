@@ -36,6 +36,13 @@ function populateArticleFilters(articles) {
 let _loadingArticles = false;
 export function isLoadingArticles() { return _loadingArticles; }
 
+function hasActiveFilters() {
+  const lang = document.getElementById("articleLangFilter")?.value || "";
+  const cat = document.getElementById("articleCatFilter")?.value || "";
+  const kw = E.articleSearch?.value?.trim() || "";
+  return !!(lang || cat || S.articleTimeFrom || S.articleTimeTo || kw);
+}
+
 export async function loadArticles(reset=true) {
   if (_loadingArticles) return;
   const k = apiKey(); if (!k) return;
@@ -43,7 +50,8 @@ export async function loadArticles(reset=true) {
   if (reset) { S.articleCursor=null; S.articles=[]; }
   if (!reset && !S.articleCursor) { _loadingArticles = false; return; }
   try {
-    const result = await fetchTrpc("article.getArticlesPaginated", { type:"last", limit:100, cursor:reset?undefined:S.articleCursor }, k);
+    const limit = reset && hasActiveFilters() ? 1000 : 100;
+    const result = await fetchTrpc("article.getArticlesPaginated", { type:"last", limit, cursor:reset?undefined:S.articleCursor }, k);
     const data = unwrap(result);
     const items = data?.items||[];
     await resolveUsers(items.map(a=>a.author).filter(Boolean), k);
@@ -63,6 +71,22 @@ export async function loadArticles(reset=true) {
   } finally {
     _loadingArticles = false;
   }
+}
+
+export async function silentRefreshArticles() {
+  const k = apiKey(); if (!k) return;
+  try {
+    const result = await fetchTrpc("article.getArticlesPaginated", { type:"last", limit:20 }, k);
+    const data = unwrap(result);
+    const items = data?.items||[];
+    if (!items.length) return;
+    const existingIds = new Set(S.articles.map(a => a._id || a.id));
+    const fresh = items.filter(a => !existingIds.has(a._id || a.id));
+    if (!fresh.length) return;
+    await resolveUsers(fresh.map(a => a.author).filter(Boolean), k);
+    S.articles = [...fresh, ...S.articles];
+    renderArticles();
+  } catch {}
 }
 
 export function renderArticles() {
@@ -113,15 +137,10 @@ export function renderArticles() {
     E.articleList.append(node);
   }
 
-  if(S.articleLimiter<10) {
-    E.articleFeedMeta.classList.remove("loaded"); void E.articleFeedMeta.offsetWidth;
-    E.articleFeedMeta.textContent="Indexing…"; E.articleFeedMeta.classList.add("indexing");
-  } else {
-    E.articleFeedMeta.classList.remove("indexing"); void E.articleFeedMeta.offsetWidth;
-    E.articleFeedMeta.textContent=`${arts.length} articles loaded`;
-    E.articleFeedMeta.classList.add("loaded");
-    E.articleFeedMeta.addEventListener("animationend",()=>E.articleFeedMeta.classList.remove("loaded"),{once:true});
-  }
+  E.articleFeedMeta.classList.remove("indexing", "loaded"); void E.articleFeedMeta.offsetWidth;
+  E.articleFeedMeta.textContent=`${arts.length} articles shown (${S.articles.length} loaded)`;
+  E.articleFeedMeta.classList.add("loaded");
+  E.articleFeedMeta.addEventListener("animationend",()=>E.articleFeedMeta.classList.remove("loaded"),{once:true});
   E.loadMoreArticlesBtn.hidden=!S.articleCursor;
   highlightUserData();
 }

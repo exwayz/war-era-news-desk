@@ -4,7 +4,7 @@ import { apiKey, fetchTrpc, normalizeEvents, normalizeCursor } from "../core/api
 import { STORE } from "../core/storage.js";
 import { fmtDate, parseLocal } from "../core/utils.js";
 import { resolveBattles, resolveUsers, ensureLookups, getFilters } from "./filters.js";
-import { loadArticles, isLoadingArticles } from "./articles.js";
+import { loadArticles, isLoadingArticles, silentRefreshArticles } from "./articles.js";
 import { evtData, evtTime, buildTitle, buildSummary, buildDetails, buildLink, fmtType } from "./events.js";
 import { toast, setStatus, clearStatus } from "../ui/toast.js";
 import { isTimelineOpen, updateTimelineBadge } from "../ui/tabs.js";
@@ -51,18 +51,9 @@ export function startAutoRefresh() {
     silentRefreshEvents();
   }, 5000);
   clearInterval(S._articleChainTimer);
-  S._articleChainTimer = setInterval(()=>{
+  S._articleChainTimer = setInterval(() => {
     if (!apiKey() || isLoadingArticles()) return;
-    if (S.articleLimiter === 0 || S.articleLimiter === 100) {
-      // Start a fresh chain from page 1
-      S.articleLimiter = 1;
-      loadArticles(true);
-    } else if (S.articleLimiter < 10 && S.articleCursor) {
-      S.articleLimiter++;
-      loadArticles(false);
-    } else if (S.articleLimiter >= 10) {
-      S.articleLimiter = 100;
-    }
+    silentRefreshArticles();
   }, 6000);
 }
 
@@ -75,11 +66,7 @@ export async function silentRefreshEvents() {
       for(const ev of fresh) showLiveEventToast(ev);
       S.events = [...fresh, ...S.events];
     }
-    if (hasFresh) {
-      renderTimeline();
-      // Restart article chain when idle to pick up newly published articles
-      if (S.articleLimiter === 100) S.articleLimiter = 0;
-    }
+    if (hasFresh) renderTimeline();
   } catch {}
 }
 
