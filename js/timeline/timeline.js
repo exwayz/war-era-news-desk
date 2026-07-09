@@ -31,9 +31,9 @@ export async function loadEvents(reset) {
     const evts = normalizeEvents(result);
     S.cursor = normalizeCursor(result);
     S.events = reset ? evts : [...S.events, ...evts];
-    await resolveBattles(evts, k);
-    await resolveUsers(evts.map(e=>evtData(e).user).filter(Boolean), k);
     renderTimeline();
+    resolveBattles(evts, k).then(() => renderTimeline());
+    resolveUsers(evts.map(e=>evtData(e).user).filter(Boolean), k).then(() => renderTimeline());
 
   } catch (err) {
     console.error(err);
