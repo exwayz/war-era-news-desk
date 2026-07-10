@@ -16,13 +16,14 @@ import { loadBattles, stopBattlePolling, updateBattleTabPills } from "./battles/
 import { injectBattleSearchBar } from "./battles/companies.js";
 import { loadMarketFull, loadMarketStats, copyMarketReport, captureMarketReport, renderMarketOrders, initMarketView } from "./market/market.js";
 import { loadJobs, renderJobs, copyJobsReport, captureJobsReport, initJobViews } from "./jobs/jobs.js";
+import { copyJobsConcentration, captureJobsConcentration } from "./jobs/concentration.js";
 import { initIntro } from "./intro/intro.js";
 import { initRankings, copyRankingsReport, captureRankingsReport, refreshRankings } from "./rankings/rankings.js";
 import { playClick, playRead, playCopy, playApiSaved, setSfxVolume, getSfxVolume } from "./audio/audio.js";
 import { loadProfile, saveProfile, deleteProfile, isRegistered, formatProfileLink, resolveProfile } from "./user/profile.js";
 import { POLICY_TEXT } from "./community/policy.js";
-import { loadMessages, loadMoreMessages, postMessage, upvoteMessage, renderWallMessages, renderWallCount, getMessageById, hasMoreMessages, getRemainingQuota, prependWallCard, updateUpvoteDisplay } from "./community/wall.js";
-import { loadPolitics, initPolitics } from "./politics/politics.js";
+import { loadMessages, loadMoreMessages, postMessage, upvoteMessage, renderWallMessages, renderWallCount, getMessageById, hasMoreMessages, getRemainingQuota, prependWallCard, updateUpvoteDisplay, copyCommunityReport } from "./community/wall.js";
+import { loadPolitics, initPolitics, copyPoliticsReport, capturePoliticsReport } from "./politics/politics.js";
 import { highlightUserData } from "./core/profileHighlighter.js";
 import { initClock, updateInfobar } from "./visuals/clock.js";
 
@@ -325,10 +326,14 @@ function bindAll() {
   E.jobsRefreshBtn?.addEventListener("click",()=>loadJobs(true));
   E.copyJobsReportBtn?.addEventListener("click", copyJobsReport);
   document.getElementById("captureJobsReportBtn")?.addEventListener("click", captureJobsReport);
+  E.copyJobsConcentrationBtn?.addEventListener("click", copyJobsConcentration);
+  document.getElementById("captureJobsConcentrationBtn")?.addEventListener("click", captureJobsConcentration);
   initJobViews();
   E.copyRankingsReportBtn?.addEventListener("click", copyRankingsReport);
   document.getElementById("captureRankingsReportBtn")?.addEventListener("click", captureRankingsReport);
   E.rankingsRefreshBtn?.addEventListener("click", refreshRankings);
+  E.copyPoliticsReportBtn?.addEventListener("click", copyPoliticsReport);
+  document.getElementById("capturePoliticsReportBtn")?.addEventListener("click", capturePoliticsReport);
   document.getElementById("politicsRefreshBtn")?.addEventListener("click", () => loadPolitics(true));
 
   function updateWallLoadMore() { if (E.wallLoadMore) E.wallLoadMore.hidden = !hasMoreMessages(); }
@@ -351,6 +356,7 @@ function bindAll() {
     E.wallPostModal.classList.add("hidden"); toast("Message posted!");
     prependWallCard("wallGrid", result.message); renderWallCount("wallCount"); updateWallLoadMore();
   });
+  E.copyCommunityReportBtn?.addEventListener("click", copyCommunityReport);
   E.wallPolicyBtn?.addEventListener("click",()=>{ E.wallPolicyContent.innerHTML = POLICY_TEXT; E.wallPolicyModal.classList.remove("hidden"); });
   E.wallPolicyClose?.addEventListener("click",()=>E.wallPolicyModal.classList.add("hidden"));
   E.wallPolicyModal?.addEventListener("click",e=>{ if(e.target===E.wallPolicyModal) E.wallPolicyModal.classList.add("hidden"); });
@@ -411,7 +417,7 @@ function bindAll() {
 
   document.addEventListener("click", e => {
     const t = e.target;
-    if (t.closest("#copyMarketReportBtn, #copyJobsReportBtn, #copyRankingsReportBtn, #copyArticleBtn, #copyBattleReportBtn, .ec-copy")) { playCopy(); return; }
+    if (t.closest("#copyMarketReportBtn, #copyJobsReportBtn, #copyRankingsReportBtn, #copyArticleBtn, #copyBattleReportBtn, #copyPoliticsReportBtn, #copyJobsConcentrationBtn, #copyCommunityReportBtn, .ec-copy")) { playCopy(); return; }
     if (t.closest(".ac-read, #openFullReportBtn, .wall-read-btn")) { playRead(); return; }
     if (t.closest("button, a, .event-card, .battle-card, .wall-upvote-btn")) { playClick(); }
   });

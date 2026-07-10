@@ -3,6 +3,8 @@ import { apiKey, fetchTrpc, fetchTrpcApi2, fetchTrpcApi5, unwrap, fetchFromServe
 import { fmtNum, fmtDate, fmtMoney } from "../core/utils.js";
 import { resolveParty, resolveAlliance, resolveContentLinks } from "../core/resolver.js";
 import { evtData, evtTime, buildTitle, buildSummary, fmtType } from "../timeline/events.js";
+import { toast } from "../ui/toast.js";
+import * as cap from "../core/captureReport.js";
 
 const POLITICS_EVENT_TYPES = new Set([
   "allianceBroken","allianceFormed","allianceMemberExcluded","allianceMemberJoined","allianceMemberLeft",
@@ -1061,6 +1063,170 @@ export function initPolitics() {
       if (_countries.length) renderCountryGrid();
     });
   }
+}
+
+export function copyPoliticsReport() {
+  const country = _countries.find(c => c._id === _selectedCountryId);
+  const countryName = country?.name || _selectedCountryId.slice(-6);
+  if (!_selectedCountryId) { toast("Select a country first."); return; }
+
+  const lines = [`# War Era Politics Report — ${countryName}`, `Generated: ${new Date().toUTCString()}`, ""];
+
+  // Government
+  if (_government) {
+    lines.push("## Government");
+    const roleMap = { president: "President", vicePresident: "Vice President", minOfDefense: "Minister of Defense", minOfEconomy: "Minister of Economy", minOfForeignAffairs: "Foreign Affairs" };
+    for (const [key, label] of Object.entries(roleMap)) {
+      const uid = _government[key];
+      if (uid) {
+        const user = S.lookups.usersById.get(uid);
+        lines.push(`${label}: ${user?.username || uid.slice(-6)}`);
+      }
+    }
+    if (_countryDetail?.rulingParty) {
+      const party = _parties.find(p => p._id === _countryDetail.rulingParty);
+      if (party) {
+        let rp = `Ruling Party: ${party.name}`;
+        const ethics = formatPartyEthics(party.ethics);
+        if (ethics) rp += ` (${ethics})`;
+        lines.push(rp);
+      }
+    }
+    if (_alliance) lines.push(`Alliance: ${_alliance.allianceName || _alliance.name || ""}`);
+    const congress = _government.congressMembers || [];
+    if (congress.length) lines.push(`Congress: ${congress.length} members`);
+    lines.push("");
+  }
+
+  // Country
+  const cd = _countryDetail;
+  if (cd) {
+    lines.push("## Country Snapshot");
+    const wealth = cd.rankings?.countryWealth?.value ?? cd.countryWealth;
+    lines.push(`Treasury: ${fmtMoney(wealth || 0)} (rank ${cd.rankings?.countryWealth?.rank || "?"})`);
+    if (cd.taxes) {
+      const t = cd.taxes;
+      lines.push(`Tax rates — Income: ${t.income != null ? t.income + "%" : "N/A"}, Market: ${t.market != null ? t.market + "%" : "N/A"}, Self-work: ${t.selfWork != null ? t.selfWork + "%" : "N/A"}`);
+    }
+    if (cd.currentPopulation != null) {
+      const active = cd.rankings?.countryActivePopulation?.value ?? cd.countryActivePopulation;
+      const activePct = cd.currentPopulation > 0 ? ((active / cd.currentPopulation) * 100).toFixed(1) : 0;
+      lines.push(`Population: ${fmtNum(cd.currentPopulation)} total, ${fmtNum(active || 0)} active (${activePct}% activity)`);
+    }
+    if (cd.unrest) {
+      const u = cd.unrest;
+      const pct = u.barMax > 0 ? ((u.bar / u.barMax) * 100).toFixed(1) : 0;
+      lines.push(`Unrest: ${pct}%`);
+    }
+    if (Array.isArray(cd.warsWith) && cd.warsWith.length) {
+      lines.push(`At war with: ${cd.warsWith.map(id => cName(id)).filter(Boolean).join(", ")}`);
+    } else { lines.push("At war with: none"); }
+    if (Array.isArray(cd.allies) && cd.allies.length) {
+      lines.push(`Allies: ${cd.allies.map(id => cName(id)).filter(Boolean).join(", ")}`);
+    }
+    lines.push("");
+  }
+
+  // Parties
+  lines.push(`## Parties (${_parties.length})`);
+  for (const p of _parties) {
+    const leader = p.leader ? S.lookups.usersById.get(p.leader) : null;
+    const leaderName = leader?.username || (p.leader ? "#" + p.leader.slice(-6) : "—");
+    const members = Array.isArray(p.members) ? p.members.length : (p.membersCount || p.memberCount || "?");
+    let pl = `${p.name || "Unnamed"} — Leader: ${leaderName} · ${fmtNum(members)} members`;
+    const ethics = formatPartyEthics(p.ethics);
+    if (ethics) pl += ` [${ethics}]`;
+    lines.push(pl);
+  }
+  lines.push("");
+
+  // Elections
+  lines.push(`## Elections (${_elections.length})`);
+  for (const e of _elections) {
+    const type = e.type === "president" ? "Presidential" : "Congress";
+    const start = e.votesStartAt ? fmtDate(e.votesStartAt) : "—";
+    const end = e.votesEndAt ? fmtDate(e.votesEndAt) : "—";
+    const votes = e.votesCount != null ? `${fmtNum(e.votesCount)} votes` : "";
+    lines.push(`${type} ${start} → ${end} ${votes}`);
+  }
+
+  navigator.clipboard.writeText(lines.join("\n")).then(() => toast("Politics report copied."));
+}
+
+export function capturePoliticsReport() {
+  const country = _countries.find(c => c._id === _selectedCountryId);
+  const countryName = country?.name || _selectedCountryId.slice(-6);
+  if (!_selectedCountryId) { toast("Select a country first."); return; }
+
+  const genLine = "Generated: " + new Date().toUTCString();
+  const meta = [genLine];
+
+  let govHtml = "";
+  if (_government) {
+    const roleMap = { president: "President", vicePresident: "Vice President", minOfDefense: "Minister of Defense", minOfEconomy: "Minister of Economy", minOfForeignAffairs: "Foreign Affairs" };
+    for (const [key, label] of Object.entries(roleMap)) {
+      const uid = _government[key];
+      if (uid) {
+        const user = S.lookups.usersById.get(uid);
+        govHtml += `<div>${label}: ${user?.username || uid.slice(-6)}</div>`;
+      }
+    }
+    if (_countryDetail?.rulingParty) {
+      const party = _parties.find(p => p._id === _countryDetail.rulingParty);
+      if (party) {
+        let rp = `Ruling Party: ${party.name}`;
+        const ethics = formatPartyEthics(party.ethics);
+        if (ethics) rp += ` (${ethics})`;
+        govHtml += `<div>${rp}</div>`;
+      }
+    }
+    if (_alliance) govHtml += `<div>Alliance: ${_alliance.allianceName || _alliance.name || ""}</div>`;
+    const congress = _government.congressMembers || [];
+    if (congress.length) govHtml += `<div>Congress: ${congress.length} members</div>`;
+  }
+
+  const cd = _countryDetail;
+  let ctxHtml = "";
+  if (cd) {
+    const wealth = cd.rankings?.countryWealth?.value ?? cd.countryWealth;
+    ctxHtml += `<div>Treasury: ${fmtMoney(wealth || 0)} (rank ${cd.rankings?.countryWealth?.rank || "?"})</div>`;
+    if (cd.taxes) {
+      const t = cd.taxes;
+      ctxHtml += `<div>Tax rates — Income: ${t.income != null ? t.income + "%" : "N/A"}, Market: ${t.market != null ? t.market + "%" : "N/A"}, Self-work: ${t.selfWork != null ? t.selfWork + "%" : "N/A"}</div>`;
+    }
+    if (cd.currentPopulation != null) {
+      const active = cd.rankings?.countryActivePopulation?.value ?? cd.countryActivePopulation;
+      const activePct = cd.currentPopulation > 0 ? ((active / cd.currentPopulation) * 100).toFixed(1) : 0;
+      ctxHtml += `<div>Population: ${fmtNum(cd.currentPopulation)} total, ${fmtNum(active || 0)} active (${activePct}%)</div>`;
+    }
+    if (Array.isArray(cd.warsWith) && cd.warsWith.length) {
+      ctxHtml += `<div>At war with: ${cd.warsWith.map(id => cName(id)).filter(Boolean).join(", ")}</div>`;
+    } else { ctxHtml += `<div>At war with: none</div>`; }
+  }
+
+  const partyRows = _parties.map(p => {
+    const leader = p.leader ? S.lookups.usersById.get(p.leader) : null;
+    const leaderName = leader?.username || (p.leader ? "#" + p.leader.slice(-6) : "—");
+    const members = Array.isArray(p.members) ? p.members.length : (p.membersCount || p.memberCount || 0);
+    const ethics = formatPartyEthics(p.ethics);
+    return [p.name || "Unnamed", leaderName, String(members), ethics || "—"];
+  });
+
+  const electionRows = _elections.map(e => {
+    const type = e.type === "president" ? "Presidential" : "Congress";
+    const start = e.votesStartAt ? fmtDate(e.votesStartAt) : "—";
+    const end = e.votesEndAt ? fmtDate(e.votesEndAt) : "—";
+    const votes = e.votesCount != null ? fmtNum(e.votesCount) : "—";
+    return [type, start, end, votes];
+  });
+
+  const html = cap.pageOpen(`War Era Politics Report — ${countryName}`, "", meta) +
+    cap.section("Government", `<div style="font-size:10px;color:var(--ink-dim);line-height:1.5">${govHtml}</div>`) +
+    cap.section("Country Snapshot", `<div style="font-size:10px;color:var(--ink-dim);line-height:1.5">${ctxHtml}</div>`) +
+    cap.section("Parties", cap.tableBlock("", ["Party", "Leader", "Members", "Ethics"], partyRows, 50)) +
+    cap.section("Elections", cap.tableBlock("", ["Type", "Start", "End", "Votes"], electionRows, 50)) +
+    cap.pageClose();
+  cap.captureHTML(html, "politics_report_" + cap.ts() + ".png");
 }
 
 export function loadCountryById(countryId) {

@@ -1,6 +1,7 @@
 import { apiKey } from "../core/api.js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "../core/constants.js";
 import { loadProfile } from "../user/profile.js";
+import { toast } from "../ui/toast.js";
 
 const PROHIBITED_WORDS = [
   "fuck", "shit", "nigger", "nigga", "bitch", "asshole", "bastard",
@@ -299,4 +300,16 @@ function escHtml(s) {
   const d = document.createElement("div");
   d.textContent = s;
   return d.innerHTML;
+}
+
+export function copyCommunityReport() {
+  const msgs = getCachedMessages();
+  if (!msgs.length) { toast("No messages loaded."); return; }
+  let r = `# War Era Community Wall Report\nGenerated: ${new Date().toUTCString()}\nTotal: ${msgs.length} messages\n\n`;
+  for (const m of msgs) {
+    const date = new Date(m.created_at);
+    const timeStr = date.toLocaleDateString() + " " + date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    r += `${m.author} (${timeStr}):\n  ${m.text}\n  👍 ${m.upvotes || 0}\n\n`;
+  }
+  navigator.clipboard.writeText(r).then(() => toast("Community report copied."));
 }

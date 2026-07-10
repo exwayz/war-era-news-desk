@@ -3,6 +3,11 @@ import { E } from "../core/dom.js";
 import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
 import { fmtNum, fmtDate } from "../core/utils.js";
 import { ensureLookups } from "../timeline/filters.js";
+import { toast } from "../ui/toast.js";
+import * as cap from "../core/captureReport.js";
+
+let _companyConcentrationData = [];
+let _depositConcentrationData = [];
 
 const DEPOSIT_TYPES = ["petroleum", "wood", "iron", "limestone", "grain", "lead", "coca", "fish", "livestock"];
 const CONCURRENCY = 10;
@@ -54,6 +59,7 @@ export async function loadCompanyConcentration() {
       byRegion[rid].itemCodes[code] = (byRegion[rid].itemCodes[code] || 0) + 1;
     }
     const sorted = Object.entries(byRegion).sort((a, b) => b[1].companies.length - a[1].companies.length).slice(0, 50);
+    _companyConcentrationData = sorted.map(([rid, data]) => ({ regionId: rid, data }));
     await ensureLookups(k);
     const regionIds = sorted.map(([rid]) => rid).filter(Boolean);
     const regions = await batchFetch(regionIds, "region.getById", k, "regionId");
@@ -99,6 +105,7 @@ export async function loadDepositConcentration(filterType) {
     let items = Array.isArray(evts) ? evts : (evts?.items || evts?.events || []);
     if (!items.length) { list.innerHTML = `<p class="status-msg" style="padding:12px">No deposits found.</p>`; return; }
     items = items.filter(e => e.data?.itemCode).sort((a, b) => (b.data?.bonusPercent || 0) - (a.data?.bonusPercent || 0));
+    _depositConcentrationData = items;
     await ensureLookups(k);
     const regionIds = [...new Set(items.map(e => e.data?.region).filter(Boolean))];
     const regions = await batchFetch(regionIds, "region.getById", k, "regionId");
@@ -138,4 +145,94 @@ export function populateDepositFilter() {
     opt.textContent = t.charAt(0).toUpperCase() + t.slice(1);
     sel.appendChild(opt);
   }
+}
+
+function _resolveRegionName(regionId, seenRegionMap) {
+  if (seenRegionMap[regionId]) return seenRegionMap[regionId];
+  const region = S.lookups.regionsById.get(String(regionId));
+  if (region) {
+    const rname = region.name || regionId.slice(0, 8);
+    const country = region.countryCode ? (S.lookups.countriesById.get(region.country)?.name || region.countryCode.toUpperCase()) : "";
+    seenRegionMap[regionId] = { rname, cname: country };
+    return seenRegionMap[regionId];
+  }
+  seenRegionMap[regionId] = { rname: regionId.slice(0, 8), cname: "" };
+  return seenRegionMap[regionId];
+}
+
+export function copyJobsConcentration() {
+  const companyView = document.getElementById("companyConcentration");
+  const depositView = document.getElementById("depositConcentration");
+  const isCompany = companyView && !companyView.hidden;
+
+  let r = `# War Era ${isCompany ? "Company" : "Deposit"} Concentration Report\nGenerated: ${new Date().toUTCString()}\n`;
+
+  const regionCache = {};
+  if (isCompany) {
+    r += "\n## Company Concentration by Region\n";
+    for (const [rid, data] of _companyConcentrationData) {
+      const { rname, cname } = _resolveRegionName(rid, regionCache);
+      const total = data.companies.length;
+      const codes = Object.entries(data.itemCodes).sort((a, b) => b[1] - a[1]);
+      const codeStr = codes.map(([code, count]) => `${code} ${((count / total) * 100).toFixed(0)}% (${count})`).join(", ");
+      r += `\n${rname}${cname ? ` (${cname})` : ""}: ${fmtNum(total)} companies\n  ${codeStr}`;
+    }
+  } else {
+    if (!_depositConcentrationData.length) { toast("No deposit data loaded. Switch to Deposits view first."); return; }
+    r += "\n## Deposit Concentration\n";
+    const now = Date.now();
+    for (const ev of _depositConcentrationData) {
+      const ed = ev.data;
+      const rid = ed.region;
+      const { rname, cname } = _resolveRegionName(rid, regionCache);
+      const itemCode = ed.itemCode || "unknown";
+      const bonus = ed.bonusPercent || 0;
+      const durationDays = ed.durationDays || 0;
+      const endsAt = new Date(ev.createdAt).getTime() + durationDays * 86400000;
+      const remaining = Math.max(0, Math.ceil((endsAt - now) / 86400000));
+      r += `\n${rname}${cname ? ` (${cname})` : ""}: ${itemCode} +${bonus}% — ${remaining}d left`;
+    }
+  }
+  navigator.clipboard.writeText(r).then(() => toast("Concentration report copied."));
+}
+
+export function captureJobsConcentration() {
+  const companyView = document.getElementById("companyConcentration");
+  const depositView = document.getElementById("depositConcentration");
+  const isCompany = companyView && !companyView.hidden;
+
+  if (!isCompany && !_depositConcentrationData.length) { toast("No deposit data loaded."); return; }
+
+  const genLine = "Generated: " + new Date().toUTCString();
+  const regionCache = {};
+  let rows, headers;
+
+  if (isCompany) {
+    headers = ["#", "Region", "Country", "Companies", "Item Codes"];
+    rows = _companyConcentrationData.map(([rid, data], i) => {
+      const { rname, cname } = _resolveRegionName(rid, regionCache);
+      const total = data.companies.length;
+      const codes = Object.entries(data.itemCodes).sort((a, b) => b[1] - a[1]);
+      const codeStr = codes.map(([code, count]) => `${code} ${((count / total) * 100).toFixed(0)}%`).join(", ");
+      return [String(i + 1), rname, cname || "—", fmtNum(total), codeStr];
+    });
+  } else {
+    headers = ["#", "Region", "Country", "Type", "Bonus", "Remaining"];
+    const now = Date.now();
+    rows = _depositConcentrationData.map((ev, i) => {
+      const ed = ev.data;
+      const rid = ed.region;
+      const { rname, cname } = _resolveRegionName(rid, regionCache);
+      const durationDays = ed.durationDays || 0;
+      const endsAt = new Date(ev.createdAt).getTime() + durationDays * 86400000;
+      const remaining = Math.max(0, Math.ceil((endsAt - now) / 86400000));
+      return [String(i + 1), rname, cname || "—", ed.itemCode || "—", "+" + (ed.bonusPercent || 0) + "%", remaining + "d"];
+    });
+  }
+
+  const title = "War Era " + (isCompany ? "Company" : "Deposit") + " Concentration";
+  const html = cap.pageOpen(title, "", [genLine]) +
+    cap.section("", cap.tableBlock("", headers, rows, 100)) +
+    cap.pageClose();
+  cap.captureHTML(html, "concentration_" + cap.ts() + ".png");
 }
