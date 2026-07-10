@@ -72,7 +72,7 @@ export function copyAllLinks() {
   if (!_countries.length) { toast("No countries loaded."); return; }
   const links = _countries
     .filter(c => c._id)
-    .map(c => `/country/${c._id}`)
+    .map(c => `${c.name || c._id.slice(-8)}: /country/${c._id}`)
     .join("\n");
   navigator.clipboard.writeText(links).then(() => toast(_countries.length + " links copied."));
 }
