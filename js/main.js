@@ -24,6 +24,7 @@ import { loadProfile, saveProfile, deleteProfile, isRegistered, formatProfileLin
 import { POLICY_TEXT } from "./community/policy.js";
 import { loadMessages, loadMoreMessages, postMessage, upvoteMessage, renderWallMessages, renderWallCount, getMessageById, hasMoreMessages, getRemainingQuota, prependWallCard, updateUpvoteDisplay, copyCommunityReport } from "./community/wall.js";
 import { loadPolitics, initPolitics, copyPoliticsReport, capturePoliticsReport } from "./politics/politics.js";
+import { loadCountries, copyAllLinks } from "./links/links.js";
 import { highlightUserData } from "./core/profileHighlighter.js";
 import { initClock, updateInfobar } from "./visuals/clock.js";
 
@@ -335,6 +336,8 @@ function bindAll() {
   E.copyPoliticsReportBtn?.addEventListener("click", copyPoliticsReport);
   document.getElementById("capturePoliticsReportBtn")?.addEventListener("click", capturePoliticsReport);
   document.getElementById("politicsRefreshBtn")?.addEventListener("click", () => loadPolitics(true));
+  document.getElementById("copyAllLinksBtn")?.addEventListener("click", copyAllLinks);
+  document.getElementById("linksRefreshBtn")?.addEventListener("click", loadCountries);
 
   function updateWallLoadMore() { if (E.wallLoadMore) E.wallLoadMore.hidden = !hasMoreMessages(); }
 
@@ -417,7 +420,7 @@ function bindAll() {
 
   document.addEventListener("click", e => {
     const t = e.target;
-    if (t.closest("#copyMarketReportBtn, #copyJobsReportBtn, #copyRankingsReportBtn, #copyArticleBtn, #copyBattleReportBtn, #copyPoliticsReportBtn, #copyJobsConcentrationBtn, #copyCommunityReportBtn, .ec-copy")) { playCopy(); return; }
+    if (t.closest("#copyMarketReportBtn, #copyJobsReportBtn, #copyRankingsReportBtn, #copyArticleBtn, #copyBattleReportBtn, #copyPoliticsReportBtn, #copyJobsConcentrationBtn, #copyCommunityReportBtn, #copyAllLinksBtn, .ec-copy, .link-copy")) { playCopy(); return; }
     if (t.closest(".ac-read, #openFullReportBtn, .wall-read-btn")) { playRead(); return; }
     if (t.closest("button, a, .event-card, .battle-card, .wall-upvote-btn")) { playClick(); }
   });

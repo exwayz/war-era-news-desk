@@ -479,3 +479,13 @@
 .conc-pct { min-width: 0; }
 .conc-pct-fill { height: 100%; background: var(--ink-dim); }
 .conc-pct-labels { display: flex; gap: 6px; margin-left: auto; font-size: .66rem; font-family: var(--font-num); color: var(--ink-dim); white-space: nowrap; }
+
+/* Links tab */
+.links-list { display: flex; flex-direction: column; flex: 1; overflow-y: auto; }
+.link-row { display: flex; align-items: center; gap: 8px; padding: 5px 10px; border-bottom: 1px solid var(--line); }
+.link-name { flex: 1; font-size: .82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.link-path { font-family: var(--font-code); font-size: .72rem; color: var(--ink-dim); }
+.link-flag { width: 22px; flex-shrink: 0; display: flex; align-items: center; }
+.link-flag img { display: block; }
+.btn-tiny { padding: 2px 7px; font-size: .68rem; background: var(--surface); border: 1px solid var(--line); color: var(--ink); cursor: pointer; flex-shrink: 0; font-family: inherit; }
+.btn-tiny:hover { background: var(--surface-hi); }
