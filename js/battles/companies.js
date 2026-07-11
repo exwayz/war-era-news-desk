@@ -141,10 +141,11 @@ export function injectBattleSearchBar() {
       const atk = nameCountry(b.attacker?.country||b.attackerCountry||b.attacker?.countryId);
       const def = nameCountry(b.defender?.country||b.defenderCountry||b.defender?.countryId);
       const reg = nameRegion(b.defender?.region||b.defenderRegion||b.region);
+      const typePhrase = b.type === "war" ? `Battle of ${reg}` : b.type === "resistance" ? `Resistance for ${reg}` : b.type === "revolution" ? `Civil war of ${def}` : b.type === "tournament" ? `MU Tournament` : `Battle`;
       const started = fmtDate(b.createdAt||b.startedAt);
       const ended = fmtDate(b.endedAt);
       const dmg = S.battleDamageCache.get(battleId(b)) ?? b.totalDamage ?? b.damage ?? 0;
-      return `[${started} — ${ended}] a battle between ${atk} vs ${def}${reg?" in "+reg:""}, ${fmtNum(dmg)} total damage`;
+      return `[${started} — ${ended}] ${typePhrase}: ${atk} vs ${def}${reg?" in "+reg:""}, ${fmtNum(dmg)} total damage`;
     });
     navigator.clipboard.writeText(lines.join("\n")).then(()=>toast("Battle list copied."));
   });
