@@ -2,6 +2,7 @@ import { S } from "../core/state.js";
 import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
 import { toast } from "../ui/toast.js";
 import { getCountriesInRegion, populateRegionOptions } from "../core/regionClassification.js";
+import { getCoatOfArmsUrl, retryCoatOfArms } from "../core/coatOfArms.js";
 
 let _countries = [];
 let _regionFilter = "";
@@ -69,15 +70,47 @@ function renderCountryList() {
     if (!id) continue;
     const path = "/country/" + id;
     const code = c.code || "";
-    const flag = code ? `https://flagcdn.com/${code.toLowerCase()}.svg` : "";
+    const flagFallback = code ? `https://flagcdn.com/${code.toLowerCase()}.svg` : "";
+    const coa = getCoatOfArmsUrl(c.name);
     const row = document.createElement("div");
     row.className = "link-row";
-    row.innerHTML = `
-      <span class="link-flag">${flag ? `<img src="${flag}" alt="" loading="lazy" width="20" height="15">` : ""}</span>
-      <span class="link-name">${escHtml(c.name || id.slice(-8))}</span>
-      <code class="link-path">${path}</code>
-      <button class="btn-tiny link-copy" data-path="${path}">Copy</button>
-    `;
+
+    const flagSpan = document.createElement("span");
+    flagSpan.className = "link-flag";
+    const img = document.createElement("img");
+    img.width = 20;
+    img.height = 15;
+    img.loading = "lazy";
+    if (coa) {
+      img.src = coa;
+      img.alt = "";
+      img.dataset.coaCountry = c.name;
+      img.dataset.coaFallback = flagFallback;
+      img.addEventListener("error", function onCoaError() {
+        retryCoatOfArms(this, this.dataset.coaCountry, this.dataset.coaFallback);
+      });
+    } else if (flagFallback) {
+      img.src = flagFallback;
+      img.alt = "";
+    }
+    if (img.src) flagSpan.appendChild(img);
+    row.appendChild(flagSpan);
+
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "link-name";
+    nameSpan.textContent = c.name || id.slice(-8);
+    row.appendChild(nameSpan);
+
+    const codeEl = document.createElement("code");
+    codeEl.className = "link-path";
+    codeEl.textContent = path;
+    row.appendChild(codeEl);
+
+    const btn = document.createElement("button");
+    btn.className = "btn-tiny link-copy";
+    btn.dataset.path = path;
+    btn.textContent = "Copy";
+    row.appendChild(btn);
     frag.appendChild(row);
   }
   list.innerHTML = "";
