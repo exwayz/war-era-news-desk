@@ -2,6 +2,7 @@ import { S } from "../core/state.js";
 import { renderBattleList, battleId } from "./battles.js";
 import { fmtDate, fmtNum } from "../core/utils.js";
 import { playCopy } from "../audio/audio.js";
+import { getCountriesInRegion, populateRegionOptions } from "../core/regionClassification.js";
 
 export function nameCountry(id) { if(!id) return ""; return S.lookups.countriesById.get(id)?.name||id?.slice(-6)||""; }
 export function nameRegion(id) { if(!id) return ""; return S.lookups.regionsById.get(String(id))?.name||String(id).slice(-6)||""; }
@@ -23,6 +24,11 @@ export function injectBattleSearchBar() {
   <input id="battleSearch" type="text" placeholder="Search by country or region…">
   <button class="clear-btn" id="clearBattleSearch" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
 </div>
+<div class="input-wrap" style="flex:0 0 auto;max-width:130px">
+  <input id="battlesRegionFilter" type="text" list="battlesRegionOptions" placeholder="Region…">
+  <button class="clear-btn" data-clears="battlesRegionFilter" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
+</div>
+<datalist id="battlesRegionOptions"></datalist>
 <button id="battleLoadMini" class="btn-load-mini">More</button>
 <button id="copyBattleListBtn" class="btn-icon-sm" title="Copy all listed"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon></button>
 `;
@@ -54,6 +60,17 @@ export function injectBattleSearchBar() {
     S.battleSearch = "";
     renderBattleList();
     inp.focus();
+  });
+
+  const regionInp = document.getElementById("battlesRegionFilter");
+  const regionClr = document.querySelector("[data-clears='battlesRegionFilter']");
+  populateRegionOptions(document.getElementById("battlesRegionOptions"));
+  regionInp?.addEventListener("input", () => {
+    S.battleRegionFilter = regionInp.value.replace(/^[^a-zA-Z0-9]*/, "").trim();
+    renderBattleList();
+  });
+  regionClr?.addEventListener("click", () => {
+    if (regionInp) { regionInp.value = ""; S.battleRegionFilter = ""; renderBattleList(); regionInp.focus(); }
   });
 
   const sortBtns = fr.querySelectorAll("[data-sort]");

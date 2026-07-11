@@ -138,6 +138,11 @@
                 <button class="clear-btn" data-clears="countryInput" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
               </div>
               <datalist id="countryOptions"></datalist>
+              <div class="input-wrap" style="max-width:160px">
+                <input id="timelineRegionFilter" type="text" list="timelineRegionOptions" placeholder="Region…">
+                <button class="clear-btn" data-clears="timelineRegionFilter" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
+              </div>
+              <datalist id="timelineRegionOptions"></datalist>
               <select id="eventTypeSelect"><option value="">All types</option></select>
               <input id="startTimeInput" type="datetime-local" title="From">
               <input id="endTimeInput" type="datetime-local" title="To">
@@ -292,6 +297,8 @@
             <h2><iconify-icon icon="mdi:bank" class="lu"></iconify-icon> Politics</h2>
             <div class="input-wrap" style="max-width:240px"><input id="politicsCountryInput" type="text" list="politicsCountryOptions" placeholder="Search country…"><button class="clear-btn" data-clears="politicsCountryInput" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button></div>
             <datalist id="politicsCountryOptions"></datalist>
+            <div class="input-wrap" style="max-width:140px"><input id="politicsRegionFilter" type="text" list="politicsRegionOptions" placeholder="Region…"><button class="clear-btn" data-clears="politicsRegionFilter" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button></div>
+            <datalist id="politicsRegionOptions"></datalist>
             <button class="btn-secondary" id="copyPoliticsReportBtn"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon> Copy Report</button>
             <button class="btn-secondary" id="capturePoliticsReportBtn"><iconify-icon icon="mdi:camera" class="lu"></iconify-icon> Report</button>
             <button class="btn-primary" id="politicsRefreshBtn"><iconify-icon icon="mdi:refresh" class="lu"></iconify-icon> Refresh</button>
@@ -345,6 +352,10 @@
             <button class="btn-primary" id="copyAllLinksBtn"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon> Copy All</button>
             <button class="btn-primary" id="linksRefreshBtn"><iconify-icon icon="mdi:refresh" class="lu"></iconify-icon> Refresh</button>
           </div>
+        </div>
+        <div class="tl-filter-bar" style="padding:4px 0">
+          <div class="input-wrap" style="max-width:200px"><input id="linksRegionFilter" type="text" list="linksRegionOptions" placeholder="Region filter…"><button class="clear-btn" data-clears="linksRegionFilter" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button></div>
+          <datalist id="linksRegionOptions"></datalist>
         </div>
         <div id="countryLinkList" class="links-list"></div>
       </div>

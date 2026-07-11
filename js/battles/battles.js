@@ -4,6 +4,7 @@ import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
 import { fmtDate, fmtNum, escapeXml } from "../core/utils.js";
 import { toast } from "../ui/toast.js";
 import { highlightUserData } from "../core/profileHighlighter.js";
+import { getCountriesInRegion } from "../core/regionClassification.js";
 
 
 async function resolveTournamentMUs(k) {
@@ -101,6 +102,9 @@ export async function loadBattles(reset=true) {
 export function renderBattleList() {
   E.battleList.innerHTML="";
   const kw = S.battleSearch||"";
+  const regionK = (S.battleRegionFilter||"").toLowerCase();
+  const regionCountryNames = regionK ? getCountriesInRegion(regionK) : [];
+  const regionSet = regionCountryNames.length ? new Set(regionCountryNames.map(n => n.toLowerCase())) : null;
   let list = S.battles;
   if (kw) {
     list = list.filter(b => {
@@ -115,6 +119,13 @@ export function renderBattleList() {
       const reg = nameRegion(b.defender?.region||b.defenderRegion||b.region).toLowerCase();
       const title = (b.title||b.name||"").toLowerCase();
       return atk.includes(kw)||def.includes(kw)||reg.includes(kw)||title.includes(kw);
+    });
+  }
+  if (regionSet) {
+    list = list.filter(b => {
+      const atk = nameCountry(b.attacker?.country||b.attackerCountry||b.attacker?.countryId).toLowerCase();
+      const def = nameCountry(b.defender?.country||b.defenderCountry||b.defender?.countryId).toLowerCase();
+      return regionSet.has(atk) || regionSet.has(def);
     });
   }
   const df = S.battleDateFrom, dt = S.battleDateTo;

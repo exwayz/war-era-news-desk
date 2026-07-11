@@ -1,5 +1,6 @@
 import { S } from "./core/state.js";
 import { E } from "./core/dom.js";
+import { populateRegionOptions } from "./core/regionClassification.js";
 import { STORE } from "./core/storage.js";
 import { apiKey } from "./core/api.js";
 import { debounce, parseLocal, fmtDate, fmtNum } from "./core/utils.js";
@@ -24,7 +25,7 @@ import { loadProfile, saveProfile, deleteProfile, isRegistered, formatProfileLin
 import { POLICY_TEXT } from "./community/policy.js";
 import { loadMessages, loadMoreMessages, postMessage, upvoteMessage, renderWallMessages, renderWallCount, getMessageById, hasMoreMessages, getRemainingQuota, prependWallCard, updateUpvoteDisplay, copyCommunityReport } from "./community/wall.js";
 import { loadPolitics, initPolitics, copyPoliticsReport, capturePoliticsReport } from "./politics/politics.js";
-import { loadCountries, copyAllLinks } from "./links/links.js";
+import { loadCountries, copyAllLinks, initLinksFilters } from "./links/links.js";
 import { highlightUserData } from "./core/profileHighlighter.js";
 import { initClock, updateInfobar } from "./visuals/clock.js";
 
@@ -260,6 +261,17 @@ function bindAll() {
   });
   E.loadMoreBtn?.addEventListener("click",()=>loadEvents(false));
   E.countryInput?.addEventListener("input", debounce(()=>scheduleEventsRefresh(),350));
+
+  populateRegionOptions(document.getElementById("timelineRegionOptions"));
+  const timelineRegionInput = document.getElementById("timelineRegionFilter");
+  const timelineRegionClr = document.querySelector("[data-clears='timelineRegionFilter']");
+  timelineRegionInput?.addEventListener("input", () => {
+    S.timelineRegionFilter = timelineRegionInput.value.replace(/^[^a-zA-Z0-9]*/, "").trim();
+    renderTimeline();
+  });
+  timelineRegionClr?.addEventListener("click", () => {
+    if (timelineRegionInput) { timelineRegionInput.value = ""; S.timelineRegionFilter = ""; renderTimeline(); timelineRegionInput.focus(); }
+  });
   E.eventTypeSelect?.addEventListener("change",()=>scheduleEventsRefresh());
   E.eventLimitInput?.addEventListener("change",()=>scheduleEventsRefresh());
   document.getElementById("eventLoadMini")?.addEventListener("click",()=>{ E.loadMoreBtn?.click(); });
@@ -338,6 +350,7 @@ function bindAll() {
   document.getElementById("politicsRefreshBtn")?.addEventListener("click", () => loadPolitics(true));
   document.getElementById("copyAllLinksBtn")?.addEventListener("click", copyAllLinks);
   document.getElementById("linksRefreshBtn")?.addEventListener("click", loadCountries);
+  initLinksFilters();
 
   function updateWallLoadMore() { if (E.wallLoadMore) E.wallLoadMore.hidden = !hasMoreMessages(); }
 

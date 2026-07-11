@@ -1,8 +1,10 @@
 import { S } from "../core/state.js";
 import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
 import { toast } from "../ui/toast.js";
+import { getCountriesInRegion, populateRegionOptions } from "../core/regionClassification.js";
 
 let _countries = [];
+let _regionFilter = "";
 
 export async function loadCountries() {
   const k = apiKey();
@@ -19,30 +21,50 @@ export async function loadCountries() {
     const d = unwrap(r);
     _countries = Array.isArray(d) ? d : (d?.items || d?.results || []);
     _countries.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    populateRegionOptions(document.getElementById("linksRegionOptions"));
     renderCountryList();
   } catch (err) {
     list.innerHTML = `<p class="status-msg" style="padding:12px;color:var(--red)">Error: ${err.message}</p>`;
   }
 }
 
+function filterCountriesByRegion() {
+  if (!_regionFilter) return _countries;
+  const names = getCountriesInRegion(_regionFilter);
+  if (!names.length) return _countries;
+  const lower = new Set(names.map(n => n.toLowerCase()));
+  const filtered = [];
+  for (const c of _countries) {
+    if (c.name && lower.has(c.name.toLowerCase())) filtered.push(c);
+  }
+  return filtered;
+}
+
 function renderCountryList() {
   const list = document.getElementById("countryLinkList");
   if (!list) return;
-  if (!_countries.length) {
+  const filtered = filterCountriesByRegion();
+  if (!filtered.length) {
+    list.innerHTML = '<p class="status-msg" style="padding:12px">No countries match the filter.</p>';
+    return;
+  }
+  else if (!_countries.length) {
     list.innerHTML = '<p class="status-msg" style="padding:12px">No countries found.</p>';
     return;
   }
   document.getElementById("linkCount")?.remove();
   const header = document.querySelector(".links-toolbar");
+  const shown = filtered.length;
+  const total = _countries.length;
   if (header) {
     const count = document.createElement("span");
     count.id = "linkCount";
     count.className = "meta-text";
-    count.textContent = _countries.length + " countries";
+    count.textContent = shown + " countries" + (shown < total ? " (" + total + " total)" : "");
     header.appendChild(count);
   }
   const frag = document.createDocumentFragment();
-  for (const c of _countries) {
+  for (const c of filtered) {
     const id = c._id;
     if (!id) continue;
     const path = "/country/" + id;
@@ -69,12 +91,30 @@ function renderCountryList() {
 }
 
 export function copyAllLinks() {
-  if (!_countries.length) { toast("No countries loaded."); return; }
-  const links = _countries
+  const filtered = filterCountriesByRegion();
+  if (!filtered.length) { toast("No countries to copy."); return; }
+  const links = filtered
     .filter(c => c._id)
     .map(c => `${c.name || c._id.slice(-8)}: /country/${c._id}`)
     .join("\n");
-  navigator.clipboard.writeText(links).then(() => toast(_countries.length + " links copied."));
+  navigator.clipboard.writeText(links).then(() => toast(filtered.length + " links copied."));
+}
+
+export function initLinksFilters() {
+  const input = document.getElementById("linksRegionFilter");
+  if (!input) return;
+  input.addEventListener("input", () => {
+    _regionFilter = input.value.replace(/^[^a-zA-Z0-9]*/, "").trim();
+    renderCountryList();
+  });
+  const clearBtn = document.querySelector("[data-clears='linksRegionFilter']");
+  if (clearBtn) {
+    clearBtn.addEventListener("click", () => {
+      input.value = "";
+      _regionFilter = "";
+      renderCountryList();
+    });
+  }
 }
 
 function escHtml(s) {

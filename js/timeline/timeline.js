@@ -4,6 +4,7 @@ import { apiKey, fetchTrpc, normalizeEvents, normalizeCursor } from "../core/api
 import { STORE } from "../core/storage.js";
 import { fmtDate, parseLocal } from "../core/utils.js";
 import { resolveBattles, resolveUsers, ensureLookups, getFilters } from "./filters.js";
+import { getCountriesInRegion, populateRegionOptions } from "../core/regionClassification.js";
 import { loadArticles, isLoadingArticles, silentRefreshArticles } from "./articles.js";
 import { evtData, evtTime, buildTitle, buildSummary, buildDetails, buildLink, fmtType } from "./events.js";
 import { toast, setStatus, clearStatus } from "../ui/toast.js";
@@ -128,11 +129,27 @@ function playPing(){
 export function renderTimeline() {
   const start=parseLocal(E.startTimeInput.value);
   const end=parseLocal(E.endTimeInput.value);
+  const regionFilter = (S.timelineRegionFilter||"").toLowerCase();
+  const regionCountryNames = regionFilter ? getCountriesInRegion(regionFilter) : [];
+  let regionIds = null;
+  if (regionCountryNames.length) {
+    const ids = [];
+    for (const name of regionCountryNames) {
+      const id = S.lookups.countryIdsByName.get(name.toLowerCase());
+      if (id) ids.push(id);
+    }
+    if (ids.length) regionIds = new Set(ids);
+  }
   const visible=S.events.filter(e=>{
     const ts=evtTime(e); if(!ts) return !start&&!end;
     const t=new Date(ts).getTime(); if(isNaN(t)) return !start&&!end;
     if(start&&t<start.getTime()) return false;
     if(end&&t>end.getTime()) return false;
+    if (regionIds) {
+      const countries = e.countries||e.data?.countries||[];
+      const hasMatch = countries.some(cid => regionIds.has(cid));
+      if (!hasMatch) return false;
+    }
     return true;
   });
   E.eventList.textContent="";

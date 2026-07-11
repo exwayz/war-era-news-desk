@@ -5,6 +5,7 @@ import { resolveParty, resolveAlliance, resolveContentLinks } from "../core/reso
 import { evtData, evtTime, buildTitle, buildSummary, fmtType } from "../timeline/events.js";
 import { toast } from "../ui/toast.js";
 import * as cap from "../core/captureReport.js";
+import { getCountriesInRegion, populateRegionOptions } from "../core/regionClassification.js";
 
 const POLITICS_EVENT_TYPES = new Set([
   "allianceBroken","allianceFormed","allianceMemberExcluded","allianceMemberJoined","allianceMemberLeft",
@@ -21,6 +22,7 @@ let _countryDetail = null;
 let _parties = [];
 let _elections = [];
 let _alliance = null;
+let _politicsRegionFilter = "";
 
 export async function loadPolitics(force = false) {
   if (!force && _loaded) return;
@@ -347,7 +349,15 @@ function renderElections() {
 function renderCountryGrid() {
   const container = document.getElementById("politicsContent");
   if (!container) return;
-  const sorted = [..._countries].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  let filtered = [..._countries];
+  if (_politicsRegionFilter) {
+    const names = getCountriesInRegion(_politicsRegionFilter);
+    if (names.length) {
+      const lower = new Set(names.map(n => n.toLowerCase()));
+      filtered = filtered.filter(c => c.name && lower.has(c.name.toLowerCase()));
+    }
+  }
+  const sorted = [...filtered].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
   container.innerHTML = `
     <div class="pol-country-grid">
       ${sorted.map(c => {
@@ -1003,6 +1013,17 @@ Based strictly on the country snapshot${eventSection ? " and recent events" : ""
 export function initPolitics() {
   const input = document.getElementById("politicsCountryInput");
   if (!input) return;
+
+  populateRegionOptions(document.getElementById("politicsRegionOptions"));
+  const regionInput = document.getElementById("politicsRegionFilter");
+  const regionClr = document.querySelector("[data-clears='politicsRegionFilter']");
+  regionInput?.addEventListener("input", () => {
+    _politicsRegionFilter = regionInput.value.replace(/^[^a-zA-Z0-9]*/, "").trim();
+    if (!_selectedCountryId) renderCountryGrid();
+  });
+  regionClr?.addEventListener("click", () => {
+    if (regionInput) { regionInput.value = ""; _politicsRegionFilter = ""; if (!_selectedCountryId) renderCountryGrid(); regionInput.focus(); }
+  });
 
   const content = document.getElementById("politicsContent");
   content?.addEventListener("click", e => {
