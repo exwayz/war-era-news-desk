@@ -101,41 +101,21 @@ export function getCountriesInRegion(name) {
   return [...new Set(result)];
 }
 
-export function getAllOptionNames() {
-  _build();
-  const names = [];
-  for (const continent of Object.keys(CLASSIFICATION)) {
-    names.push(continent);
-    const subs = CLASSIFICATION[continent];
-    for (const sub of Object.keys(subs)) {
-      names.push(sub);
-      for (const country of subs[sub]) names.push(country);
-    }
-  }
-  return names;
-}
-
 export function populateRegionOptions(datalistEl) {
   if (!datalistEl) return;
   datalistEl.innerHTML = "";
   const frag = document.createDocumentFragment();
   for (const continent of Object.keys(CLASSIFICATION)) {
     const o = document.createElement("option");
-    o.value = "\u{1F30D} " + continent;
+    o.value = "~ " + continent;
     o.dataset.value = continent;
     frag.appendChild(o);
     const subs = CLASSIFICATION[continent];
     for (const sub of Object.keys(subs)) {
       const o2 = document.createElement("option");
-      o2.value = "  " + sub;
+      o2.value = "- " + sub;
       o2.dataset.value = sub;
       frag.appendChild(o2);
-      for (const country of subs[sub]) {
-        const o3 = document.createElement("option");
-        o3.value = country;
-        o3.dataset.value = country;
-        frag.appendChild(o3);
-      }
     }
   }
   datalistEl.appendChild(frag);
