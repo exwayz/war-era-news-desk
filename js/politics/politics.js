@@ -6,7 +6,6 @@ import { evtData, evtTime, buildTitle, buildSummary, fmtType } from "../timeline
 import { toast } from "../ui/toast.js";
 import * as cap from "../core/captureReport.js";
 import { getCountriesInRegion, populateRegionOptions } from "../core/regionClassification.js";
-import { getCoatOfArmsUrl } from "../core/coatOfArms.js";
 
 const POLITICS_EVENT_TYPES = new Set([
   "allianceBroken","allianceFormed","allianceMemberExcluded","allianceMemberJoined","allianceMemberLeft",
@@ -362,10 +361,8 @@ function renderCountryGrid() {
   container.innerHTML = `
     <div class="pol-country-grid">
       ${sorted.map(c => {
-        const coaUrl = getCoatOfArmsUrl(c.name);
-        const flagUrl = c.code ? `https://flagcdn.com/${c.code}.svg` : "";
-        const imgHtml = coaUrl ? `<img class="pol-grid-flag" src="${coaUrl}" onerror="this.onerror=null;this.src='${flagUrl}'" alt="" loading="lazy">` : (flagUrl ? `<img class="pol-grid-flag" src="${flagUrl}" alt="" loading="lazy">` : "");
-        return `<button class="pol-country-card" data-id="${c._id}">${imgHtml}<span class="pol-country-name">${escHtml(c.name || "?")}</span></button>`;
+        const flag = c.code ? `<img class="pol-grid-flag" src="https://flagcdn.com/${c.code}.svg" alt="" loading="lazy">` : "";
+        return `<button class="pol-country-card" data-id="${c._id}">${flag}<span class="pol-country-name">${escHtml(c.name || "?")}</span></button>`;
       }).join("")}
     </div>
   `;
