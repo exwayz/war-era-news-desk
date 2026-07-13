@@ -30,7 +30,7 @@ Push to `main` → CI (`.github/workflows/deploy.yml`) runs `npm ci && npm run b
 - `js/core/state.js`: global mutable singleton `S` (never destructure — passed by ref)
 - `js/core/dom.js`: element references in `E` object (queried at module init — DOM must exist)
 - `js/core/storage.js`: localStorage keys — `STORE = { apiKey:"wa-nd-apikey", theme:"wa-nd-theme", userProfile:"wa-nd-user-profile" }`
-- **7 tabs** (timeline, battles, market, jobs, politics, rankings, community) switched via sidebar `.side-btn[data-tab]` → `js/ui/tabs.js:switchTab()`. A separate `#writerRedirect` button opens an external URL (WarEra Writer).
+- **8 tabs** (timeline, battles, market, jobs, politics, rankings, community, links) switched via sidebar `.side-btn[data-tab]` → `js/ui/tabs.js:switchTab()`. A separate `#writerRedirect` button opens an external URL (WarEra Writer).
 - Templates: `#eventCardTemplate`, `#articleCardTemplate`, `#battleCardTemplate` in `index.html`, cloned via `<template>.content.firstElementChild.cloneNode(true)`
 
 ## CSS Load Order (7 files)
@@ -65,6 +65,7 @@ Each tab loads data on first visit via `switchTab()` in `tabs.js`:
 - `rankings`: always reloads via `loadCategory()`
 - `politics`: always reloads via `loadPolitics()`
 - `community`: always reloads via `loadMessages()`
+- `links`: always reloads via `loadCountries()`
 
 ## Stateful Gotchas
 - `S.lookupsKey` guards `ensureLookups()` — must reset to `""` before re-fetching on API key change
@@ -84,3 +85,6 @@ Each tab loads data on first visit via `switchTab()` in `tabs.js`:
 | `js/battles/battles.js` | `loadBattles()`, `makeBattleCard()` |
 | `js/battles/companies.js` | Name resolution: `nameCountry()`, `nameRegion()`, `nameUser()` |
 | `js/community/wall.js` | Community wall — Supabase REST, post/upvote/paginate |
+| `js/links/links.js` | Country links tab — `loadCountries()`, copy-all-links |
+| `js/market/marketHistory.js` | Market price/wage history charts |
+| `js/core/regionClassification.js` | Region military unit classification |
