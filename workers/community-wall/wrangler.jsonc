@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "newsdesk-community-wall",
+  "main": "src/index.js",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "newsdesk-community-wall",
+      "database_id": "7e8aad21-3d8a-4184-b854-c9e62f351dc1"
+    }
+  ],
+  "triggers": {
+    "crons": ["0 0 * * *"]
+  }
+}

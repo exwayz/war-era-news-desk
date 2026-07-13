@@ -1,18 +1,16 @@
 import { apiKey } from "../core/api.js";
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from "../core/constants.js";
-import { loadProfile } from "../user/profile.js";
 import { toast } from "../ui/toast.js";
 
+const WALL_API = "https://newsdesk-community-wall.rooster-5b9.workers.dev";
+
 const PROHIBITED_WORDS = [
-  "fuck", "shit", "nigger", "nigga", "bitch", "asshole", "bastard",
-  "cunt", "dick", "pussy", "whore", "slut", "cock", "faggot",
-  "retard", "nazi", "kike", "spic", "chink", "gook", "wetback",
-  "rape", "murder", "kill", "die", "suicide",
+  "fuck","shit","nigger","nigga","bitch","asshole","bastard",
+  "cunt","dick","pussy","whore","slut","cock","faggot",
+  "retard","nazi","kike","spic","chink","gook","wetback",
+  "rape","murder","kill","die","suicide",
 ];
 
-const TABLE = "messages";
 const PAGE_SIZE = 12;
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 function normalize(text) {
   return text.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -35,58 +33,27 @@ let currentSort = "newest";
 let currentPage = 1;
 let totalMessages = 0;
 
-function supabaseHeaders() {
-  return {
-    "Content-Type": "application/json",
-    "apikey": SUPABASE_ANON_KEY,
-    "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-    "Prefer": "return=representation",
-  };
-}
-
-function buildUrl(params) {
-  const qs = params ? "?" + new URLSearchParams(params).toString() : "";
-  return `${SUPABASE_URL}/rest/v1/${TABLE}${qs}`;
-}
-
-const SHA256_TEXT = new TextEncoder();
-async function sha256(str) {
-  const buf = await crypto.subtle.digest("SHA-256", SHA256_TEXT.encode(str));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
-}
-
-function getWeekAgo() {
-  return Date.now() - WEEK_MS;
+function wallHeaders() {
+  const k = apiKey()?.trim();
+  const h = { "Content-Type": "application/json" };
+  if (k) h["x-api-key"] = k;
+  return h;
 }
 
 export async function loadMessages(sort, page) {
   if (sort) currentSort = sort;
   if (page != null) currentPage = page; else currentPage = 1;
 
-  const order = currentSort === "top" ? "upvotes.desc" : "created_at.desc";
-  const from = (currentPage - 1) * PAGE_SIZE;
-  const weekAgo = getWeekAgo();
+  const params = new URLSearchParams({ page: currentPage, sort: currentSort });
 
   try {
-    const [dataRes, countRes] = await Promise.all([
-      fetch(buildUrl({
-        "created_at": `gte.${weekAgo}`,
-        "order": order,
-        "limit": String(PAGE_SIZE),
-        "offset": String(from),
-      }), { headers: supabaseHeaders() }),
-      fetch(buildUrl({
-        "created_at": `gte.${weekAgo}`,
-        "select": "id",
-      }), { headers: { ...supabaseHeaders(), "Prefer": "count=exact" } }),
-    ]);
-
-    if (!dataRes.ok) throw new Error("Failed to load");
-    const messages = await dataRes.json();
-    const total = parseInt(countRes.headers.get("content-range")?.split("/")[1] || "0", 10);
-
-    cachedMessages = currentPage === 1 ? messages : cachedMessages.concat(messages);
-    totalMessages = total;
+    const res = await fetch(`${WALL_API}/messages?${params}`, {
+      headers: wallHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to load");
+    const data = await res.json();
+    cachedMessages = currentPage === 1 ? data.messages : cachedMessages.concat(data.messages);
+    totalMessages = data.total;
     return { messages: cachedMessages, total: totalMessages, page: currentPage };
   } catch {
     return { messages: cachedMessages, total: totalMessages, page: currentPage };
@@ -112,34 +79,16 @@ export function hasMoreMessages() {
   return cachedMessages.length < totalMessages;
 }
 
-async function getWeeklyCount(ids) {
-  if (!ids.length) return 0;
-  const weekAgo = getWeekAgo();
-  try {
-    const qs = `posted_by=in.(${ids.join(",")})&created_at=gte.${weekAgo}&select=id`;
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?${qs}`, {
-      headers: { ...supabaseHeaders(), "Prefer": "count=exact" },
-    });
-    if (!res.ok) return 0;
-    return parseInt(res.headers.get("content-range")?.split("/")[1] || "0", 10);
-  } catch {
-    return 0;
-  }
-}
-
 export async function getRemainingQuota() {
-  const ids = await posterIdentifiers();
-  const count = await getWeeklyCount(ids);
-  return { used: count, remaining: Math.max(0, 5 - count), total: 5 };
-}
-
-async function posterIdentifiers() {
-  const key = apiKey()?.trim();
-  const ids = [];
-  if (key) ids.push("k_" + await sha256(key));
-  const profile = loadProfile();
-  if (profile?.userId) ids.push("u_" + profile.userId);
-  return ids;
+  try {
+    const res = await fetch(`${WALL_API}/messages/quota`, {
+      headers: wallHeaders(),
+    });
+    const data = await res.json();
+    return { used: data.used, remaining: data.remaining, total: data.total };
+  } catch {
+    return { used: 0, remaining: 5, total: 5 };
+  }
 }
 
 export async function postMessage(author, text) {
@@ -148,68 +97,40 @@ export async function postMessage(author, text) {
   if (hasProhibitedContent(text)) return { error: "Message contains prohibited content" };
   if (hasUrl(text)) return { error: "URLs are not allowed" };
 
-  const key = apiKey().trim();
-  if (!key) return { error: "API key required to post" };
-
   try {
-    const ids = await posterIdentifiers();
-    if (!ids.length) return { error: "No identifier available to post" };
-    const count = await getWeeklyCount(ids);
-    if (count >= 5) return { error: "Post limit reached (5/week)" };
-
-    const postedBy = ids[0];
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/messages`, {
+    const res = await fetch(`${WALL_API}/messages`, {
       method: "POST",
-      headers: { ...supabaseHeaders(), "Prefer": "return=representation" },
+      headers: wallHeaders(),
       body: JSON.stringify({
         author: author.trim().slice(0, 40),
         text: text.trim().slice(0, 500),
-        posted_by: postedBy,
-        upvotes: 0,
-        upvoters: [],
       }),
     });
-    if (!res.ok) return { error: "Failed to post" };
-    let msg = await res.json();
-    if (Array.isArray(msg)) msg = msg[0];
-    cachedMessages.unshift(msg);
+    const data = await res.json();
+    if (!res.ok) return { error: data.error || "Failed to post" };
+    cachedMessages.unshift(data.message);
     totalMessages++;
-    return { success: true, message: msg };
+    return { success: true, message: data.message };
   } catch {
     return { error: "Server unavailable" };
   }
 }
 
 export async function upvoteMessage(id) {
-  const key = apiKey().trim();
-  if (!key) return "no-key";
-
   try {
-    const hash = await sha256(key);
-
-    const getRes = await fetch(buildUrl({ id: `eq.${id}`, select: "upvoters,upvotes" }), {
-      headers: supabaseHeaders(),
-    });
-    if (!getRes.ok) return false;
-    const rows = await getRes.json();
-    if (!rows.length) return false;
-    const current = rows[0].upvoters || [];
-    if (current.includes(hash)) return "already";
-
-    const patchRes = await fetch(buildUrl({ id: `eq.${id}` }), {
+    const res = await fetch(`${WALL_API}/messages/${id}/upvote`, {
       method: "PATCH",
-      headers: { ...supabaseHeaders(), "Prefer": "return=representation" },
-      body: JSON.stringify({
-        upvoters: [...current, hash],
-        upvotes: (rows[0].upvotes || 0) + 1,
-      }),
+      headers: wallHeaders(),
     });
-    if (!patchRes.ok) return false;
-    let updated = await patchRes.json();
-    if (Array.isArray(updated)) updated = updated[0];
-    const idx = cachedMessages.findIndex((m) => m.id === id);
-    if (idx !== -1) cachedMessages[idx] = updated;
-    return { success: true, upvotes: updated?.upvotes ?? (rows[0].upvotes || 0) + 1 };
+    const data = await res.json();
+    if (data === "no-key") return "no-key";
+    if (data === "already") return "already";
+    if (data?.success) {
+      const idx = cachedMessages.findIndex(m => m.id === id);
+      if (idx !== -1) cachedMessages[idx].upvotes = data.upvotes;
+      return { success: true, upvotes: data.upvotes };
+    }
+    return false;
   } catch {
     return false;
   }
@@ -217,12 +138,12 @@ export async function upvoteMessage(id) {
 
 export async function deleteMessage(id) {
   try {
-    const res = await fetch(buildUrl({ id: `eq.${id}` }), {
+    const res = await fetch(`${WALL_API}/messages/${id}`, {
       method: "DELETE",
-      headers: supabaseHeaders(),
+      headers: wallHeaders(),
     });
     if (!res.ok) return false;
-    cachedMessages = cachedMessages.filter((m) => m.id !== id);
+    cachedMessages = cachedMessages.filter(m => m.id !== id);
     totalMessages = Math.max(0, totalMessages - 1);
     return true;
   } catch {

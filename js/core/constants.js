@@ -5,7 +5,7 @@ export const MARKET_SERVER_URL = "https://newsdesk-server-4942.onbelmo.uk";
 export const MARKET_DATA_URL = "https://market-server.exwayz.deno.net";
 export const OBJECT_ID_RE = /^[a-f\d]{24}$/i;
 export const DAY_MS = 86400000;
-// Supabase — replace with your project's values from Settings → API
+// Supabase
 export const SUPABASE_URL = "https://bfxyhxjlbrfavuzoljvs.supabase.co";
 export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmeHloeGpsYnJmYXZ1em9sanZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0MDAzODAsImV4cCI6MjA5Nzk3NjM4MH0.0WlDueuTpxhO35Wor6f9zOFUhEPQ_7E9VeRvbpOu6aM";
 
