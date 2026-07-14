@@ -52,15 +52,13 @@ const WARERA_API = "https://gateway.warerastats.io/trpc";
 async function validateApiKey(key) {
   if (!key) return null;
   try {
-    const res = await fetch(WARERA_API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-api-key": key },
-      body: JSON.stringify([{ method: "user.whoami", params: {}, id: 1 }]),
+    const url = `${WARERA_API}/user.whoami?input=${encodeURIComponent("{}")}`;
+    const res = await fetch(url, {
+      headers: { "x-api-key": key },
     });
     if (!res.ok) return null;
     const data = await res.json();
-    const result = data?.[0]?.result?.data;
-    return result || null;
+    return data?.result?.data || data?.data || data || null;
   } catch {
     return null;
   }
