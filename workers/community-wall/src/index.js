@@ -47,23 +47,6 @@ function json(body, status = 200) {
   });
 }
 
-const WARERA_API = "https://gateway.warerastats.io/trpc";
-
-async function validateApiKey(key) {
-  if (!key) return null;
-  try {
-    const url = `${WARERA_API}/user.whoami?input=${encodeURIComponent("{}")}`;
-    const res = await fetch(url, {
-      headers: { "x-api-key": key },
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data?.result?.data || data?.data || data || null;
-  } catch {
-    return null;
-  }
-}
-
 function normalize(text) {
   return text.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
@@ -158,9 +141,6 @@ async function handleGetMessages(db, url) {
 async function handlePostMessage(db, request) {
   const key = request.headers.get("x-api-key");
   if (!key) return json({ error: "API key required" }, 401);
-
-  const user = await validateApiKey(key);
-  if (!user) return json({ error: "Invalid API key" }, 401);
 
   const body = await request.json().catch(() => ({}));
   const author = (body.author || "").trim().slice(0, AUTHOR_MAX_LENGTH);
