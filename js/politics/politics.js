@@ -1,5 +1,5 @@
 import { S } from "../core/state.js";
-import { apiKey, fetchTrpc, fetchTrpcApi2, fetchTrpcApi5, unwrap, fetchFromServer } from "../core/api.js";
+import { apiKey, fetchTrpc, fetchTrpcApi2, fetchTrpcApi5, unwrap, fetchAI } from "../core/api.js";
 import { fmtNum, fmtDate, fmtMoney } from "../core/utils.js";
 import { resolveParty, resolveAlliance, resolveContentLinks } from "../core/resolver.js";
 import { evtData, evtTime, buildTitle, buildSummary, fmtType } from "../timeline/events.js";
@@ -531,11 +531,7 @@ async function resolveEventNames(events, k) {
 }
 
 async function callServerAI(prompt) {
-  const result = await fetchFromServer("/api/ai", {
-    method: "POST", timeout: 30000,
-    body: JSON.stringify({ prompt, context: {} }),
-  });
-  return result || { error: "Server unreachable" };
+  return fetchAI(prompt);
 }
 
 function cName(id) {
@@ -996,7 +992,10 @@ Based strictly on the country snapshot${eventSection ? " and recent events" : ""
     const result = await callServerAI(prompt);
 
     if (result.error) {
-      body.innerHTML = `<span style="color:var(--red);font-size:.82rem">${escHtml(result.error)}</span>`;
+      const hint = result.error === "AI server not configured"
+        ? " — AI server URL not set in constants.js"
+        : "";
+      body.innerHTML = `<span style="color:var(--red);font-size:.82rem">${escHtml(result.error)}${hint}</span>`;
       return;
     }
 

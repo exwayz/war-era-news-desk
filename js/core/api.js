@@ -1,4 +1,4 @@
-import { TRPC_BASE, API2_BASE, API5_BASE, MARKET_SERVER_URL, MARKET_DATA_URL } from "./constants.js";
+import { TRPC_BASE, API2_BASE, API5_BASE, MARKET_SERVER_URL, MARKET_DATA_URL, AI_SERVER_URL } from "./constants.js";
 import { STORE } from "./storage.js";
 import { E } from "./dom.js";
 
@@ -168,6 +168,23 @@ export async function fetchFromServer(path, opts = {}) {
     return r.json();
   } catch {
     return null;
+  }
+}
+
+export async function fetchAI(prompt) {
+  if (!AI_SERVER_URL) return { error: "AI server not configured" };
+  try {
+    const r = await fetch(`${AI_SERVER_URL}/api/ai`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt }),
+      signal: AbortSignal.timeout(60000),
+    });
+    const data = await r.json();
+    if (!r.ok) return { error: data?.error || `AI server ${r.status}` };
+    return data;
+  } catch (e) {
+    return { error: e.name === "TimeoutError" ? "AI request timed out" : "AI server unreachable" };
   }
 }
 
