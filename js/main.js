@@ -217,7 +217,7 @@ function bindAll() {
 
   // Rooster link
   document.getElementById("roosterBtn")?.addEventListener("click",()=>{
-    window.open("https://app.warera.io/user/69bd432766cd740733175da7", "_blank");
+    window.open("https://app.warera.io/article/6a2412d3ab0324053f192413", "_blank");
   });
 
   // SFX volume
