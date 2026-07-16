@@ -390,8 +390,8 @@ export function renderExecutiveDashboard(a) {
 
   cards.push(card("Economic Circulation", "Estimated Indicator", "", {
     value: d?.circulation != null ? (d.circulation * 100).toFixed(1) + "%" : "N/A",
-    pct: d?.tradeMom,
-    trend: trend(d?.tradeMom),
+    pct: d?.circMom,
+    trend: trend(d?.circMom),
     extra: `<div class="analytics-meta">F: Circ = Tv ÷ (P + Tv)</div>
       <div class="analytics-meta">V: tradeVol, totalPayroll</div>
       <div class="analytics-meta">Trade volume ÷ (payroll + trade volume)</div>

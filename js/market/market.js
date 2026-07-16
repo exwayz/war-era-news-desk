@@ -10,6 +10,7 @@ import { renderExecutiveDashboard } from "./renderAnalytics.js";
 import { renderPredictionDashboard } from "./renderPredictions.js";
 import { computePredictions } from "./predictions.js";
 import { storeMarketSnapshot, loadSupabaseHistory, loadWeeklyMVI } from "./marketHistory.js";
+import { computeProduction, renderProductionSection } from "./production.js";
 import { updateInfobar } from "../visuals/clock.js";
 
 
@@ -76,7 +77,7 @@ function renderEconomicOverview(md) {
 
   S.market.trade.volume = tradeVol;
   S.market.trade.count = trades.length;
-  S.market.trade.turnover = tradeVol;
+  S.market.trade.turnover = trades.length;
   const tradeQtys = trades.map(t=>Number(t.quantity??0)).filter(v=>v>0);
   const tradeTotalQty = tradeQtys.reduce((s,v)=>s+v,0);
   S.market.trade.VWAP = tradeTotalQty > 0 ? tradeVol / tradeTotalQty : 0;
@@ -93,8 +94,8 @@ function renderEconomicOverview(md) {
   for (const t of wages) {
     const h=new Date(t.createdAt||t.date||0).toISOString().slice(0,16);
     if(!wageByH[h]){ wageByH[h] = { payroll:0, qty:0 }; }
-    wageByH[h].payroll += Number(t.money || 0);
-    wageByH[h].qty += Number(t.quantity || 0);
+    wageByH[h].payroll += Number(t.money ?? t.amount ?? t.value ?? 0);
+    wageByH[h].qty += Number(t.quantity ?? 0);
   }
 
   const _wageSorted = Object.entries(wageByH).sort((a,b)=>a[0].localeCompare(b[0]));
@@ -198,10 +199,10 @@ export async function loadMarketFull(showLoading=true) {
             const qty = Number(o.quantity??o.amount??o.count??1);
             commodityOrders.push({ ...o, _itemCode:topItems[i], _price:price, _qty:qty, _time: o.offerAt || o.createdAt || "" });
           }
-          commodityOrders.sort((a, b) => (b._time || "").localeCompare(a._time || ""));
         }
       }
     }
+    commodityOrders.sort((a, b) => (b._time || "").localeCompare(a._time || ""));
 
     try {
       const txR = await fetchTrpc("transaction.getPaginatedTransactions", { limit:20, transactionType:"itemMarket" }, k);
@@ -296,14 +297,33 @@ export async function loadMarketFull(showLoading=true) {
   // ── Post-render tasks ──
   loadMarketStats();
   highlightUserData();
-  loadMarketView(_marketView);
+  const panel = document.getElementById("tab-market");
+  if (panel && !panel.classList.contains("view-" + _marketView)) {
+    panel.classList.remove("view-overview", "view-analytics", "view-predictions", "view-production");
+    panel.classList.add("view-" + _marketView);
+  }
   storeMarketSnapshot();
   loadSupabaseHistory();
   loadWeeklyMVI();
+
+  if (!S.market._prodData) {
+    computeProduction().then(data => {
+      S.market._prodData = data;
+      renderMVI();
+    }).catch(() => {});
+  }
 }
 
 function renderMVI() {
-  const data = S.market._mviView === "weekly" && S.market._weeklyMVI ? S.market._weeklyMVI : S.market.topValuable;
+  let data = S.market._mviView === "weekly" && S.market._weeklyMVI ? S.market._weeklyMVI : S.market.topValuable;
+  if (S.market._prodData?.bestPerProduct?.length) {
+    const bonusMap = {};
+    for (const r of S.market._prodData.bestPerProduct) bonusMap[r.productName] = r;
+    data = (data || []).map(item => {
+      const bonus = bonusMap[item.item];
+      return bonus ? { ...item, bonus: bonus.totalBonus, ppw: bonus.profitPerPP } : item;
+    });
+  }
   E.marketValuableData.innerHTML = commodityBars(data || []);
   const btn = document.getElementById("mviToggle");
   if (btn) btn.textContent = S.market._mviView === "weekly" ? "Weekly" : "Live";
@@ -323,7 +343,7 @@ let _marketView = "overview";
 export function loadMarketView(view) {
   _marketView = view;
   const panel = document.getElementById("tab-market");
-  panel.classList.remove("view-overview", "view-analytics", "view-predictions");
+  panel.classList.remove("view-overview", "view-analytics", "view-predictions", "view-production");
   panel.classList.add("view-" + view);
   if (view === "predictions") {
     let section = document.querySelector(".prediction-section");
@@ -354,6 +374,25 @@ export function loadMarketView(view) {
     }
     const analytics = calculateAnalytics();
     renderExecutiveDashboard(analytics);
+  } else if (view === "production") {
+    let section = document.querySelector(".production-section");
+    if (!section) {
+      section = document.createElement("div");
+      section.className = "production-section";
+      const insertTarget = document.querySelector(".market-grid");
+      if (insertTarget) insertTarget.after(section);
+    }
+    if (S.market._prodData) {
+      renderProductionSection(section, S.market._prodData);
+    } else {
+      section.innerHTML = '<p style="color:var(--ink-dim);padding:12px">Loading production data…</p>';
+      computeProduction().then(data => {
+        S.market._prodData = data;
+        renderProductionSection(section, data);
+      }).catch(e => {
+        section.innerHTML = `<p style="color:var(--red);padding:12px">Error: ${e.message}</p>`;
+      });
+    }
   }
 }
 

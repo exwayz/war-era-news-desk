@@ -276,15 +276,36 @@
 
 /* ── MARKET VIEW TOGGLE ──────────────────────────── */
 #tab-market.view-analytics .market-grid,
-#tab-market.view-predictions .market-grid { display: none; }
+#tab-market.view-predictions .market-grid,
+#tab-market.view-production .market-grid { display: none; }
 #tab-market.view-analytics .analytics-section { display: block; }
-#tab-market.view-analytics .prediction-section { display: none; }
+#tab-market.view-analytics .prediction-section,
+#tab-market.view-analytics .production-section { display: none; }
 #tab-market.view-predictions .analytics-section { display: none; }
-#tab-market.view-overview .analytics-section,
-#tab-market.view-overview .prediction-section { display: none; }
 #tab-market.view-predictions .prediction-section { display: block; }
+#tab-market.view-predictions .production-section { display: none; }
+#tab-market.view-production .analytics-section,
+#tab-market.view-production .prediction-section { display: none; }
+#tab-market.view-production .production-section { display: block; }
+#tab-market.view-overview .analytics-section,
+#tab-market.view-overview .prediction-section,
+#tab-market.view-overview .production-section { display: none; }
 .prediction-section { border-top: 1px solid var(--line); padding: 10px; overflow-y: auto; flex: 1; }
 .prediction-cards-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.production-section { padding: 10px; overflow-y: auto; flex: 1; }
+.prod-section { margin-bottom: 16px; }
+.prod-section h3 { margin: 0 0 8px; }
+.prod-table-wrap { overflow-x: auto; }
+.prod-table { width: 100%; border-collapse: collapse; font-size: .78rem; }
+.prod-table th { text-align: left; padding: 4px 8px; border-bottom: 2px solid var(--line); font-weight: 700; font-size: .72rem; text-transform: uppercase; color: var(--ink-dim); white-space: nowrap; }
+.prod-table th.prod-num { text-align: right; }
+.prod-table td { padding: 4px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.prod-table tr:hover { background: var(--surface-hi); }
+.prod-num { text-align: right; font-family: var(--font-code); }
+.prod-profit { color: var(--green, #4caf50); font-weight: 700; }
+.prod-wages { color: var(--accent); font-weight: 700; }
+.prod-cell-name { font-weight: 700; }
+.prod-rank { color: var(--ink-dim); font-family: var(--font-code); width: 30px; text-align: center; }
 
 /* ── ENTITY LINKS ───────────────────────────────────── */
 .entity-link { color: var(--entity); text-decoration: none; cursor: pointer; }

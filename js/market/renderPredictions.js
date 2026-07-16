@@ -84,7 +84,7 @@ export function renderPredictionDashboard() {
   </div>`;
 
   const cards = [];
-  const topItem = p.predictions[0];
+  const topItem = p.heatScores ? Object.values(p.heatScores).sort((a, b) => b.score - a.score)[0]?.pred : p.predictions[0];
 
   cards.push(predCard("Commodity Momentum Score", "Prediction Indicator", "", {
     value: hasHistory ? p.itemsWithHistory.length + " tracked" : "Insufficient History",
@@ -119,7 +119,7 @@ export function renderPredictionDashboard() {
     trend: trendArrow(topGrowth?.valueGrowth),
     trendColor: (topGrowth?.valueGrowth || 0) > 0 ? "var(--green)" : "var(--red)",
     extra: `<div class="analytics-meta">F: ((Cv − Pv) ÷ Pv) × 100</div>
-      <div class="analytics-meta">V: commodity.value, prevCommodityScores[item]</div>
+      <div class="analytics-meta">V: topValuable[n].value, _prevScoresSnapshot</div>
       ${topGrowth ? `<div class="analytics-meta">Leader: ${hl(topGrowth.itemName, "Momentum Indicator")} (${fmtPct(topGrowth.valueGrowth)})</div>` : ""}
       ${worstGrowth ? `<div class="analytics-meta">Lowest: ${hl(worstGrowth.itemName, "Momentum Indicator")} (${fmtPct(worstGrowth.valueGrowth)})</div>` : ""}`,
     interpretation: topGrowth ? `Best performer: ${hl(topGrowth.itemName, "Momentum Indicator")} at ${fmtPct(topGrowth.valueGrowth)}.` : "",
@@ -130,7 +130,7 @@ export function renderPredictionDashboard() {
   cards.push(predCard("Value Velocity", "Momentum Indicator", "", {
     value: topVel ? fmtMoney(Math.abs(topVel.valueVelocity || 0), 6) + " BTC/s" : "Insufficient History",
     extra: `<div class="analytics-meta">F: (Cv − Pv) ÷ ΔTime</div>
-      <div class="analytics-meta">V: commodity.value, prevCommodityScores, update timestamp</div>
+      <div class="analytics-meta">V: topValuable[n].value, _prevScoresSnapshot, ΔTime</div>
       ${topVel ? `<div class="analytics-meta">Fastest: ${hl(topVel.itemName, "Momentum Indicator")} (${fmtMoney(Math.abs(topVel.valueVelocity || 0), 6)} BTC/s)</div>` : ""}`,
     interpretation: topVel ? `Highest velocity: ${hl(topVel.itemName, "Momentum Indicator")}.` : "",
   }));

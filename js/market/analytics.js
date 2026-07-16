@@ -74,6 +74,7 @@ export function calculateDerived(p, stats, h) {
   const priceMom = prev && prev.Basket > 0 ? ((p.Basket - prev.Basket) / prev.Basket) * 100 : null;
   const ppMom = prev && prev.pp > 0 ? ((pp - prev.pp) / prev.pp) * 100 : null;
   const hhiMom = prev && prev.hhi > 0 ? ((hhi - prev.hhi) / prev.hhi) * 100 : null;
+  const circMom = prev && prev.circulation > 0 ? ((circulation - prev.circulation) / prev.circulation) * 100 : null;
 
   const ma5 = (arr, val) => {
     const all = [...arr.slice(-4), val].filter(v => isFinite(v));
@@ -82,7 +83,7 @@ export function calculateDerived(p, stats, h) {
 
   return {
     circulation, pp, hhi, tradeEfficiency,
-    tradeMom, payrollMom, wageMom, priceMom, ppMom, hhiMom,
+    tradeMom, payrollMom, wageMom, priceMom, ppMom, hhiMom, circMom,
     tradeMa5: ma5(S.market.tradeVolHistory, p.Tv),
     payrollMa5: ma5(S.market.payrollHistory, p.P),
     ppMa5: ma5(S.market.ppHistory, pp),
@@ -143,6 +144,13 @@ export function generateWarnings(d) {
   const military = ["heavyAmmo","lightAmmo","ammo","steel","case1","case2"];
   const topMil = (S.market.topValuable || []).slice(0, 5).filter(i => military.includes(i.item || i.itemCode || "")).length;
   if (topMil >= 3) w.push({ level: "INFO", indicator: "Military Production Focus", reason: `${topMil}/5 top commodities are military`, icon: "⚔" });
+  const orders = S.market.orderbook?.commodityOrders || S.market.commodityOrders || [];
+  const byItem = {};
+  for (const o of orders) { const code = o._itemCode || o.itemCode || o.item || ""; byItem[code] = (byItem[code] || 0) + (o._qty || o.quantity || 0); }
+  const totalQty = Object.values(byItem).reduce((s, v) => s + v, 0) || 1;
+  for (const [code, qty] of Object.entries(byItem)) {
+    if (qty / totalQty >= 0.35) w.push({ level: "WARNING", indicator: "Whale Activity", reason: `${code}: ${(qty / totalQty * 100).toFixed(0)}% of order book volume`, icon: "🐋" });
+  }
   return w;
 }
 

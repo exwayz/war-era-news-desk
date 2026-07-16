@@ -2,16 +2,11 @@ import { S } from "../core/state.js";
 import { marketItemName } from "../core/utils.js";
 
 export function computePredictions() {
-  // ── Trade-derived value metrics (last trade prices, NOT order book) ──
-  const tradePrices = S.market.trade?.prices || S.market.prices || [];
-  const prevTradePrices = S.market.trade?.lastPrices || [];
-  const tradeByCode = {};
-  for (const p of tradePrices) tradeByCode[marketItemName(p.itemCode||p.item||p.name)] = Number(p.price||p.value||0);
-  const prevByCode = {};
-  for (const p of prevTradePrices) prevByCode[marketItemName(p.itemCode||p.item||p.name)] = Number(p.price||p.value||0);
-
-  // ── Order-book-derived rank data (still from topValuable for market share) ──
+  // ── Value metrics from topValuable (order-book aggregate — changes each cycle) ──
   const topValuable = S.market.topValuable || [];
+  const currentValues = {};
+  for (const tv of topValuable) currentValues[tv.item] = Number(tv.value || 0);
+
   let prevScores = S.market._prevScoresSnapshot || S.market.prevCommodityScores || {};
   if (Object.keys(prevScores).length === 0 && S.market._supabaseHistory && S.market._supabaseHistory.length > 1) {
     const prev = S.market._supabaseHistory[1];
@@ -20,6 +15,14 @@ export function computePredictions() {
       for (const item of prev.topValuable) prevScores[item.item] = item.value;
     }
   }
+  const prevValues = {};
+  for (const [k, v] of Object.entries(prevScores)) prevValues[k] = Number(v || 0);
+
+  // ── Price data for reference (spot prices from getPrices API) ──
+  const tradePrices = S.market.trade?.prices || S.market.prices || [];
+  const tradeByCode = {};
+  for (const p of tradePrices) tradeByCode[marketItemName(p.itemCode||p.item||p.name)] = Number(p.price||p.value||0);
+
   // ── Order book pressure data ──
   const commodityOrders = S.market.orderbook?.commodityOrders || S.market.commodityOrders || [];
   const orders = S.market.orders || [];
@@ -29,10 +32,10 @@ export function computePredictions() {
   const deltaT = now - prevTime;
   S.market._lastUpdateTime = now;
 
-  // Build combined item list from trade prices + topValuable ranks
+  // Build combined item list from topValuable + trade prices
   const itemNames = new Set();
-  for (const p of tradePrices) itemNames.add(marketItemName(p.itemCode||p.item||p.name));
   for (const tv of topValuable) itemNames.add(tv.item);
+  for (const p of tradePrices) itemNames.add(marketItemName(p.itemCode||p.item||p.name));
   const allItems = [...itemNames];
 
   const currentRanks = {};
@@ -46,8 +49,8 @@ export function computePredictions() {
   const predictions = [];
 
   for (const itemName of allItems) {
-    const currentValue = tradeByCode[itemName] != null ? tradeByCode[itemName] : 0;
-    const previousValue = prevByCode[itemName] != null ? prevByCode[itemName] : null;
+    const currentValue = currentValues[itemName] ?? 0;
+    const previousValue = prevValues[itemName] || null;
 
     const valueGrowth = (previousValue != null && previousValue > 0) ? ((currentValue - previousValue) / previousValue) * 100 : null;
 

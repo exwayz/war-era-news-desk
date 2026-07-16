@@ -176,6 +176,11 @@ export function commodityBars(data){
   <span>
     ${x.item}
     ${
+      x.bonus != null
+      ? `<small class="commodity-up" style="margin-left:4px">+${x.bonus.toFixed(0)}%bonus</small>`
+      : ""
+    }
+    ${
       x.trend > 0
       ? `<small class="commodity-up">▲ +${x.changePct.toFixed(1)}%</small>`
       : x.trend < 0
