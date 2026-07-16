@@ -25,7 +25,6 @@ import { loadProfile, saveProfile, deleteProfile, isRegistered, formatProfileLin
 import { POLICY_TEXT } from "./community/policy.js";
 import { loadMessages, loadMoreMessages, postMessage, upvoteMessage, renderWallMessages, renderWallCount, getMessageById, hasMoreMessages, getRemainingQuota, prependWallCard, updateUpvoteDisplay, copyCommunityReport } from "./community/wall.js";
 import { loadPolitics, initPolitics, copyPoliticsReport, capturePoliticsReport } from "./politics/politics.js";
-import { loadCountries, copyAllLinks, initLinksFilters } from "./links/links.js";
 import { highlightUserData } from "./core/profileHighlighter.js";
 import { initClock, updateInfobar } from "./visuals/clock.js";
 
@@ -97,6 +96,11 @@ function bindAll() {
   // Writer redirect
   document.getElementById("writerRedirect")?.addEventListener("click",()=>{
     window.open("https://lundgrenwarera.github.io/warera-writer/", "_blank");
+  });
+
+  // Article resolver redirect
+  document.getElementById("articleResolverRedirect")?.addEventListener("click",()=>{
+    window.open("https://exwayz.github.io/article-resover/", "_blank");
   });
 
   E.clearApiKeyBtn?.addEventListener("click",()=>{ E.apiKeyInput.value=""; E.apiKeyInput.focus(); });
@@ -348,9 +352,6 @@ function bindAll() {
   E.copyPoliticsReportBtn?.addEventListener("click", copyPoliticsReport);
   document.getElementById("capturePoliticsReportBtn")?.addEventListener("click", capturePoliticsReport);
   document.getElementById("politicsRefreshBtn")?.addEventListener("click", () => loadPolitics(true));
-  document.getElementById("copyAllLinksBtn")?.addEventListener("click", copyAllLinks);
-  document.getElementById("linksRefreshBtn")?.addEventListener("click", loadCountries);
-  initLinksFilters();
 
   function updateWallLoadMore() { if (E.wallLoadMore) E.wallLoadMore.hidden = !hasMoreMessages(); }
 

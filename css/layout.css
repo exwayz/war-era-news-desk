@@ -417,6 +417,7 @@
 .sticky-toolbar { position: sticky; top: 0; z-index: 10; display: flex; gap: 6px; padding: 6px 10px; border-bottom: 1px solid var(--line); }
 .sticky-toolbar .search-bar input { height: 24px; font-size: .72rem; padding: 2px 28px 2px 6px; }
 .sticky-toolbar .search-bar { flex: 1; margin: 0; }
+.battle-filter-row { display: flex; gap: 6px; align-items: center; padding: 4px 10px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
 
 /* ── ARTICLE FILTER ROW ─────────────────────────────── */
 .article-filter-row { display: flex; gap: 4px; align-items: center; padding: 4px 10px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }

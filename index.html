@@ -116,7 +116,7 @@
         <button class="side-btn" data-tab="politics" title="Politics"><span class="side-icon"><iconify-icon icon="mdi:bank" class="lu"></iconify-icon></span></button>
         <button class="side-btn" data-tab="rankings" title="Rankings"><span class="side-icon"><iconify-icon icon="mdi:trophy" class="lu"></iconify-icon></span></button>
         <button class="side-btn" data-tab="community" title="Community"><span class="side-icon"><iconify-icon icon="mdi:message-text-outline" class="lu"></iconify-icon></span></button>
-        <button class="side-btn" data-tab="links" title="Country Links"><span class="side-icon"><iconify-icon icon="mdi:link-variant" class="lu"></iconify-icon></span></button>
+        <button class="side-btn" id="articleResolverRedirect" title="Article Resolver"><span class="side-icon"><iconify-icon icon="mdi:link-variant" class="lu"></iconify-icon></span></button>
         <button class="side-btn" id="writerRedirect" title="Writer"><span class="side-icon"><iconify-icon icon="mdi:feather" class="lu"></iconify-icon></span></button>
       </div>
       <div class="sidebar-bottom">
@@ -302,9 +302,11 @@
             <datalist id="politicsCountryOptions"></datalist>
             <div class="input-wrap" style="max-width:140px"><iconify-icon icon="mdi:earth" class="lu" style="position:absolute;left:5px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--ink-dim);z-index:1;font-size:12px"></iconify-icon><input id="politicsRegionFilter" type="text" list="politicsRegionOptions" placeholder="Region…" style="padding-left:20px"><button class="clear-btn" data-clears="politicsRegionFilter" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button></div>
             <datalist id="politicsRegionOptions"></datalist>
-            <button class="btn-secondary" id="copyPoliticsReportBtn"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon> Copy Report</button>
-            <button class="btn-secondary" id="capturePoliticsReportBtn"><iconify-icon icon="mdi:camera" class="lu"></iconify-icon> Report</button>
-            <button class="btn-primary" id="politicsRefreshBtn"><iconify-icon icon="mdi:refresh" class="lu"></iconify-icon> Refresh</button>
+            <div class="btn-row" style="margin-left:auto">
+              <button class="btn-secondary" id="copyPoliticsReportBtn"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon> Copy Report</button>
+              <button class="btn-secondary" id="capturePoliticsReportBtn"><iconify-icon icon="mdi:camera" class="lu"></iconify-icon> Report</button>
+              <button class="btn-primary" id="politicsRefreshBtn"><iconify-icon icon="mdi:refresh" class="lu"></iconify-icon> Refresh</button>
+            </div>
           </div>
           <p id="politicsStatus" class="status-msg" hidden></p>
           <div id="politicsContent"></div>
@@ -345,22 +347,6 @@
         <div id="wallStatus" class="status-msg" hidden></div>
         <div id="wallGrid" class="wall-grid"></div>
         <button id="wallLoadMore" class="btn-load" hidden>Load More</button>
-      </div>
-
-      <!-- LINKS -->
-      <div class="tab-panel" id="tab-links">
-        <div class="panel-head links-toolbar">
-          <h2><iconify-icon icon="mdi:link-variant" class="lu"></iconify-icon> Country Links</h2>
-          <div class="btn-row">
-            <button class="btn-primary" id="copyAllLinksBtn"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon> Copy All</button>
-            <button class="btn-primary" id="linksRefreshBtn"><iconify-icon icon="mdi:refresh" class="lu"></iconify-icon> Refresh</button>
-          </div>
-        </div>
-        <div class="tl-filter-bar" style="padding:4px 0">
-          <div class="input-wrap" style="max-width:200px"><iconify-icon icon="mdi:earth" class="lu" style="position:absolute;left:5px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--ink-dim);z-index:1;font-size:12px"></iconify-icon><input id="linksRegionFilter" type="text" list="linksRegionOptions" placeholder="Region filter…" style="padding-left:20px"><button class="clear-btn" data-clears="linksRegionFilter" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button></div>
-          <datalist id="linksRegionOptions"></datalist>
-        </div>
-        <div id="countryLinkList" class="links-list"></div>
       </div>
 
     </div>

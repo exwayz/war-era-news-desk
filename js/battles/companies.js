@@ -24,12 +24,6 @@ export function injectBattleSearchBar() {
   <input id="battleSearch" type="text" placeholder="Search by country or region…">
   <button class="clear-btn" id="clearBattleSearch" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
 </div>
-<div class="input-wrap" style="flex:0 0 auto;max-width:130px">
-  <iconify-icon icon="mdi:earth" class="lu" style="position:absolute;left:5px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--ink-dim);z-index:1;font-size:12px"></iconify-icon>
-  <input id="battlesRegionFilter" type="text" list="battlesRegionOptions" placeholder="Region…" style="padding-left:20px">
-  <button class="clear-btn" data-clears="battlesRegionFilter" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
-</div>
-<datalist id="battlesRegionOptions"></datalist>
 <button id="battleLoadMini" class="btn-load-mini">More</button>
 <button id="copyBattleListBtn" class="btn-icon-sm" title="Copy all listed"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon></button>
 `;
@@ -47,6 +41,12 @@ export function injectBattleSearchBar() {
 </div>
 <input type="date" id="battleDateFrom" title="Ended from">
 <input type="date" id="battleDateTo" title="Ended to">
+<div class="input-wrap" style="flex:0 0 auto;max-width:130px">
+  <iconify-icon icon="mdi:earth" class="lu" style="position:absolute;left:5px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--ink-dim);z-index:1;font-size:12px"></iconify-icon>
+  <input id="battlesRegionFilter" type="text" list="battlesRegionOptions" placeholder="Region…" style="padding-left:20px">
+  <button class="clear-btn" data-clears="battlesRegionFilter" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
+</div>
+<datalist id="battlesRegionOptions"></datalist>
 `;
   wrap.insertAdjacentElement("afterend", fr);
 
