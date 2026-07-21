@@ -7,7 +7,7 @@ import { debounce, parseLocal, fmtDate, fmtNum } from "./core/utils.js";
 import { captureHTML, ts } from "./core/captureReport.js";
 import { populateEventTypes } from "./timeline/filters.js";
 import { loadEvents, startAutoRefresh, scheduleEventsRefresh, renderTimeline, handleEventAction } from "./timeline/timeline.js";
-import { loadArticles, renderArticles, copyArticles } from "./timeline/articles.js";
+import { loadArticles, renderArticles, copyArticles, refreshLangDropdown } from "./timeline/articles.js";
 import { switchTab, isTimelineOpen } from "./ui/tabs.js";
 import { toggleTheme, applyTheme } from "./ui/theme.js";
 import { toast, setStatus } from "./ui/toast.js";
@@ -327,10 +327,17 @@ function bindAll() {
   });
   document.getElementById("articleTimeFrom")?.addEventListener("change",()=>{ S.articleTimeFrom=document.getElementById("articleTimeFrom").value; renderArticles(); });
   document.getElementById("articleTimeTo")?.addEventListener("change",()=>{ S.articleTimeTo=document.getElementById("articleTimeTo").value; renderArticles(); });
-  document.getElementById("articleLangFilter")?.addEventListener("click",(e)=>{
-    const pill = e.target.closest(".lang-pill");
-    if (!pill) return;
-    const code = pill.dataset.lang;
+  const langCont = document.getElementById("articleLangFilter");
+  const langTrigger = langCont?.querySelector(".lang-dropdown-trigger");
+  const langMenu = langCont?.querySelector(".lang-dropdown-menu");
+  langTrigger?.addEventListener("click",(e)=>{
+    e.stopPropagation();
+    langMenu?.classList.toggle("hidden");
+  });
+  langMenu?.addEventListener("click",(e)=>{
+    const item = e.target.closest(".lang-dropdown-item");
+    if (!item) return;
+    const code = item.dataset.lang;
     if (code === "") {
       S.articleLangs = [];
     } else {
@@ -338,14 +345,11 @@ function bindAll() {
       if (idx >= 0) S.articleLangs.splice(idx, 1);
       else S.articleLangs.push(code);
     }
-    const cont = document.getElementById("articleLangFilter");
-    if (cont) {
-      cont.querySelectorAll(".lang-pill").forEach(p => {
-        const c = p.dataset.lang;
-        p.classList.toggle("active", c === "" ? S.articleLangs.length === 0 : S.articleLangs.includes(c));
-      });
-    }
+    refreshLangDropdown();
     renderArticles();
+  });
+  document.addEventListener("click",(e)=>{
+    if (langCont && !langCont.contains(e.target)) langMenu?.classList.add("hidden");
   });
   document.getElementById("articleCatFilter")?.addEventListener("change", renderArticles);
   document.getElementById("copyArticlesBtn")?.addEventListener("click",async()=>{ playCopy(); await copyArticles(); toast("Articles copied."); });

@@ -34,20 +34,40 @@ function isLangActive(code) { return getActiveLangs().includes(code); }
 export function setArticleStatus(msg,type="info") { if(!E.articleStatusBox) return; E.articleStatusBox.hidden=false; E.articleStatusBox.textContent=msg; E.articleStatusBox.classList.toggle("error",type==="error"); }
 export function clearArticleStatus() { if(!E.articleStatusBox) return; E.articleStatusBox.hidden=true; E.articleStatusBox.textContent=""; E.articleStatusBox.classList.remove("error"); }
 
+export function refreshLangDropdown() { populateLangDropdown(S.articles); }
+
+function updateLangTrigger() {
+  const cont = document.getElementById("articleLangFilter");
+  if (!cont) return;
+  const trigger = cont.querySelector(".lang-dropdown-trigger");
+  if (!trigger) return;
+  const sel = getActiveLangs();
+  if (sel.length === 0) trigger.textContent = "All Languages";
+  else if (sel.length === 1) trigger.textContent = langName(sel[0]);
+  else trigger.textContent = `${sel.length} selected`;
+}
+
+function populateLangDropdown(articles) {
+  const langs = new Set();
+  for (const a of articles) { if (a.language) langs.add(a.language); }
+  const cont = document.getElementById("articleLangFilter");
+  if (!cont) return;
+  const menu = cont.querySelector(".lang-dropdown-menu");
+  if (!menu) return;
+  let html = `<div class="lang-dropdown-item${getActiveLangs().length===0?" selected":""}" data-lang=""><span class="ld-check">${getActiveLangs().length===0?"✓":"&nbsp;"}</span>All</div>`;
+  for (const l of [...langs].sort()) {
+    const active = isLangActive(l);
+    html += `<div class="lang-dropdown-item${active?" selected":""}" data-lang="${l}"><span class="ld-check">${active?"✓":"&nbsp;"}</span>${langName(l)}</div>`;
+  }
+  menu.innerHTML = html;
+  updateLangTrigger();
+}
+
 function populateArticleFilters(articles) {
-  const langs = new Set(); const cats = new Set();
-  for (const a of articles) {
-    if (a.language) langs.add(a.language);
-    if (a.category) cats.add(a.category);
-  }
-  const langCont = document.getElementById("articleLangFilter");
+  const cats = new Set();
+  for (const a of articles) { if (a.category) cats.add(a.category); }
+  populateLangDropdown(articles);
   const catSel = document.getElementById("articleCatFilter");
-  if (langCont) {
-    langCont.innerHTML = `<span class="lang-pill${getActiveLangs().length===0?" active":""}" data-lang="">All</span>`;
-    for (const l of [...langs].sort()) {
-      langCont.innerHTML += `<span class="lang-pill${isLangActive(l)?" active":""}" data-lang="${l}">${langName(l)}</span>`;
-    }
-  }
   if (catSel) {
     const cur = catSel.value;
     catSel.innerHTML = '<option value="">All categories</option>';
