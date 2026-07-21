@@ -327,7 +327,26 @@ function bindAll() {
   });
   document.getElementById("articleTimeFrom")?.addEventListener("change",()=>{ S.articleTimeFrom=document.getElementById("articleTimeFrom").value; renderArticles(); });
   document.getElementById("articleTimeTo")?.addEventListener("change",()=>{ S.articleTimeTo=document.getElementById("articleTimeTo").value; renderArticles(); });
-  document.getElementById("articleLangFilter")?.addEventListener("change", renderArticles);
+  document.getElementById("articleLangFilter")?.addEventListener("click",(e)=>{
+    const pill = e.target.closest(".lang-pill");
+    if (!pill) return;
+    const code = pill.dataset.lang;
+    if (code === "") {
+      S.articleLangs = [];
+    } else {
+      const idx = S.articleLangs.indexOf(code);
+      if (idx >= 0) S.articleLangs.splice(idx, 1);
+      else S.articleLangs.push(code);
+    }
+    const cont = document.getElementById("articleLangFilter");
+    if (cont) {
+      cont.querySelectorAll(".lang-pill").forEach(p => {
+        const c = p.dataset.lang;
+        p.classList.toggle("active", c === "" ? S.articleLangs.length === 0 : S.articleLangs.includes(c));
+      });
+    }
+    renderArticles();
+  });
   document.getElementById("articleCatFilter")?.addEventListener("change", renderArticles);
   document.getElementById("copyArticlesBtn")?.addEventListener("click",async()=>{ playCopy(); await copyArticles(); toast("Articles copied."); });
   E.closeReader?.addEventListener("click",()=>E.readerModal.classList.add("hidden"));

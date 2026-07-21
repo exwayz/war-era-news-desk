@@ -6,6 +6,31 @@ import { resolveUsers } from "./filters.js";
 import { resolveContentLinks } from "../core/resolver.js";
 import { highlightUserData } from "../core/profileHighlighter.js";
 
+const LANG_NAMES = {
+  en:"English",de:"Deutsch",es:"Español",fr:"Français",pt:"Português",ru:"Русский",
+  zh:"中文",ja:"日本語",ko:"한국어",it:"Italiano",pl:"Polski",tr:"Türkçe",
+  nl:"Nederlands",sv:"Svenska",cs:"Čeština",ro:"Română",hu:"Magyar",uk:"Українська",
+  ar:"العربية",vi:"Tiếng Việt",th:"ไทย",id:"Bahasa Indonesia",ms:"Bahasa Melayu",
+  hi:"हिन्दी",bn:"বাংলা",fa:"فارسی",he:"עברית",el:"Ελληνικά",fi:"Suomi",
+  da:"Dansk",no:"Norsk",nb:"Norsk Bokmål",nn:"Nynorsk",bg:"Български",hr:"Hrvatski",
+  sk:"Slovenčina",sl:"Slovenščina",et:"Eesti",lv:"Latviešu",lt:"Lietuvių",
+  ca:"Català",gl:"Galego",eu:"Euskara",cy:"Cymraeg",ga:"Gaeilge",mt:"Malti",
+  is:"Íslenska",mk:"Македонски",sq:"Shqiptar",sr:"Српски",bs:"Bosanski",
+  sw:"Kiswahili",am:"አማርኛ",my:"မြန်မာ",ka:"ქართული",hy:"Հայերեն",
+  tl:"Filipino",haw:"ʻŌlelo Hawaiʻi",mi:"Te Reo Māori",sm:"Gagana Samoa",
+  zu:"isiZulu",af:"Afrikaans",st:"Sesotho",tn:"Setswana",ss:"siSwati",
+  ve:"Tshivenḓa",ts:"Xitsonga",nr:"isiNdebele",nso:"Sepedi",
+  rw:"Kinyarwanda",rn:"Kirundi",lg:"Luganda",ak:"Akan",ee:"Ewe",
+  ha:"Hausa",ig:"Igbo",yo:"Yorùbá",sn:"chiShona",ny:"Chichewa",
+  mn:"Монгол",ne:"नेपाली",si:"සිංහල",km:"ភាសាខ្មែរ",lo:"ລາວ",
+  ta:"தமிழ்",te:"తెలుగు",kn:"ಕನ್ನಡ",ml:"മലയാളം",mr:"मराठी",
+  gu:"ગુજરાતી",pa:"ਪੰਜਾਬੀ",ur:"اردو",
+};
+function langName(code) { return LANG_NAMES[code] || (code ? code.toUpperCase() : "?"); }
+
+function getActiveLangs() { return S.articleLangs || []; }
+function isLangActive(code) { return getActiveLangs().includes(code); }
+
 export function setArticleStatus(msg,type="info") { if(!E.articleStatusBox) return; E.articleStatusBox.hidden=false; E.articleStatusBox.textContent=msg; E.articleStatusBox.classList.toggle("error",type==="error"); }
 export function clearArticleStatus() { if(!E.articleStatusBox) return; E.articleStatusBox.hidden=true; E.articleStatusBox.textContent=""; E.articleStatusBox.classList.remove("error"); }
 
@@ -15,13 +40,12 @@ function populateArticleFilters(articles) {
     if (a.language) langs.add(a.language);
     if (a.category) cats.add(a.category);
   }
-  const langSel = document.getElementById("articleLangFilter");
+  const langCont = document.getElementById("articleLangFilter");
   const catSel = document.getElementById("articleCatFilter");
-  if (langSel) {
-    const cur = langSel.value;
-    langSel.innerHTML = '<option value="">All languages</option>';
+  if (langCont) {
+    langCont.innerHTML = `<span class="lang-pill${getActiveLangs().length===0?" active":""}" data-lang="">All</span>`;
     for (const l of [...langs].sort()) {
-      langSel.innerHTML += `<option value="${l}"${l===cur?" selected":""}>${l}</option>`;
+      langCont.innerHTML += `<span class="lang-pill${isLangActive(l)?" active":""}" data-lang="${l}">${langName(l)}</span>`;
     }
   }
   if (catSel) {
@@ -37,10 +61,16 @@ let _loadingArticles = false;
 export function isLoadingArticles() { return _loadingArticles; }
 
 function hasActiveFilters() {
-  const lang = document.getElementById("articleLangFilter")?.value || "";
+  const langs = getActiveLangs();
   const cat = document.getElementById("articleCatFilter")?.value || "";
   const kw = E.articleSearch?.value?.trim() || "";
-  return !!(lang || cat || S.articleTimeFrom || S.articleTimeTo || kw);
+  return !!(langs.length || cat || S.articleTimeFrom || S.articleTimeTo || kw);
+}
+
+function filterByLang(arts) {
+  const langs = getActiveLangs();
+  if (!langs.length) return arts;
+  return arts.filter(a => langs.includes(a.language));
 }
 
 export async function loadArticles(reset=true) {
@@ -83,7 +113,7 @@ export async function silentRefreshArticles() {
     const existingIds = new Set(S.articles.map(a => a._id || a.id));
     const fresh = items.filter(a => !existingIds.has(a._id || a.id));
     if (!fresh.length) return;
-    await resolveUsers(fresh.map(a => a.author).filter(Boolean), k);
+    await resolveUsers(fresh.map(a=>a.author).filter(Boolean), k);
     S.articles = [...fresh, ...S.articles];
     renderArticles();
   } catch {}
@@ -92,9 +122,8 @@ export async function silentRefreshArticles() {
 export function renderArticles() {
   const kw=E.articleSearch.value.trim().toLowerCase();
   let arts=kw?S.articles.filter(a=>(a.title||"").toLowerCase().includes(kw)||(a.content||"").toLowerCase().includes(kw)):S.articles;
-  const artLang = document.getElementById("articleLangFilter")?.value || "";
+  arts = filterByLang(arts);
   const artCat = document.getElementById("articleCatFilter")?.value || "";
-  if (artLang) arts = arts.filter(a => a.language === artLang);
   if (artCat) arts = arts.filter(a => a.category === artCat);
   const af=S.articleTimeFrom, at=S.articleTimeTo;
   if(af||at){
@@ -120,7 +149,7 @@ export function renderArticles() {
     const stats = a.stats || {};
     node.querySelector(".ac-cat").textContent=a.category||"General";
     node.querySelector(".ac-title").textContent=a.title||"Untitled";
-    node.querySelector(".ac-meta").textContent=`${(S.lookups.usersById.get(a.author)?.username||S.lookups.usersById.get(a.author)?.name)||"Unknown"} · ${a.language||"?"} · ${fmtDate(a.createdAt)}`;
+    node.querySelector(".ac-meta").textContent=`${(S.lookups.usersById.get(a.author)?.username||S.lookups.usersById.get(a.author)?.name)||"Unknown"} · ${langName(a.language)} · ${fmtDate(a.createdAt)}`;
     node.querySelector(".ac-stats").textContent = `👁 ${stats.views ?? 0} • Score ${stats.score ?? 0}`;
     node.querySelector(".ac-open").addEventListener("click",()=>window.open(`https://app.warera.io/article/${a._id||a.id}`,"_blank","noopener"));
     node.querySelector(".ac-read").addEventListener("click",()=>{
@@ -148,9 +177,8 @@ export function renderArticles() {
 export async function copyArticles() {
   const kw=E.articleSearch.value.trim().toLowerCase();
   let arts=kw?S.articles.filter(a=>(a.title||"").toLowerCase().includes(kw)||(a.content||"").toLowerCase().includes(kw)):S.articles;
-  const artLang = document.getElementById("articleLangFilter")?.value || "";
+  arts = filterByLang(arts);
   const artCat = document.getElementById("articleCatFilter")?.value || "";
-  if (artLang) arts = arts.filter(a => a.language === artLang);
   if (artCat) arts = arts.filter(a => a.category === artCat);
   const af=S.articleTimeFrom, at=S.articleTimeTo;
   if(af||at){
