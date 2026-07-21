@@ -2,7 +2,7 @@ import { S } from "./core/state.js";
 import { E } from "./core/dom.js";
 import { populateRegionOptions } from "./core/regionClassification.js";
 import { STORE } from "./core/storage.js";
-import { apiKey } from "./core/api.js";
+import { apiKey, isValidApiKey } from "./core/api.js";
 import { debounce, parseLocal, fmtDate, fmtNum } from "./core/utils.js";
 import { captureHTML, ts } from "./core/captureReport.js";
 import { populateEventTypes } from "./timeline/filters.js";
@@ -104,6 +104,8 @@ function bindAll() {
   });
 
   E.clearApiKeyBtn?.addEventListener("click",()=>{ E.apiKeyInput.value=""; E.apiKeyInput.focus(); });
+  E.apiKeyInput?.addEventListener("input",()=>{ const s=document.getElementById("apiKeyStatus"); if(s) s.hidden=true; });
+  document.getElementById("settingsApiKeyInput")?.addEventListener("input",()=>{ const s=document.getElementById("settingsStatus"); if(s) s.hidden=true; });
 
   // Theme toggle available in settings or via keyboard
   document.getElementById("themeToggleBtn")?.addEventListener("click", toggleTheme);
@@ -171,6 +173,12 @@ function bindAll() {
   // API key modal — save triggers data load
   E.saveApiKeyButton?.addEventListener("click",()=>{
     const key=E.apiKeyInput.value.trim();
+    if (key && !isValidApiKey(key)) {
+      const status = document.getElementById("apiKeyStatus");
+      if (status) { status.hidden = false; status.textContent = "Invalid format. Key must start with wae_ and contain at least 64 hex characters."; }
+      E.apiKeyInput.focus();
+      return;
+    }
     localStorage.setItem(STORE.apiKey,key);
     E.globalEventsTitle.classList.add("live");
     E.apiKeyModal.classList.add("hidden");
@@ -181,7 +189,13 @@ function bindAll() {
   // Settings save
   function saveSettings() {
     const prevKey = localStorage.getItem(STORE.apiKey) || "";
-    localStorage.setItem(STORE.apiKey, document.getElementById("settingsApiKeyInput").value.trim());
+    const newKeyValue = document.getElementById("settingsApiKeyInput").value.trim();
+    if (newKeyValue && !isValidApiKey(newKeyValue)) {
+      const status = document.getElementById("settingsStatus");
+      if (status) { status.hidden = false; status.textContent = "Invalid format. Key must start with wae_ and contain at least 64 hex characters."; }
+      return;
+    }
+    localStorage.setItem(STORE.apiKey, newKeyValue);
     document.getElementById("settingsModal").classList.add("hidden");
     const newKey = localStorage.getItem(STORE.apiKey) || "";
     if (newKey && newKey !== prevKey) {

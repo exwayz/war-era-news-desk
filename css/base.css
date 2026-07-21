@@ -68,6 +68,7 @@ button iconify-icon.lu { pointer-events: none; }
   color: var(--ink-dim);
 }
 .status-msg.error { border-color: var(--red); color: var(--red); }
+.error-text { color: var(--red); font-size: .78rem; margin: 4px 0 0; }
 
 /* ── PANEL HEAD ─────────────────────────────────────── */
 .panel-head {

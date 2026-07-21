@@ -1,5 +1,6 @@
 import { S } from "../core/state.js";
 import { STORE } from "../core/storage.js";
+import { isValidApiKey } from "../core/api.js";
 
 export function initIntro(onReady) {
   const overlay = document.getElementById("introOverlay");
@@ -84,13 +85,23 @@ export function initIntro(onReady) {
     apiInput._gt = setTimeout(() => titleEl.classList.remove("glitching"), 650);
   }
   apiInput?.addEventListener("focus", glitchPulse);
-  apiInput?.addEventListener("input", glitchPulse);
+  apiInput?.addEventListener("input", () => {
+    glitchPulse();
+    introStatus.hidden = true;
+  });
 
   saveBtn?.addEventListener("click", () => {
     const key = (apiInput.value || "").trim();
     if (!key) {
       introStatus.hidden = false;
       introStatus.textContent = "Please paste a valid API key.";
+      apiBox.classList.add("shake");
+      setTimeout(() => apiBox.classList.remove("shake"), 420);
+      return;
+    }
+    if (!isValidApiKey(key)) {
+      introStatus.hidden = false;
+      introStatus.textContent = "Invalid format. Key must start with wae_ and contain at least 64 hex characters.";
       apiBox.classList.add("shake");
       setTimeout(() => apiBox.classList.remove("shake"), 420);
       return;

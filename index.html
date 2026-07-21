@@ -366,6 +366,7 @@
       <input id="apiKeyInput" type="password" autocomplete="off" placeholder="Paste API key here">
       <button class="clear-btn" id="clearApiKeyBtn" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
     </div>
+    <p id="apiKeyStatus" class="error-text" hidden></p>
     <button id="saveApiKeyButton" class="btn-primary" style="width:100%">Save &amp; Connect</button>
   </div>
 </div>
@@ -403,6 +404,7 @@
       <label>API Key</label>
       <input type="password" id="settingsApiKeyInput" placeholder="War Era API key" style="flex:2;padding:4px 8px;font-size:.8rem">
     </div>
+    <p id="settingsStatus" class="error-text" hidden style="margin:0 0 4px"></p>
     <div class="settings-group">
       <label>SFX Volume</label>
       <input type="range" id="sfxVolumeSlider" min="0" max="100" value="100">

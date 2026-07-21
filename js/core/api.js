@@ -73,6 +73,11 @@ export function apiKey() {
   return E.apiKeyInput.value.trim() || localStorage.getItem(STORE.apiKey) || "";
 }
 
+const WAE_KEY_RE = /^wae_[a-f0-9]{64,}$/i;
+export function isValidApiKey(k) {
+  return WAE_KEY_RE.test(k.trim());
+}
+
 function noUndef(obj) {
   return Object.fromEntries(Object.entries(obj).filter(([,v])=>v!==undefined && v!==null));
 }
