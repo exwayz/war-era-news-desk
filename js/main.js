@@ -285,10 +285,10 @@ function bindAll() {
   const timelineRegionClr = document.querySelector("[data-clears='timelineRegionFilter']");
   timelineRegionInput?.addEventListener("input", () => {
     S.timelineRegionFilter = timelineRegionInput.value.replace(/^[^a-zA-Z0-9]*/, "").trim();
-    renderTimeline();
+    loadEvents(true);
   });
   timelineRegionClr?.addEventListener("click", () => {
-    if (timelineRegionInput) { timelineRegionInput.value = ""; S.timelineRegionFilter = ""; renderTimeline(); timelineRegionInput.focus(); }
+    if (timelineRegionInput) { timelineRegionInput.value = ""; S.timelineRegionFilter = ""; loadEvents(true); timelineRegionInput.focus(); }
   });
   E.eventTypeSelect?.addEventListener("change",()=>scheduleEventsRefresh());
   E.eventLimitInput?.addEventListener("change",()=>scheduleEventsRefresh());
@@ -311,11 +311,11 @@ function bindAll() {
     }
     navigator.clipboard.writeText(lines.join("\n\n")).then(()=>toast("Timeline copied."));
   });
-  E.startTimeInput?.addEventListener("change", renderTimeline);
-  E.endTimeInput?.addEventListener("change", renderTimeline);
+  E.startTimeInput?.addEventListener("change",()=>loadEvents(true));
+  E.endTimeInput?.addEventListener("change",()=>loadEvents(true));
   E.eventList?.addEventListener("click", handleEventAction);
 
-  E.articleSearch?.addEventListener("input", renderArticles);
+  E.articleSearch?.addEventListener("input",()=>loadArticles(true));
   E.loadMoreArticlesBtn?.addEventListener("click",()=>loadArticles(false));
   document.querySelectorAll(".article-filter-row [data-art-sort]").forEach(btn=>{
     btn.addEventListener("click",()=>{
@@ -325,8 +325,8 @@ function bindAll() {
       renderArticles();
     });
   });
-  document.getElementById("articleTimeFrom")?.addEventListener("change",()=>{ S.articleTimeFrom=document.getElementById("articleTimeFrom").value; renderArticles(); });
-  document.getElementById("articleTimeTo")?.addEventListener("change",()=>{ S.articleTimeTo=document.getElementById("articleTimeTo").value; renderArticles(); });
+  document.getElementById("articleTimeFrom")?.addEventListener("change",()=>{ S.articleTimeFrom=document.getElementById("articleTimeFrom").value; loadArticles(true); });
+  document.getElementById("articleTimeTo")?.addEventListener("change",()=>{ S.articleTimeTo=document.getElementById("articleTimeTo").value; loadArticles(true); });
   const langCont = document.getElementById("articleLangFilter");
   const langTrigger = langCont?.querySelector(".lang-dropdown-trigger");
   const langMenu = langCont?.querySelector(".lang-dropdown-menu");
@@ -346,12 +346,12 @@ function bindAll() {
       else S.articleLangs.push(code);
     }
     refreshLangDropdown();
-    renderArticles();
+    loadArticles(true);
   });
   document.addEventListener("click",(e)=>{
     if (langCont && !langCont.contains(e.target)) langMenu?.classList.add("hidden");
   });
-  document.getElementById("articleCatFilter")?.addEventListener("change", renderArticles);
+  document.getElementById("articleCatFilter")?.addEventListener("change",()=>loadArticles(true));
   document.getElementById("copyArticlesBtn")?.addEventListener("click",async()=>{ playCopy(); await copyArticles(); toast("Articles copied."); });
   E.closeReader?.addEventListener("click",()=>E.readerModal.classList.add("hidden"));
   E.readerModal?.addEventListener("click",e=>{ if(e.target===E.readerModal) E.readerModal.classList.add("hidden"); });

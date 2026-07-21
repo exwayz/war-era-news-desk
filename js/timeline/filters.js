@@ -37,11 +37,16 @@ export function getFilters() {
   const cval = E.countryInput.value.trim();
   const cid = cval ? (OBJECT_ID_RE.test(cval) ? cval : (S.lookups.countryIdsByName.get(cval.trim().toLowerCase())||"")) : "";
   const limit = Math.max(1, parseInt(E.eventLimitInput?.value, 10) || 50);
-  return {
+  const f = {
     limit,
     countryId: cid || undefined,
     eventTypes: E.eventTypeSelect.value ? [E.eventTypeSelect.value] : undefined,
   };
+  const startVal = E.startTimeInput?.value;
+  const endVal = E.endTimeInput?.value;
+  if (startVal) f.from = startVal;
+  if (endVal) f.to = endVal;
+  return f;
 }
 
 export async function ensureLookups(k) {

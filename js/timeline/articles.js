@@ -80,13 +80,6 @@ function populateArticleFilters(articles) {
 let _loadingArticles = false;
 export function isLoadingArticles() { return _loadingArticles; }
 
-function hasActiveFilters() {
-  const langs = getActiveLangs();
-  const cat = document.getElementById("articleCatFilter")?.value || "";
-  const kw = E.articleSearch?.value?.trim() || "";
-  return !!(langs.length || cat || S.articleTimeFrom || S.articleTimeTo || kw);
-}
-
 function filterByLang(arts) {
   const langs = getActiveLangs();
   if (!langs.length) return arts;
@@ -100,8 +93,17 @@ export async function loadArticles(reset=true) {
   if (reset) { S.articleCursor=null; S.articles=[]; }
   if (!reset && !S.articleCursor) { _loadingArticles = false; return; }
   try {
-    const limit = reset && hasActiveFilters() ? 1000 : 100;
-    const result = await fetchTrpc("article.getArticlesPaginated", { type:"last", limit, cursor:reset?undefined:S.articleCursor }, k);
+    const langs = getActiveLangs();
+    const cat = document.getElementById("articleCatFilter")?.value || "";
+    const kw = E.articleSearch?.value?.trim() || "";
+    const filterParams = {};
+    if (langs.length === 1) filterParams.language = langs[0];
+    else if (langs.length > 1) filterParams.language = langs.join(",");
+    if (cat) filterParams.category = cat;
+    if (S.articleTimeFrom) filterParams.from = S.articleTimeFrom;
+    if (S.articleTimeTo) filterParams.to = S.articleTimeTo;
+    const limit = 100;
+    const result = await fetchTrpc("article.getArticlesPaginated", { type:"last", limit, ...filterParams, cursor:reset?undefined:S.articleCursor }, k);
     const data = unwrap(result);
     const items = data?.items||[];
     await resolveUsers(items.map(a=>a.author).filter(Boolean), k);
