@@ -315,7 +315,7 @@ function bindAll() {
   E.endTimeInput?.addEventListener("change",()=>loadEvents(true));
   E.eventList?.addEventListener("click", handleEventAction);
 
-  E.articleSearch?.addEventListener("input",()=>loadArticles(true));
+  E.articleSearch?.addEventListener("input", renderArticles);
   E.loadMoreArticlesBtn?.addEventListener("click",()=>loadArticles(false));
   document.querySelectorAll(".article-filter-row [data-art-sort]").forEach(btn=>{
     btn.addEventListener("click",()=>{
@@ -325,8 +325,8 @@ function bindAll() {
       renderArticles();
     });
   });
-  document.getElementById("articleTimeFrom")?.addEventListener("change",()=>{ S.articleTimeFrom=document.getElementById("articleTimeFrom").value; loadArticles(true); });
-  document.getElementById("articleTimeTo")?.addEventListener("change",()=>{ S.articleTimeTo=document.getElementById("articleTimeTo").value; loadArticles(true); });
+  document.getElementById("articleTimeFrom")?.addEventListener("change",()=>{ S.articleTimeFrom=document.getElementById("articleTimeFrom").value; renderArticles(); });
+  document.getElementById("articleTimeTo")?.addEventListener("change",()=>{ S.articleTimeTo=document.getElementById("articleTimeTo").value; renderArticles(); });
   const langCont = document.getElementById("articleLangFilter");
   const langTrigger = langCont?.querySelector(".lang-dropdown-trigger");
   const langMenu = langCont?.querySelector(".lang-dropdown-menu");
@@ -346,12 +346,12 @@ function bindAll() {
       else S.articleLangs.push(code);
     }
     refreshLangDropdown();
-    loadArticles(true);
+    renderArticles();
   });
   document.addEventListener("click",(e)=>{
     if (langCont && !langCont.contains(e.target)) langMenu?.classList.add("hidden");
   });
-  document.getElementById("articleCatFilter")?.addEventListener("change",()=>loadArticles(true));
+  document.getElementById("articleCatFilter")?.addEventListener("change", renderArticles);
   document.getElementById("copyArticlesBtn")?.addEventListener("click",async()=>{ playCopy(); await copyArticles(); toast("Articles copied."); });
   E.closeReader?.addEventListener("click",()=>E.readerModal.classList.add("hidden"));
   E.readerModal?.addEventListener("click",e=>{ if(e.target===E.readerModal) E.readerModal.classList.add("hidden"); });
