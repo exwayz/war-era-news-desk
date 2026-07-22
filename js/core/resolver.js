@@ -2,6 +2,15 @@ import { S } from "./state.js";
 import { apiKey, fetchTrpc, fetchTrpcApi2, unwrap } from "./api.js";
 import { ensureLookups } from "../timeline/filters.js";
 import { entityDisplayName, escapeHtml } from "./utils.js";
+import { offlineLookups } from "../../data/offlineLookups.js";
+
+const _offlineMaps = {
+  country: offlineLookups.countries,
+  region: offlineLookups.regions,
+  alliance: offlineLookups.alliances,
+  party: offlineLookups.parties,
+  mu: offlineLookups.mus,
+};
 
 async function fetchWithFallback(method, params, k) {
   try { return unwrap(await fetchTrpc(method, params, k)); } catch {}
@@ -9,20 +18,45 @@ async function fetchWithFallback(method, params, k) {
   return null;
 }
 
+export function offlineResolve(type, id) {
+  const map = _offlineMaps[type];
+  if (!map || !id) return null;
+  const name = map[id];
+  if (!name) return null;
+  const stub = { _id: id, id, name };
+  if (type === "alliance") stub.alliance = name;
+  if (type === "party") stub.party = name;
+  return stub;
+}
+
 export async function resolveEntityByType(type, id, k) {
   k = k || apiKey();
-  if (!k || !id) return null;
+  if (!id) return null;
+
+  const cacheMap = {
+    user: "usersById", country: "countriesById", region: "regionsById",
+    mu: "muById", company: "companiesById", battle: "battlesById",
+    alliance: "alliancesById", article: "articlesById", party: "partiesById",
+  }[type];
+
+  if (cacheMap && S.lookups[cacheMap]?.has(id)) return S.lookups[cacheMap].get(id);
+
+  const offline = offlineResolve(type, id);
+  if (offline) {
+    if (cacheMap) S.lookups[cacheMap].set(id, offline);
+    return offline;
+  }
+
+  if (!k) return null;
   try {
     switch (type) {
       case "user": {
-        if (S.lookups.usersById.has(id)) return S.lookups.usersById.get(id);
         const u = await fetchWithFallback("user.getUserLite", { userId:id }, k);
         if (u) S.lookups.usersById.set(id,u);
         return u;
       }
       case "country": {
         await ensureLookups(k);
-        if (S.lookups.countriesById.has(id)) return S.lookups.countriesById.get(id);
         let c = await fetchWithFallback("country.getById", { countryId:id }, k);
         if (!c) c = await fetchWithFallback("country.getCountryById", { countryId:id }, k);
         if (c) S.lookups.countriesById.set(id,c);
@@ -30,45 +64,38 @@ export async function resolveEntityByType(type, id, k) {
       }
       case "region": {
         await ensureLookups(k);
-        if (S.lookups.regionsById.has(id)) return S.lookups.regionsById.get(id);
         let r = await fetchWithFallback("region.getById", { regionId:id }, k);
         if (!r) r = await fetchWithFallback("region.getRegionById", { regionId:id }, k);
         if (r) S.lookups.regionsById.set(id,r);
         return r;
       }
       case "mu": {
-        if (S.lookups.muById.has(id)) return S.lookups.muById.get(id);
         const m = await fetchWithFallback("mu.getById", { muId:id }, k);
         if (m) S.lookups.muById.set(id,m);
         return m;
       }
       case "company": {
-        if (S.lookups.companiesById.has(id)) return S.lookups.companiesById.get(id);
         const c = await fetchWithFallback("company.getById", { companyId:id }, k);
         if (c) S.lookups.companiesById.set(id,c);
         return c;
       }
       case "battle": {
-        if (S.lookups.battlesById.has(id)) return S.lookups.battlesById.get(id);
         const b = await fetchWithFallback("battle.getById", { battleId:id }, k);
         if (b) S.lookups.battlesById.set(id,b);
         return b;
       }
       case "alliance": {
-        if (S.lookups.alliancesById.has(id)) return S.lookups.alliancesById.get(id);
         const alliance = await resolveAlliance(id, k);
         if (alliance) S.lookups.alliancesById.set(id, alliance);
         return alliance;
       }
       case "article": {
-        if (S.lookups.articlesById.has(id)) return S.lookups.articlesById.get(id);
         let a = await fetchWithFallback("article.getById", { articleId:id }, k);
         if (!a) a = await fetchWithFallback("article.getArticleById", { articleId:id }, k);
         if (a) S.lookups.articlesById.set(id,a);
         return a;
       }
       case "party": {
-        if (S.lookups.partiesById.has(id)) return S.lookups.partiesById.get(id);
         const party = await resolveParty(id, k);
         if (party) S.lookups.partiesById.set(id, party);
         return party;
