@@ -11,6 +11,24 @@ body {
   overflow: hidden;
 }
 
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 100001;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='400' height='400' viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0.03 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  mix-blend-mode: overlay;
+  opacity: 1;
+}
+html[data-theme="dark"] body::before {
+  background-color: rgba(180,140,80,.22);
+}
+html[data-theme="light"] body::before {
+  background-color: rgba(180,140,80,.22);
+}
+
 h1, h2, h3, h4, p { margin-top: 0; }
 a { color: var(--link); text-decoration: none; }
 a:hover { color: var(--link-hover); text-decoration: underline; }
