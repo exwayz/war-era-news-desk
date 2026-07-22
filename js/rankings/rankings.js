@@ -4,7 +4,6 @@ import { fmtNum } from "../core/utils.js";
 import { toast } from "../ui/toast.js";
 import * as cap from "../core/captureReport.js";
 import { highlightUserData } from "../core/profileHighlighter.js";
-import { getCoatOfArmsUrl } from "../core/coatOfArms.js";
 
 const CATEGORIES = {
   weekly: {
@@ -104,9 +103,7 @@ function getName(type, id, data) {
 function getAvatarHtml(type, id, data) {
   if (type === "country") {
     const code = (data?.shortCode || data?.code || data?.iso || data?.iso2 || "").toLowerCase();
-    const flagUrl = code ? `https://flagcdn.com/${code}.svg` : "";
-    const coaUrl = getCoatOfArmsUrl(data?.name);
-    if (coaUrl) return `<img class="rk-avatar" src="${coaUrl}" onerror="this.onerror=null;this.src='${flagUrl}'" alt="" loading="lazy">`;
+    const flagUrl = code ? `https://app.warera.io/images/flags/${code}.svg` : "";
     if (flagUrl) return `<img class="rk-avatar" src="${flagUrl}" alt="" loading="lazy">`;
     return "";
   }
