@@ -242,8 +242,8 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     defId = b.defender?.country||b.defenderCountry||b.defender?.countryId;
     const atkCode = (S.lookups.countriesById.get(atkId)?.code||"").toLowerCase();
     const defCode = (S.lookups.countriesById.get(defId)?.code||"").toLowerCase();
-    atkAvatar = atkCode ? `<img src="https://app.warera.io/images/flags/${atkCode.toLowerCase()}.svg" alt="" style="width:28px;height:28px;object-fit:cover;display:block">` : "";
-    defAvatar = defCode ? `<img src="https://app.warera.io/images/flags/${defCode.toLowerCase()}.svg" alt="" style="width:28px;height:28px;object-fit:cover;display:block">` : "";
+    atkAvatar = atkCode ? `<img src="https://app.warera.io/images/flags/${atkCode.toLowerCase()}.svg" alt="" style="width:32px;display:block">` : "";
+    defAvatar = defCode ? `<img src="https://app.warera.io/images/flags/${defCode.toLowerCase()}.svg" alt="" style="width:32px;display:block">` : "";
   }
   const reg = nameRegion(b.defender?.region||b.defenderRegion||b.region);
   const isLive = !b.endedAt || b.isActive===true || b.active===true;
