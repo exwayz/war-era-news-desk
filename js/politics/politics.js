@@ -361,7 +361,7 @@ function renderCountryGrid() {
   container.innerHTML = `
     <div class="pol-country-grid">
       ${sorted.map(c => {
-        const flag = c.code ? `<img class="pol-grid-flag" src="https://flagcdn.com/${c.code}.svg" alt="" loading="lazy">` : "";
+        const flag = c.code ? `<img class="pol-grid-flag" src="https://app.warera.io/images/flags/${c.code.toLowerCase()}.svg" alt="" loading="lazy">` : "";
         return `<button class="pol-country-card" data-id="${c._id}">${flag}<span class="pol-country-name">${escHtml(c.name || "?")}</span></button>`;
       }).join("")}
     </div>

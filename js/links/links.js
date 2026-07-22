@@ -69,7 +69,7 @@ function renderCountryList() {
     if (!id) continue;
     const path = "/country/" + id;
     const code = c.code || "";
-    const flag = code ? `https://flagcdn.com/${code.toLowerCase()}.svg` : "";
+    const flag = code ? `https://app.warera.io/images/flags/${code.toLowerCase()}.svg` : "";
     const row = document.createElement("div");
     row.className = "link-row";
     row.innerHTML = `
