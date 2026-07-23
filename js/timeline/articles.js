@@ -113,7 +113,19 @@ export async function loadArticles(reset=true) {
       const deduped = items.filter(a => !existingIds.has(a._id || a.id));
       S.articles = [...S.articles, ...deduped];
     }
-    if (reset) populateArticleFilters(S.articles);
+    populateLangDropdown(S.articles);
+    if (reset) {
+      const catSel = document.getElementById("articleCatFilter");
+      if (catSel) {
+        const cats = new Set();
+        for (const a of S.articles) { if (a.category) cats.add(a.category); }
+        const cur = catSel.value;
+        catSel.innerHTML = '<option value="">All categories</option>';
+        for (const c of [...cats].sort()) {
+          catSel.innerHTML += `<option value="${c}"${c===cur?" selected":""}>${c}</option>`;
+        }
+      }
+    }
     clearArticleStatus();
     renderArticles();
   } catch (e) {
@@ -135,6 +147,7 @@ export async function silentRefreshArticles() {
     if (!fresh.length) return;
     await resolveUsers(fresh.map(a=>a.author).filter(Boolean), k);
     S.articles = [...fresh, ...S.articles];
+    populateLangDropdown(S.articles);
     renderArticles();
   } catch {}
 }
