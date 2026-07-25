@@ -466,6 +466,20 @@ export function copyMarketReport() {
     const wv = weeklyMap[item.item];
     r += `- ${item.item}: ${fmtMoney(item.value)} BTC${wv ? ` (weekly: ${fmtMoney(wv)} BTC)` : ""} ${trend}${change}\n`;
   }
+  const pd = S.market._prodData;
+  if (pd?.bestPerProduct?.length) {
+    r += `\n\n## Production Analysis\n`;
+    r += `### Best Region per Product\n`;
+    for (const p of pd.bestPerProduct) {
+      r += `- ${p.productName}: ${p.regionName} (${p.countryName}) — Bonus ${p.totalBonus.toFixed(1)}% | Net Wages ${fmtMoney(p.netWages)} ₿\n`;
+    }
+    if (pd.rows?.length) {
+      r += `\n### Top 10 Regions by Net Wages\n`;
+      for (const p of pd.rows.slice(0, 10)) {
+        r += `- ${p.regionName} (${p.countryName}) — ${p.productName} — Bonus ${p.totalBonus.toFixed(1)}% | Tax ${p.incomeTax}% | Gross ${fmtMoney(p.grossWages)} ₿ | Net ${fmtMoney(p.netWages)} ₿\n`;
+      }
+    }
+  }
   const a = calculateAnalytics();
   if (a.p) {
     r += `\n\n## Executive Economic Dashboard\n`;
@@ -542,10 +556,22 @@ export function captureMarketReport() {
     return [name, fmtMoney(entry.value)+" BTC", wv ? fmtMoney(wv)+" BTC" : "—"];
   });
 
+  const pd = S.market._prodData;
+  let prodHtml = "";
+  if (pd?.bestPerProduct?.length) {
+    const bestRows = pd.bestPerProduct.map(r => [r.productName, r.regionName, r.countryName, r.totalBonus.toFixed(1)+"%", fmtMoney(r.profitPerPP)+" ₿", fmtMoney(r.netWages)+" ₿"]);
+    prodHtml += cap.section("Production — Best Region per Product", cap.tableBlock("", ["Product","Region","Country","Bonus","Profit/PP","Net Wages"], bestRows, 99));
+  }
+  if (pd?.rows?.length) {
+    const wageRows = pd.rows.slice(0, 15).map((r, i) => [String(i+1), r.regionName, r.countryName, r.productName, r.totalBonus.toFixed(1)+"%", r.incomeTax+"%", fmtMoney(r.grossWages)+" ₿", fmtMoney(r.netWages)+" ₿"]);
+    prodHtml += cap.section("Production — Top 15 Regions by Net Wages", cap.tableBlock("", ["#","Region","Country","Product","Bonus","Tax","Gross","Net Wages"], wageRows, 15));
+  }
+
   const html = cap.pageOpen("War Era Market Intelligence Report", "", ["Generated: "+new Date().toUTCString()]) +
     (overviewRows.length ? cap.section("Economic Overview", cap.tableBlock("", ["Metric","Value"], overviewRows, 99)) : "") +
     (priceRows.length ? cap.section("Top Commodity Prices", cap.tableBlock("", ["#","Item","Price"], priceRows.map((r,i)=>[String(i+1),...r]), 10)) : "") +
     (valuableRows.length ? cap.section("Most Valuable Commodities", cap.tableBlock("", ["#","Item","Current Value ("+nowStr+")","Weekly Value"], valuableRows.map((r,i)=>[String(i+1),...r]), 10)) : "") +
+    prodHtml +
     cap.pageClose();
   cap.captureHTML(html, "market_report_"+cap.ts()+".png");
 }
