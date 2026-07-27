@@ -244,7 +244,7 @@ function bindAll() {
   // Profile resolution
   document.getElementById("resolveProfileBtn")?.addEventListener("click",async ()=>{
     const input = document.getElementById("regUserInput").value.trim();
-    if (!input) { toast("Enter a user ID or profile URL."); return; }
+    if (!input) { toast("Enter a username, user ID, or profile URL."); return; }
     const statusEl = document.getElementById("regProfileStatus");
     statusEl.classList.remove("hidden");
     statusEl.textContent = "Resolving...";

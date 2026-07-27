@@ -37,7 +37,7 @@ export function extractUserId(input) {
   if (!input) return null;
   const urlMatch = input.trim().match(/app\.warera\.io\/user\/([a-zA-Z0-9_-]+)/);
   if (urlMatch) return urlMatch[1];
-  if (/^[a-zA-Z0-9_-]+$/.test(input.trim())) return input.trim();
+  if (/^[a-zA-Z0-9]{24}$/.test(input.trim())) return input.trim();
   return null;
 }
 
@@ -62,34 +62,52 @@ function getName(val) {
 }
 
 export async function resolveProfile(input, apiKey) {
-  const userId = extractUserId(input);
-  if (!userId) return { error: "Could not extract a valid User ID. Enter a War Era profile URL or user ID." };
+  if (!input || !input.trim()) return { error: "Enter a username, user ID, or profile URL." };
   if (!apiKey) return { error: "API key required. Save your API key first." };
 
   try {
     const { fetchTrpc, unwrap } = await import("../core/api.js");
     const { resolveEntityByType } = await import("../core/resolver.js");
 
-    const raw = await fetchTrpc("user.getUserLite", { userId }, apiKey);
-    const user = unwrap(raw);
-    if (!user || (!user.username && !user.name)) {
-      return { error: "User not found. Check the ID or URL and try again." };
-    }
-
+    let userId = extractUserId(input);
     let richData = {};
-    try {
+
+    if (userId) {
+      const raw = await fetchTrpc("user.getUserLite", { userId }, apiKey);
+      const user = unwrap(raw);
+      if (!user || (!user.username && !user.name)) {
+        return { error: "User not found. Check the ID or URL and try again." };
+      }
+      try {
+        const richRaw = await fetchTrpc("user.getUserById", { userId }, apiKey);
+        const rich = unwrap(richRaw);
+        if (rich) richData = rich;
+      } catch {}
+      Object.assign(richData, user);
+    } else {
+      const searchTerm = input.trim();
+      const searchRes = await fetchTrpc("search.searchAnything", { search: searchTerm }, apiKey);
+      const searchData = unwrap(searchRes);
+      const foundIds = searchData?.userIds;
+      if (!foundIds || !foundIds.length) {
+        return { error: `No user found for "${searchTerm}". Try a different username.` };
+      }
+      userId = foundIds[0];
       const richRaw = await fetchTrpc("user.getUserById", { userId }, apiKey);
       const rich = unwrap(richRaw);
-      if (rich) richData = rich;
-    } catch {}
+      if (!rich || (!rich.username && !rich.name)) {
+        return { error: "User found but profile data could not be loaded." };
+      }
+      richData = rich;
+    }
 
-    const username = user.username || user.name || "Unknown";
-    const avatarUrl = user.avatarUrl || user.avatar || "";
-    const level = richData.leveling?.level ?? getField(user, "level", "userLevel", "lvl");
+    const username = richData.username || richData.name || "Unknown";
+    const avatarUrl = richData.avatarUrl || richData.avatar || "";
+    const level = richData.leveling?.level ?? getField(richData, "level", "userLevel", "lvl");
 
-    const muId = toId(getField(user, "mu", "muId", "militaryUnit", "militaryunit"));
-    const countryInput = getField(user, "country", "countryId", "citizenship", "countryCode");
-    const partyId = toId(getField(user, "party", "partyId"));
+    const muId = toId(getField(richData, "mu", "muId", "militaryUnit", "militaryunit"));
+    const countryInput = getField(richData, "country", "countryId", "citizenship", "countryCode");
+    const partyId = toId(getField(richData, "party", "partyId"));
 
     let muName = null, countryName = null, partyName = null;
     let countryCode = null;
@@ -97,9 +115,9 @@ export async function resolveProfile(input, apiKey) {
     if (muId) {
       const muData = await resolveEntityByType("mu", muId, apiKey);
       if (muData) muName = getName(muData);
-      if (!muName && typeof user.mu === "object") muName = user.mu.name || null;
-    } else if (user.mu && typeof user.mu === "object") {
-      muName = user.mu.name || user.mu.muName || user.mu.displayName || null;
+      if (!muName && typeof richData.mu === "object") muName = richData.mu.name || null;
+    } else if (richData.mu && typeof richData.mu === "object") {
+      muName = richData.mu.name || richData.mu.muName || richData.mu.displayName || null;
     }
 
     if (countryInput) {
@@ -116,8 +134,8 @@ export async function resolveProfile(input, apiKey) {
     if (partyId) {
       const partyData = await resolveEntityByType("party", partyId, apiKey);
       if (partyData) partyName = getName(partyData);
-    } else if (user.party && typeof user.party === "object") {
-      partyName = user.party.name || user.party.partyName || null;
+    } else if (richData.party && typeof richData.party === "object") {
+      partyName = richData.party.name || richData.party.partyName || null;
     }
 
     const subscribers = richData.rankings?.userSubscribers?.value ?? null;
@@ -125,7 +143,7 @@ export async function resolveProfile(input, apiKey) {
     const profile = saveProfile({
       userId,
       username,
-      name: user.name || username,
+      name: richData.name || username,
       avatarUrl,
       level: level != null ? String(level) : null,
       muId,
