@@ -86,7 +86,7 @@ export async function resolveProfile(input, apiKey) {
       Object.assign(richData, user);
     } else {
       const searchTerm = input.trim();
-      const searchRes = await fetchTrpc("search.searchAnything", { search: searchTerm }, apiKey);
+      const searchRes = await fetchTrpc("search.searchAnything", { searchText: searchTerm }, apiKey);
       const searchData = unwrap(searchRes);
       const foundIds = searchData?.userIds;
       if (!foundIds || !foundIds.length) {
