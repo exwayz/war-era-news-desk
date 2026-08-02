@@ -25,6 +25,7 @@ import { loadProfile, saveProfile, deleteProfile, isRegistered, formatProfileLin
 import { POLICY_TEXT } from "./community/policy.js";
 import { loadMessages, loadMoreMessages, postMessage, upvoteMessage, renderWallMessages, renderWallCount, getMessageById, hasMoreMessages, getRemainingQuota, prependWallCard, updateUpvoteDisplay, copyCommunityReport } from "./community/wall.js";
 import { loadPolitics, initPolitics, copyPoliticsReport, capturePoliticsReport } from "./politics/politics.js";
+import { initLibrary } from "./library/library.js";
 import { highlightUserData } from "./core/profileHighlighter.js";
 import { initClock, updateInfobar } from "./visuals/clock.js";
 
@@ -481,6 +482,7 @@ function bindAll() {
   initRankings();
   initMarketView();
   initPolitics();
+  initLibrary();
 
   document.getElementById("jobWageFilter")?.addEventListener("input", () => {
     S.jobWageFilter = Number(document.getElementById("jobWageFilter").value || 0);

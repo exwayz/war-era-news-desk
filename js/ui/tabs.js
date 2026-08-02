@@ -8,6 +8,7 @@ import { populateDepositFilter } from "../jobs/concentration.js";
 import { loadCategory } from "../rankings/rankings.js";
 import { loadMessages, renderWallMessages, renderWallCount } from "../community/wall.js";
 import { loadPolitics } from "../politics/politics.js";
+import { ensureLibraryIndex } from "../library/library.js";
 import { highlightUserData } from "../core/profileHighlighter.js";
 
 export function switchTab(tab) {
@@ -45,6 +46,7 @@ export function switchTab(tab) {
   if (tab==="jobs") { if (S.jobs.length===0) loadJobs(true); populateDepositFilter(); }
   if (tab==="rankings") loadCategory(document.querySelector("[data-rank-cat].active")?.dataset.rankCat || "weekly");
   if (tab==="politics") loadPolitics();
+  if (tab==="library") ensureLibraryIndex();
 }
 
 export function isTimelineOpen(){

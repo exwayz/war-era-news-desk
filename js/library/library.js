@@ -1,0 +1,363 @@
+import { S } from "../core/state.js";
+import { E } from "../core/dom.js";
+import { apiKey, fetchTrpc, fetchTrpcApi2, fetchTrpcApi5, unwrap } from "../core/api.js";
+import { debounce, fmtDate, fmtNum, escapeHtml } from "../core/utils.js";
+import { langName } from "../timeline/articles.js";
+import { resolveUsers } from "../timeline/filters.js";
+import { resolveContentLinks } from "../core/resolver.js";
+
+const CATEGORY_META = {
+  news:          { label: "News",          icon: "mdi:newspaper-variant-outline" },
+  politics:      { label: "Politics",      icon: "mdi:bank-outline" },
+  election:      { label: "Election",      icon: "mdi:ballot-outline" },
+  economy:       { label: "Economy",       icon: "mdi:chart-line" },
+  military:      { label: "Military",      icon: "mdi:sword-cross" },
+  entertainment: { label: "Entertainment", icon: "mdi:movie-open-outline" },
+  guide:         { label: "Guides",        icon: "mdi:book-open-page-variant-outline" },
+  stats:         { label: "Stats",         icon: "mdi:chart-bar" },
+  begging:       { label: "Begging",       icon: "mdi:hand-heart-outline" },
+  other:         { label: "Other",         icon: "mdi:archive-outline" },
+};
+
+const VISIBLE_STEP = 50;
+
+const L = {
+  index: [],
+  built: false,
+  building: false,
+  category: "",
+  searchMode: "keyword",
+  searchTerm: "",
+  searchAuthorId: null,
+  searchAuthorName: "",
+  sort: "date",
+  langs: [],
+  visible: VISIBLE_STEP,
+};
+
+function status(msg, type) {
+  const el = document.getElementById("libraryStatus");
+  if (!el) return;
+  if (!msg) { el.hidden = true; el.textContent = ""; el.classList.remove("error"); return; }
+  el.hidden = false;
+  el.textContent = msg;
+  el.classList.toggle("error", type === "error");
+}
+
+function updateMeta() {
+  const el = document.getElementById("libraryMeta");
+  if (!el) return;
+  el.textContent = `${L.index.length} articles indexed`;
+}
+
+async function fetchArticlesPage(input, k) {
+  // api2 serves article.getArticlesPaginated reliably; gateway postgres is down for it.
+  try { return unwrap(await fetchTrpcApi2("article.getArticlesPaginated", input, k)); } catch {}
+  try { return unwrap(await fetchTrpc("article.getArticlesPaginated", input, k)); } catch {}
+  try { return unwrap(await fetchTrpcApi5("article.getArticlesPaginated", input, k)); } catch {}
+  return null;
+}
+
+export async function ensureLibraryIndex() {
+  const k = apiKey();
+  if (!k || L.built || L.building) return;
+  L.building = true;
+  status("Indexing entire library…");
+  const seen = new Set(L.index.map(a => a._id));
+  try {
+    let cursor = null;
+    let pages = 0;
+    while (true) {
+      const input = cursor ? { type: "last", limit: 100, cursor } : { type: "last", limit: 100 };
+      const data = await fetchArticlesPage(input, k);
+      const items = data?.items || [];
+      if (!items.length) break;
+      for (const a of items) {
+        const id = a._id || a.id;
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        L.index.push({
+          _id: id,
+          title: a.title || "Untitled",
+          author: a.author || null,
+          language: a.language || "",
+          category: a.category || "other",
+          createdAt: a.createdAt || "",
+          publishedAt: a.publishedAt || a.createdAt || "",
+          stats: a.stats || {},
+          content: a.content || "",
+        });
+      }
+      pages++;
+      updateMeta();
+      status(`Indexing… ${L.index.length} articles (page ${pages})`);
+      renderBookshelf();
+      populateLangDropdown();
+      if (!data?.nextCursor) break;
+      cursor = data.nextCursor;
+    }
+    L.built = true;
+    status("");
+  } catch (e) {
+    console.error("library index error:", e);
+    status(L.index.length ? `Partial index (${L.index.length} articles). Error: ${e.message || "API error"}` : "Library indexing failed. " + (e.message || "API error"), "error");
+  } finally {
+    L.building = false;
+  }
+  renderBookshelf();
+  renderLibrary();
+  populateLangDropdown();
+}
+
+function categoryCounts() {
+  const counts = { all: L.index.length };
+  for (const a of L.index) {
+    const c = a.category || "other";
+    counts[c] = (counts[c] || 0) + 1;
+  }
+  return counts;
+}
+
+export function renderBookshelf() {
+  const el = document.getElementById("libraryShelf");
+  if (!el) return;
+  const counts = categoryCounts();
+  const categories = ["all", ...Object.keys(CATEGORY_META)];
+  const isActive = (c) => (L.category || "all") === c;
+  el.innerHTML = categories.map(c => {
+    const meta = c === "all" ? { label: "All", icon: "mdi:bookshelf" } : CATEGORY_META[c];
+    const count = counts[c] || 0;
+    const label = (c === "all" ? "All Articles" : meta.label) || c;
+    return `<button class="lib-book${isActive(c) ? " active" : ""}" data-lib-cat="${c}" title="${escapeHtml(label)} — ${count} articles">
+      <span class="lib-book-count">${fmtNum(count)}</span>
+      <iconify-icon icon="${meta.icon}" class="lu" style="font-size:1.1rem;margin-bottom:4px"></iconify-icon>
+      <span class="lib-book-name">${escapeHtml(label)}</span>
+    </button>`;
+  }).join("");
+}
+
+function getFiltered() {
+  let arts = L.index;
+  if (L.category) arts = arts.filter(a => (a.category || "other") === L.category);
+  if (L.langs.length) arts = arts.filter(a => L.langs.includes(a.language));
+  const term = L.searchTerm.trim();
+  if (term) {
+    const t = term.toLowerCase();
+    if (L.searchMode === "author") {
+      if (L.searchAuthorId) arts = arts.filter(a => a.author === L.searchAuthorId);
+      else arts = [];
+    } else {
+      arts = arts.filter(a =>
+        (a.title || "").toLowerCase().includes(t) ||
+        (a.content || "").toLowerCase().includes(t)
+      );
+    }
+  }
+  arts = [...arts];
+  if (L.sort === "score") arts.sort((a, b) => (b.stats?.score ?? 0) - (a.stats?.score ?? 0));
+  else arts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  return arts;
+}
+
+function authorName(id) {
+  return (S.lookups.usersById.get(id)?.username || S.lookups.usersById.get(id)?.name) || "Unknown";
+}
+
+export function renderLibrary() {
+  const listEl = document.getElementById("libraryList");
+  const loadMoreBtn = document.getElementById("loadMoreLibraryBtn");
+  if (!listEl) return;
+  const arts = getFiltered();
+  L.visible = Math.max(VISIBLE_STEP, L.visible);
+  const shown = arts.slice(0, L.visible);
+
+  const authorIds = [...new Set(shown.map(a => a.author).filter(Boolean))];
+  const pendingIds = authorIds.filter(id => !S.lookups.usersById.has(id));
+  if (pendingIds.length) {
+    resolveUsers(pendingIds, apiKey()).then(() => renderLibrary()).catch(() => {});
+  }
+
+  if (!shown.length) {
+    listEl.innerHTML = `<p class="library-empty">${L.index.length ? "No articles match the current filters." : "The library is still indexing…"}</p>`;
+  } else {
+    listEl.innerHTML = "";
+    for (const a of shown) {
+      const stats = a.stats || {};
+      const card = E.tplArticle.content.firstElementChild.cloneNode(true);
+      card.querySelector(".ac-cat").textContent = CATEGORY_META[a.category]?.label || a.category;
+      card.querySelector(".ac-title").textContent = a.title || "Untitled";
+      card.querySelector(".ac-meta").textContent = `${authorName(a.author)} · ${langName(a.language)} · ${fmtDate(a.createdAt)}`;
+      card.querySelector(".ac-stats").textContent = `👁 ${stats.views ?? 0} • Score ${stats.score ?? 0}`;
+      card.querySelector(".ac-open").addEventListener("click", () => {
+        window.open(`https://app.warera.io/article/${a._id}`, "_blank", "noopener");
+      });
+      card.querySelector(".ac-read").addEventListener("click", () => openReader(a));
+      listEl.append(card);
+    }
+  }
+
+  loadMoreBtn.hidden = shown.length >= arts.length;
+  const metaEl = document.getElementById("libraryMeta");
+  if (metaEl) {
+    const suffix = termLabel();
+    metaEl.textContent = `${shown.length} shown (${arts.length} match${suffix ? " · " + suffix : ""}) · ${L.index.length} indexed`;
+  }
+}
+
+function termLabel() {
+  if (!L.searchTerm.trim()) return "";
+  if (L.searchMode === "author") return `author: ${L.searchTerm.trim()}`;
+  return `keyword: ${L.searchTerm.trim()}`;
+}
+
+function openReader(a) {
+  const stats = a.stats || {};
+  E.readerTitle.textContent = a.title || "Untitled";
+  E.readerAuthor.textContent = `By ${authorName(a.author)} | 👁 ${stats.views ?? 0} • ✯ ${stats.score ?? 0} • 🖒 ${stats.likes ?? 0} • 🖓 ${stats.dislikes ?? 0} • 🗪 ${stats.comments ?? 0}`;
+  E.readerContent.innerHTML = a.content || "<p>No content available.</p>";
+  E.readerContent.querySelectorAll("a").forEach(l => { l.target = "_blank"; l.rel = "noopener noreferrer"; });
+  E.readerContent.querySelectorAll("iframe").forEach(f => { f.style.width = "100%"; f.style.aspectRatio = "16/9"; f.style.height = "auto"; });
+  const openBtn = document.getElementById("openArticleBtn");
+  if (openBtn) openBtn.dataset.id = a._id || a.id;
+  E.readerModal.classList.remove("hidden");
+  resolveContentLinks(E.readerContent);
+}
+
+function updateLangTrigger() {
+  const cont = document.getElementById("libraryLangFilter");
+  if (!cont) return;
+  const trigger = cont.querySelector(".lang-dropdown-trigger");
+  if (!trigger) return;
+  if (L.langs.length === 0) trigger.textContent = "All Languages";
+  else if (L.langs.length === 1) trigger.textContent = langName(L.langs[0]);
+  else trigger.textContent = `${L.langs.length} selected`;
+}
+
+function populateLangDropdown() {
+  const langs = new Set();
+  for (const a of L.index) { if (a.language) langs.add(a.language); }
+  const cont = document.getElementById("libraryLangFilter");
+  if (!cont) return;
+  const menu = cont.querySelector(".lang-dropdown-menu");
+  if (!menu) return;
+  let html = `<div class="lang-dropdown-item${L.langs.length === 0 ? " selected" : ""}" data-lang=""><span class="ld-check">${L.langs.length === 0 ? "✓" : "&nbsp;"}</span>All</div>`;
+  for (const l of [...langs].sort()) {
+    const active = L.langs.includes(l);
+    html += `<div class="lang-dropdown-item${active ? " selected" : ""}" data-lang="${l}"><span class="ld-check">${active ? "✓" : "&nbsp;"}</span>${langName(l)}</div>`;
+  }
+  menu.innerHTML = html;
+  updateLangTrigger();
+}
+
+async function resolveAuthorTerm(term) {
+  const k = apiKey();
+  if (!k || !term.trim()) { L.searchAuthorId = null; L.searchAuthorName = ""; renderLibrary(); return; }
+  status(`Resolving author “${term.trim()}”…`);
+  try {
+    const res = await fetchTrpc("search.searchAnything", { searchText: term.trim() }, k);
+    const d = unwrap(res);
+    const ids = d?.userIds || [];
+    if (ids.length) {
+      L.searchAuthorId = ids[0];
+      L.searchAuthorName = term.trim();
+      status("");
+    } else {
+      L.searchAuthorId = null;
+      L.searchAuthorName = "";
+      status(`No user found for “${term.trim()}”.`, "error");
+    }
+  } catch (e) {
+    L.searchAuthorId = null;
+    L.searchAuthorName = "";
+    status("Author lookup failed: " + (e.message || "API error"), "error");
+  }
+  renderLibrary();
+}
+
+export function initLibrary() {
+  const searchInput = document.getElementById("librarySearch");
+  const shelf = document.getElementById("libraryShelf");
+  const loadMoreBtn = document.getElementById("loadMoreLibraryBtn");
+  const langCont = document.getElementById("libraryLangFilter");
+
+  document.querySelectorAll("[data-lib-sort]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      L.sort = btn.dataset.libSort;
+      document.querySelectorAll("[data-lib-sort]").forEach(b => b.classList.toggle("active", b === btn));
+      L.visible = VISIBLE_STEP;
+      renderLibrary();
+    });
+  });
+
+  document.querySelectorAll("[data-lib-search]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      L.searchMode = btn.dataset.libSearch;
+      document.querySelectorAll("[data-lib-search]").forEach(b => b.classList.toggle("active", b === btn));
+      if (searchInput) {
+        searchInput.placeholder = L.searchMode === "author" ? "Search by author username…" : "Search articles by keyword…";
+      }
+      if (L.searchMode === "author") {
+        if (searchInput && searchInput.value.trim()) resolveAuthorTerm(searchInput.value);
+        else { L.searchAuthorId = null; renderLibrary(); }
+      } else {
+        renderLibrary();
+      }
+    });
+  });
+
+  if (searchInput) {
+    searchInput.addEventListener("input", debounce(() => {
+      L.searchTerm = searchInput.value.trim();
+      if (L.searchMode === "author") resolveAuthorTerm(L.searchTerm);
+      else { L.searchAuthorId = null; L.visible = VISIBLE_STEP; renderLibrary(); }
+    }, 400));
+    document.querySelector("[data-clears='librarySearch']")?.addEventListener("click", () => {
+      L.searchTerm = "";
+      L.searchAuthorId = null;
+      L.searchAuthorName = "";
+      L.visible = VISIBLE_STEP;
+      renderLibrary();
+    });
+  }
+
+  if (shelf) {
+    shelf.addEventListener("click", (e) => {
+      const book = e.target.closest(".lib-book");
+      if (!book) return;
+      L.category = book.dataset.libCat === "all" ? "" : book.dataset.libCat;
+      L.visible = VISIBLE_STEP;
+      renderBookshelf();
+      renderLibrary();
+    });
+  }
+
+  if (loadMoreBtn) {
+    loadMoreBtn.addEventListener("click", () => {
+      L.visible += VISIBLE_STEP;
+      renderLibrary();
+    });
+  }
+
+  if (langCont) {
+    const trigger = langCont.querySelector(".lang-dropdown-trigger");
+    const menu = langCont.querySelector(".lang-dropdown-menu");
+    trigger?.addEventListener("click", (e) => { e.stopPropagation(); menu?.classList.toggle("hidden"); });
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest("#libraryLangFilter")) menu?.classList.add("hidden");
+    });
+    menu?.addEventListener("click", (e) => {
+      const item = e.target.closest(".lang-dropdown-item");
+      if (!item) return;
+      const lang = item.dataset.lang;
+      if (!lang) L.langs = [];
+      else if (L.langs.includes(lang)) L.langs = L.langs.filter(l => l !== lang);
+      else L.langs = [...L.langs, lang];
+      populateLangDropdown();
+      renderLibrary();
+    });
+  }
+
+  renderBookshelf();
+  renderLibrary();
+  populateLangDropdown();
+}

@@ -109,6 +109,7 @@
     <!-- SIDEBAR NAV -->
     <nav class="sidebar" id="sidebar">
       <div class="sidebar-top">
+        <div class="sidebar-sec-label">Features</div>
         <button class="side-btn active" data-tab="timeline" title="Timeline" style="position:relative"><span class="side-icon"><iconify-icon icon="mdi:satellite-uplink" class="lu"></iconify-icon></span><span id="timelineBadge" class="timeline-badge" hidden>0</span></button>
         <button class="side-btn" data-tab="battles" title="Battles"><span class="side-icon"><iconify-icon icon="mdi:sword-cross" class="lu"></iconify-icon></span></button>
         <button class="side-btn" data-tab="market" title="Market"><span class="side-icon"><iconify-icon icon="mdi:trending-up" class="lu"></iconify-icon></span></button>
@@ -116,6 +117,8 @@
         <button class="side-btn" data-tab="politics" title="Politics"><span class="side-icon"><iconify-icon icon="mdi:bank" class="lu"></iconify-icon></span></button>
         <button class="side-btn" data-tab="rankings" title="Rankings"><span class="side-icon"><iconify-icon icon="mdi:trophy" class="lu"></iconify-icon></span></button>
         <button class="side-btn" data-tab="community" title="Community"><span class="side-icon"><iconify-icon icon="mdi:message-text-outline" class="lu"></iconify-icon></span></button>
+        <button class="side-btn" data-tab="library" title="Library"><span class="side-icon"><iconify-icon icon="mdi:bookshelf" class="lu"></iconify-icon></span></button>
+        <div class="sidebar-sec-label">Tools</div>
         <button class="side-btn" id="articleResolverRedirect" title="Article Resolver"><span class="side-icon"><iconify-icon icon="mdi:link-variant" class="lu"></iconify-icon></span></button>
         <button class="side-btn" id="writerRedirect" title="Writer"><span class="side-icon"><iconify-icon icon="mdi:feather" class="lu"></iconify-icon></span></button>
       </div>
@@ -351,6 +354,35 @@
         <div id="wallStatus" class="status-msg" hidden></div>
         <div id="wallGrid" class="wall-grid"></div>
         <button id="wallLoadMore" class="btn-load" hidden>Load More</button>
+      </div>
+
+      <!-- LIBRARY -->
+      <div class="tab-panel" id="tab-library">
+        <div class="library-layout">
+          <div class="panel-head"><h2><iconify-icon icon="mdi:bookshelf" class="lu"></iconify-icon> Library</h2><p id="libraryMeta" class="meta-text">Ready.</p></div>
+          <div class="library-toolbar">
+            <div class="search-mode-group">
+              <button class="pill-btn active" data-lib-search="keyword">Keyword</button>
+              <button class="pill-btn" data-lib-search="author">Author</button>
+            </div>
+            <div class="input-wrap search-bar library-search">
+              <input id="librarySearch" type="text" placeholder="Search articles…">
+              <button class="clear-btn" data-clears="librarySearch" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
+            </div>
+            <div class="tab-pill-group">
+              <button class="pill-btn active" data-lib-sort="date">Date</button>
+              <button class="pill-btn" data-lib-sort="score">Score</button>
+            </div>
+            <div class="lang-dropdown" id="libraryLangFilter">
+              <button class="lang-dropdown-trigger" type="button">All Languages</button>
+              <div class="lang-dropdown-menu hidden"></div>
+            </div>
+          </div>
+          <div id="libraryStatus" class="status-msg" hidden></div>
+          <div id="libraryShelf" class="library-shelf"></div>
+          <div id="libraryList" class="card-list library-list"></div>
+          <button id="loadMoreLibraryBtn" class="btn-load" hidden>Load More</button>
+        </div>
       </div>
 
     </div>
