@@ -25,7 +25,7 @@ import { loadProfile, saveProfile, deleteProfile, isRegistered, formatProfileLin
 import { POLICY_TEXT } from "./community/policy.js";
 import { loadMessages, loadMoreMessages, postMessage, upvoteMessage, renderWallMessages, renderWallCount, getMessageById, hasMoreMessages, getRemainingQuota, prependWallCard, updateUpvoteDisplay, copyCommunityReport } from "./community/wall.js";
 import { loadPolitics, initPolitics, copyPoliticsReport, capturePoliticsReport } from "./politics/politics.js";
-import { initLibrary } from "./library/library.js";
+import { initLibrary, ensureLibraryIndex } from "./library/library.js";
 import { initTableMaker } from "./tablemaker/tablemaker.js";
 import { highlightUserData } from "./core/profileHighlighter.js";
 import { initClock, updateInfobar } from "./visuals/clock.js";
@@ -190,7 +190,7 @@ function bindAll() {
     localStorage.setItem(STORE.apiKey,key);
     E.globalEventsTitle.classList.add("live");
     E.apiKeyModal.classList.add("hidden");
-    if(key){ S.lookupsKey=""; loadEvents(true); loadArticles(true); startAutoRefresh(); loadMarketStats(); playApiSaved(); }
+    if(key){ S.lookupsKey=""; loadEvents(true); loadArticles(true); startAutoRefresh(); loadMarketStats(); playApiSaved(); ensureLibraryIndex(); }
   });
   E.apiKeyModal?.addEventListener("click",e=>{ if(e.target===E.apiKeyModal) E.apiKeyModal.classList.add("hidden"); });
 
@@ -212,6 +212,7 @@ function bindAll() {
       loadArticles(true);
       startAutoRefresh();
       loadMarketStats();
+      ensureLibraryIndex();
     }
   }
   document.getElementById("closeProfileBtn")?.addEventListener("click",()=>{

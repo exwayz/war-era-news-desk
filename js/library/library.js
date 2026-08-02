@@ -5,6 +5,7 @@ import { debounce, fmtDate, fmtNum, escapeHtml } from "../core/utils.js";
 import { langName } from "../timeline/articles.js";
 import { resolveUsers } from "../timeline/filters.js";
 import { resolveContentLinks } from "../core/resolver.js";
+import { getMeta, saveMeta, loadAll, saveMany, clearStore } from "./libraryStore.js";
 
 const CATEGORY_META = {
   news:          { label: "News",          icon: "mdi:newspaper-variant-outline" },
@@ -25,6 +26,8 @@ const L = {
   index: [],
   built: false,
   building: false,
+  loadedFromStore: false,
+  persistContent: true,
   category: "",
   searchMode: "keyword",
   searchTerm: "",
@@ -34,6 +37,8 @@ const L = {
   langs: [],
   visible: VISIBLE_STEP,
 };
+
+const seen = new Set();
 
 function status(msg, type) {
   const el = document.getElementById("libraryStatus");
@@ -58,55 +63,162 @@ async function fetchArticlesPage(input, k) {
   return null;
 }
 
-export async function ensureLibraryIndex() {
-  const k = apiKey();
-  if (!k || L.built || L.building) return;
-  L.building = true;
-  status("Indexing entire library…");
-  const seen = new Set(L.index.map(a => a._id));
-  try {
-    let cursor = null;
-    let pages = 0;
-    while (true) {
-      const input = cursor ? { type: "last", limit: 100, cursor } : { type: "last", limit: 100 };
-      const data = await fetchArticlesPage(input, k);
-      const items = data?.items || [];
-      if (!items.length) break;
-      for (const a of items) {
-        const id = a._id || a.id;
-        if (!id || seen.has(id)) continue;
-        seen.add(id);
-        L.index.push({
-          _id: id,
-          title: a.title || "Untitled",
-          author: a.author || null,
-          language: a.language || "",
-          category: a.category || "other",
-          createdAt: a.createdAt || "",
-          publishedAt: a.publishedAt || a.createdAt || "",
-          stats: a.stats || {},
-          content: a.content || "",
-        });
-      }
-      pages++;
-      updateMeta();
-      status(`Indexing… ${L.index.length} articles (page ${pages})`);
-      renderBookshelf();
-      populateLangDropdown();
-      if (!data?.nextCursor) break;
-      cursor = data.nextCursor;
-    }
-    L.built = true;
-    status("");
-  } catch (e) {
-    console.error("library index error:", e);
-    status(L.index.length ? `Partial index (${L.index.length} articles). Error: ${e.message || "API error"}` : "Library indexing failed. " + (e.message || "API error"), "error");
-  } finally {
-    L.building = false;
+function toRecord(a) {
+  const rec = {
+    _id: a._id || a.id,
+    title: a.title || "Untitled",
+    author: a.author || null,
+    language: a.language || "",
+    category: a.category || "other",
+    createdAt: a.createdAt || "",
+    publishedAt: a.publishedAt || a.createdAt || "",
+    stats: a.stats || {},
+    content: a.content || "",
+  };
+  if (!L.persistContent) delete rec.content;
+  return rec;
+}
+
+function ingest(items) {
+  const fresh = [];
+  for (const a of items) {
+    const id = a._id || a.id;
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const rec = toRecord(a);
+    fresh.push(rec);
+    L.index.push(rec);
+  }
+  return fresh;
+}
+
+async function persistBatch(records) {
+  if (!records.length) return;
+  const ok = await saveMany(records);
+  if (ok) return;
+  if (L.persistContent) {
+    L.persistContent = false;
+    saveMeta({ persistContent: false });
+    await saveMany(records.map(r => { const slim = { ...r }; delete slim.content; return slim; }));
+    status("Local storage quota reached — caching metadata only (content loads on demand).");
+  }
+}
+
+function renderLive(pages) {
+  updateMeta();
+  status(`Indexing… ${L.index.length} articles (page ${pages})`);
+  renderBookshelf();
+  populateLangDropdown();
+  renderLibrary();
+}
+
+function markBuilt() {
+  L.built = true;
+  saveMeta({ built: true, cursor: null });
+}
+
+function finalize() {
+  status("");
+  updateMeta();
+  renderBookshelf();
+  renderLibrary();
+  populateLangDropdown();
+}
+
+function pauseSync(cursor) {
+  saveMeta({ cursor });
+  const msg = L.index.length
+    ? `Library sync paused at ${fmtNum(L.index.length)} articles — API error. Progress is saved; it will resume next time you open the library.`
+    : "Library sync paused — API unavailable. It will retry when you open the library.";
+  status(msg, "error");
+}
+
+async function loadCached() {
+  const meta = getMeta();
+  L.built = !!meta.built;
+  L.persistContent = meta.persistContent !== false;
+  const records = await loadAll();
+  seen.clear();
+  for (const a of records) {
+    if (!a || !a._id) continue;
+    seen.add(a._id);
+    L.index.push(a);
   }
   renderBookshelf();
   renderLibrary();
   populateLangDropdown();
+  if (L.index.length) {
+    status(`Loaded ${fmtNum(L.index.length)} articles from cache — checking for updates…`);
+  }
+}
+
+async function syncIndex(k) {
+  const meta = getMeta();
+  let pages = 0;
+
+  // Phase A — catch up the newest articles (cheap when already caught up).
+  let cursor = null;
+  while (true) {
+    const input = cursor ? { type: "last", limit: 100, cursor } : { type: "last", limit: 100 };
+    const data = await fetchArticlesPage(input, k);
+    if (!data) { pauseSync(cursor); return; }
+    const items = data?.items || [];
+    if (!items.length) { markBuilt(); finalize(); return; }
+    const fresh = ingest(items);
+    if (fresh.length) {
+      await persistBatch(fresh);
+      pages++;
+      renderLive(pages);
+      if (!data?.nextCursor) { markBuilt(); finalize(); return; }
+      cursor = data.nextCursor;
+      saveMeta({ cursor });
+    } else {
+      // Reached the stored frontier — everything indexed so far is up to date.
+      break;
+    }
+  }
+
+  // Phase B — resume a backfill that never finished in a previous run.
+  if (!meta.built) {
+    cursor = meta.cursor || cursor;
+    while (true) {
+      const input = cursor ? { type: "last", limit: 100, cursor } : { type: "last", limit: 100 };
+      const data = await fetchArticlesPage(input, k);
+      if (!data) { pauseSync(cursor); return; }
+      const items = data?.items || [];
+      if (!items.length) { markBuilt(); finalize(); return; }
+      const fresh = ingest(items);
+      if (fresh.length) {
+        await persistBatch(fresh);
+        pages++;
+        renderLive(pages);
+      }
+      if (!data?.nextCursor) { markBuilt(); finalize(); return; }
+      cursor = data.nextCursor;
+      saveMeta({ cursor });
+    }
+  }
+
+  finalize();
+}
+
+export async function ensureLibraryIndex() {
+  const k = apiKey();
+  if (!k || L.building) return;
+  L.building = true;
+  status("Indexing entire library…");
+  try {
+    if (!L.loadedFromStore) {
+      L.loadedFromStore = true;
+      await loadCached();
+    }
+    await syncIndex(k);
+  } catch (e) {
+    console.error("library index error:", e);
+    status(L.index.length ? `Partial index (${fmtNum(L.index.length)} articles). ${e.message || "API error"}` : "Library indexing failed. " + (e.message || "API error"), "error");
+  } finally {
+    L.building = false;
+  }
 }
 
 function categoryCounts() {
@@ -331,12 +443,29 @@ export function initLibrary() {
     });
   }
 
+
   if (loadMoreBtn) {
     loadMoreBtn.addEventListener("click", () => {
       L.visible += VISIBLE_STEP;
       renderLibrary();
     });
   }
+
+  document.getElementById("libraryRebuildBtn")?.addEventListener("click", async () => {
+    if (L.building) { status("Library is already syncing — please wait.", "error"); return; }
+    await clearStore();
+    L.index.length = 0;
+    seen.clear();
+    L.built = false;
+    L.loadedFromStore = false;
+    L.persistContent = true;
+    L.visible = VISIBLE_STEP;
+    renderBookshelf();
+    renderLibrary();
+    populateLangDropdown();
+    status("Cache cleared — re-indexing library…");
+    await ensureLibraryIndex();
+  });
 
   if (langCont) {
     const trigger = langCont.querySelector(".lang-dropdown-trigger");
@@ -360,4 +489,5 @@ export function initLibrary() {
   renderBookshelf();
   renderLibrary();
   populateLangDropdown();
+  ensureLibraryIndex();
 }
