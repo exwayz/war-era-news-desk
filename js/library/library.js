@@ -129,9 +129,9 @@ export function renderBookshelf() {
     const count = counts[c] || 0;
     const label = (c === "all" ? "All Articles" : meta.label) || c;
     return `<button class="lib-book${isActive(c) ? " active" : ""}" data-lib-cat="${c}" title="${escapeHtml(label)} — ${count} articles">
-      <span class="lib-book-count">${fmtNum(count)}</span>
-      <iconify-icon icon="${meta.icon}" class="lu" style="font-size:1.1rem;margin-bottom:4px"></iconify-icon>
+      <iconify-icon icon="${meta.icon}" class="lu"></iconify-icon>
       <span class="lib-book-name">${escapeHtml(label)}</span>
+      <span class="lib-book-count">${fmtNum(count)}</span>
     </button>`;
   }).join("");
 }
