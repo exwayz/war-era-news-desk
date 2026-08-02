@@ -1,6 +1,6 @@
 import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
-import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
+import { apiKey, fetchTrpc, fetchTrpcApi2, fetchTrpcApi5, unwrap } from "../core/api.js";
 import { fmtDate } from "../core/utils.js";
 import { resolveUsers } from "./filters.js";
 import { resolveContentLinks } from "../core/resolver.js";
@@ -26,7 +26,7 @@ const LANG_NAMES = {
   ta:"தமிழ்",te:"తెలుగు",kn:"ಕನ್ನಡ",ml:"മലയാളം",mr:"मराठी",
   gu:"ગુજરાતી",pa:"ਪੰਜਾਬੀ",ur:"اردو",
 };
-function langName(code) { return LANG_NAMES[code] || (code ? code.toUpperCase() : "?"); }
+export function langName(code) { return LANG_NAMES[code] || (code ? code.toUpperCase() : "?"); }
 
 function getActiveLangs() { return S.articleLangs || []; }
 function isLangActive(code) { return getActiveLangs().includes(code); }
@@ -80,6 +80,14 @@ function populateArticleFilters(articles) {
 let _loadingArticles = false;
 export function isLoadingArticles() { return _loadingArticles; }
 
+async function fetchArticlesPaginated(input, k) {
+  // gateway article.getArticlesPaginated currently fails (postgres) — api2 first for snappy loads
+  try { return await fetchTrpcApi2("article.getArticlesPaginated", input, k); } catch {}
+  try { return await fetchTrpc("article.getArticlesPaginated", input, k); } catch {}
+  try { return await fetchTrpcApi5("article.getArticlesPaginated", input, k); } catch {}
+  return null;
+}
+
 function hasActiveFilters() {
   const langs = getActiveLangs();
   const cat = document.getElementById("articleCatFilter")?.value || "";
@@ -94,18 +102,31 @@ function filterByLang(arts) {
 }
 
 export async function loadArticles(reset=true) {
-  if (_loadingArticles) return;
+  if (_loadingArticles) { if (reset) S.pendingArticleReload = true; return; }
   const k = apiKey(); if (!k) return;
   _loadingArticles = true;
   if (reset) { S.articleCursor=null; S.articles=[]; }
   if (!reset && !S.articleCursor) { _loadingArticles = false; return; }
   try {
-    const limit = reset && hasActiveFilters() ? 1000 : 100;
-    const result = await fetchTrpc("article.getArticlesPaginated", { type:"last", limit, cursor:reset?undefined:S.articleCursor }, k);
-    const data = unwrap(result);
-    const items = data?.items||[];
+    // api2 caps limit at 100 — paginate to reach the old 1000-article filtered batch
+    const wantsFull = reset && hasActiveFilters();
+    const target = wantsFull ? 1000 : 100;
+    const limit = 100;
+    let items = [];
+    let cursor = reset ? undefined : S.articleCursor;
+    let nextCursor = null;
+    while (items.length < target) {
+      const result = await fetchArticlesPaginated({ type:"last", limit, cursor }, k);
+      const data = unwrap(result);
+      const page = data?.items||[];
+      if (!page.length) { nextCursor = null; break; }
+      items = items.concat(page);
+      nextCursor = data?.nextCursor||null;
+      if (!nextCursor) break;
+      cursor = nextCursor;
+    }
     await resolveUsers(items.map(a=>a.author).filter(Boolean), k);
-    S.articleCursor = data?.nextCursor||null;
+    S.articleCursor = nextCursor;
     if (reset) {
       S.articles = items;
     } else {
@@ -132,13 +153,14 @@ export async function loadArticles(reset=true) {
     setArticleStatus(e.message||"Could not load articles.", "error");
   } finally {
     _loadingArticles = false;
+    if (S.pendingArticleReload) { S.pendingArticleReload = false; loadArticles(true); }
   }
 }
 
 export async function silentRefreshArticles() {
   const k = apiKey(); if (!k) return;
   try {
-    const result = await fetchTrpc("article.getArticlesPaginated", { type:"last", limit:20 }, k);
+    const result = await fetchArticlesPaginated({ type:"last", limit:20 }, k);
     const data = unwrap(result);
     const items = data?.items||[];
     if (!items.length) return;

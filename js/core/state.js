@@ -1,6 +1,6 @@
 export const S = {
   cursor:null, events:[], articleCursor:null, articles:[],
-  isLoading:false, lastFilters:{}, filterTimer:null,
+  isLoading:false, lastFilters:{}, filterTimer:null, pendingReload:false, pendingArticleReload:false,
   lookups:{
     countriesById:new Map(), countryIdsByName:new Map(),
     regionsById:new Map(), battlesById:new Map(),

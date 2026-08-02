@@ -1,6 +1,6 @@
 import { S, setUnseenTimelineEvents, getUnseenTimelineEvents } from "../core/state.js";
 import { E } from "../core/dom.js";
-import { apiKey, fetchTrpc, normalizeEvents, normalizeCursor } from "../core/api.js";
+import { apiKey, fetchTrpc, fetchTrpcApi2, fetchTrpcApi5, normalizeEvents, normalizeCursor } from "../core/api.js";
 import { STORE } from "../core/storage.js";
 import { fmtDate, parseLocal } from "../core/utils.js";
 import { resolveBattles, resolveUsers, ensureLookups, getFilters } from "./filters.js";
@@ -16,8 +16,16 @@ export function scheduleEventsRefresh() {
   S.filterTimer = setTimeout(()=>loadEvents(true), 350);
 }
 
+async function fetchEventsPaginated(input, k) {
+  // gateway event.getEventsPaginated currently fails (postgres) — api2 first for snappy loads
+  try { return await fetchTrpcApi2("event.getEventsPaginated", input, k); } catch {}
+  try { return await fetchTrpc("event.getEventsPaginated", input, k); } catch {}
+  try { return await fetchTrpcApi5("event.getEventsPaginated", input, k); } catch {}
+  return null;
+}
+
 export async function loadEvents(reset) {
-  if (S.isLoading) return;
+  if (S.isLoading) { if (reset) S.pendingReload = true; return; }
   const k = apiKey();
   if (!k) { setStatus("Enter your API key first.", "error"); return; }
   localStorage.setItem(STORE.apiKey, k);
@@ -28,7 +36,7 @@ export async function loadEvents(reset) {
   try {
     await ensureLookups(k);
     if (reset) S.lastFilters = getFilters();
-    const result = await fetchTrpc("event.getEventsPaginated", {...S.lastFilters, cursor:reset?undefined:S.cursor}, k);
+    const result = await fetchEventsPaginated({...S.lastFilters, cursor:reset?undefined:S.cursor}, k);
     const evts = normalizeEvents(result);
     S.cursor = normalizeCursor(result);
     S.events = reset ? evts : [...S.events, ...evts];
@@ -42,6 +50,7 @@ export async function loadEvents(reset) {
   } finally {
     S.isLoading = false;
     E.applyFiltersBtn.disabled = E.loadMoreBtn.disabled = false;
+    if (S.pendingReload) { S.pendingReload = false; loadEvents(true); }
   }
 }
 
@@ -60,7 +69,7 @@ export function startAutoRefresh() {
 
 export async function silentRefreshEvents() {
   try {
-    const result = await fetchTrpc("event.getEventsPaginated", {...S.lastFilters, limit:20}, apiKey());
+    const result = await fetchEventsPaginated({...S.lastFilters, limit:20}, apiKey());
     const fresh = normalizeEvents(result).filter(e=>!S.events.some(x=>(x._id||x.id)===(e._id||e.id)));
     const hasFresh = !!fresh.length;
     if (hasFresh) {
