@@ -26,6 +26,7 @@ import { POLICY_TEXT } from "./community/policy.js";
 import { loadMessages, loadMoreMessages, postMessage, upvoteMessage, renderWallMessages, renderWallCount, getMessageById, hasMoreMessages, getRemainingQuota, prependWallCard, updateUpvoteDisplay, copyCommunityReport } from "./community/wall.js";
 import { loadPolitics, initPolitics, copyPoliticsReport, capturePoliticsReport } from "./politics/politics.js";
 import { initLibrary } from "./library/library.js";
+import { initTableMaker } from "./tablemaker/tablemaker.js";
 import { highlightUserData } from "./core/profileHighlighter.js";
 import { initClock, updateInfobar } from "./visuals/clock.js";
 
@@ -111,13 +112,15 @@ function bindAll() {
   // Theme toggle available in settings or via keyboard
   document.getElementById("themeToggleBtn")?.addEventListener("click", toggleTheme);
 
-  function openProfileModal() {
+  function renderProfileDisplay() {
     const profile = loadProfile();
     const regView = document.getElementById("profileRegisterView");
     const dispView = document.getElementById("profileDisplayView");
     if (profile) {
       regView.classList.add("hidden");
       dispView.classList.remove("hidden");
+      const refreshBtn = document.getElementById("refreshProfileBtn");
+      if (refreshBtn) { refreshBtn.disabled = false; refreshBtn.querySelector("iconify-icon")?.classList.remove("nd-spin"); }
       const avatarHtml = profile.avatarUrl
         ? `<img class="profile-avatar" src="${profile.avatarUrl}" alt="" loading="lazy">`
         : `<span class="profile-avatar profile-avatar--initials">${(profile.username?.charAt(0)||"?").toUpperCase()}</span>`;
@@ -145,6 +148,10 @@ function bindAll() {
       document.getElementById("regUserInput").value = "";
       document.getElementById("regProfileStatus")?.classList.add("hidden");
     }
+  }
+
+  function openProfileModal() {
+    renderProfileDisplay();
     document.getElementById("profileModal").classList.remove("hidden");
   }
 
@@ -209,6 +216,32 @@ function bindAll() {
   }
   document.getElementById("closeProfileBtn")?.addEventListener("click",()=>{
     document.getElementById("profileModal").classList.add("hidden");
+  });
+  document.getElementById("refreshProfileBtn")?.addEventListener("click", async () => {
+    const btn = document.getElementById("refreshProfileBtn");
+    const profile = loadProfile();
+    if (!profile || btn.disabled) return;
+    const apiKey = localStorage.getItem(STORE.apiKey);
+    if (!apiKey) {
+      toast("Save your API key first to refresh the profile.");
+      return;
+    }
+    btn.disabled = true;
+    const iconEl = btn.querySelector("iconify-icon");
+    iconEl?.classList.add("nd-spin");
+    try {
+      const res = await resolveProfile(profile.userId, apiKey);
+      if (res.success) {
+        updateUserButton();
+        renderProfileDisplay();
+        toast("Profile refreshed.");
+      } else {
+        toast(res.error || "Failed to refresh profile.");
+      }
+    } finally {
+      btn.disabled = false;
+      iconEl?.classList.remove("nd-spin");
+    }
   });
   document.getElementById("profileModal")?.addEventListener("click",e=>{
     if(e.target===document.getElementById("profileModal")) document.getElementById("profileModal").classList.add("hidden");
@@ -483,6 +516,7 @@ function bindAll() {
   initMarketView();
   initPolitics();
   initLibrary();
+  initTableMaker();
 
   document.getElementById("jobWageFilter")?.addEventListener("input", () => {
     S.jobWageFilter = Number(document.getElementById("jobWageFilter").value || 0);
@@ -507,7 +541,7 @@ function bindAll() {
 
 function init() {
   E.apiKeyInput.value = localStorage.getItem(STORE.apiKey) || "";
-  applyTheme(localStorage.getItem(STORE.theme) || "light");
+  applyTheme(localStorage.getItem(STORE.theme) || "dark");
 
   populateEventTypes();
   injectJobsCountryFilter();

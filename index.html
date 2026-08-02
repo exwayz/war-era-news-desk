@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -71,6 +71,7 @@
   <header class="topbar">
     <div class="topbar-left">
       <div class="clock" id="clockDisplay"><span class="clock-date" id="clockDate"></span><span id="clockTime">--:--:--</span></div>
+      <button class="theme-toggle" id="themeToggleBtn" title="Toggle theme" aria-label="Toggle theme"><span class="side-icon"><iconify-icon icon="mdi:weather-night" class="lu"></iconify-icon></span></button>
     </div>
     <div class="topbar-center">
       <h1 class="topbar-title">News Desk</h1>
@@ -121,10 +122,10 @@
         <div class="sidebar-sec-label">Tools</div>
         <button class="side-btn" id="articleResolverRedirect" title="Article Resolver"><span class="side-icon"><iconify-icon icon="mdi:link-variant" class="lu"></iconify-icon></span></button>
         <button class="side-btn" id="writerRedirect" title="Writer"><span class="side-icon"><iconify-icon icon="mdi:feather" class="lu"></iconify-icon></span></button>
+        <button class="side-btn" data-tab="table-maker" title="Table Maker"><span class="side-icon"><iconify-icon icon="mdi:table" class="lu"></iconify-icon></span></button>
       </div>
       <div class="sidebar-bottom">
         <button class="side-btn" id="userBtn" title="User"><span class="side-icon" id="userIcon"><iconify-icon icon="mdi:account" class="lu"></iconify-icon></span></button>
-        <button class="side-btn" id="themeToggleBtn" title="Theme"><span class="side-icon"><iconify-icon icon="mdi:weather-night" class="lu"></iconify-icon></span></button>
         <button class="side-btn" id="settingsBtn" title="Settings"><span class="side-icon"><iconify-icon icon="mdi:cog" class="lu"></iconify-icon></span></button>
       </div>
     </nav>
@@ -385,6 +386,25 @@
         </div>
       </div>
 
+      <!-- TABLE MAKER -->
+      <div class="tab-panel" id="tab-table-maker">
+        <div class="tablemaker-layout">
+          <div class="panel-head"><h2><iconify-icon icon="mdi:table" class="lu"></iconify-icon> Table Maker</h2><p class="meta-text">Paste text — auto-detects format &amp; converts to a table</p></div>
+          <div class="tm-input-area">
+            <textarea id="tmInput" spellcheck="false" placeholder="Paste your data here...&#10;&#10;Supported formats:&#10;• Markdown tables&#10;• Tab-separated values&#10;• Comma-separated values&#10;• Numbered lists&#10;• Bulleted lists (&#8226;, -, *)&#10;• Plain text with delimiters"></textarea>
+            <div class="tm-btn-row">
+              <button class="btn-primary" id="tmConvertBtn" type="button">Convert</button>
+              <button class="btn-secondary" id="tmClearBtn" type="button">Clear</button>
+              <button class="tm-btn-copy" id="tmCopyHtmlBtn" type="button">Copy HTML</button>
+              <button class="tm-btn-copy" id="tmCopyMdBtn" type="button">Copy Markdown</button>
+              <button class="tm-btn-copy" id="tmPngBtn" type="button">Download PNG</button>
+            </div>
+            <div id="tmStatus" class="status-msg" hidden></div>
+          </div>
+          <div id="tmOutput" class="tm-output"><div id="tmEmptyMsg" class="tm-empty">Your table will appear here</div></div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -419,6 +439,7 @@
       </div>
     </div>
     <div id="profileDisplayView" class="hidden">
+      <button class="modal-corner-btn" id="refreshProfileBtn" title="Refresh profile data"><iconify-icon icon="mdi:refresh" class="lu"></iconify-icon></button>
       <h2><iconify-icon icon="mdi:account" class="lu"></iconify-icon> My Profile</h2>
       <div id="profileDisplay" class="profile-display"></div>
       <p id="profileQuota" style="font-size:.72rem;color:var(--ink-dim);text-align:center"></p>
