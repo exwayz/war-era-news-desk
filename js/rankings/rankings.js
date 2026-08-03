@@ -103,7 +103,7 @@ function getName(type, id, data) {
 function getAvatarHtml(type, id, data) {
   if (type === "country") {
     const code = (data?.shortCode || data?.code || data?.iso || data?.iso2 || "").toLowerCase();
-    const flagUrl = code ? `https://app.warera.io/images/flags/${code}.svg` : "";
+    const flagUrl = code ? `https://media.warera.io/images/flags/${code}.svg` : "";
     if (flagUrl) return `<img class="rk-avatar" src="${flagUrl}" alt="" loading="lazy">`;
     return "";
   }
