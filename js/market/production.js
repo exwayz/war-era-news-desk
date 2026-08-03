@@ -1,6 +1,5 @@
 import { fetchTrpc, unwrap } from "../core/api.js";
 import { apiKey } from "../core/api.js";
-import { fmtMoney } from "../core/utils.js";
 import { S } from "../core/state.js";
 
 const RECIPES = {
@@ -43,9 +42,11 @@ function calcSR(count) {
   return 5 + 0.25 * count;
 }
 
-function computeRegionEconomics(region, country, partyIndustrialism, prices) {
+function computeRegionEconomics(region, country, partyIndustrialism, prices, liveDeposits) {
+  const regionId = region._id || region.id || "";
+  const live = liveDeposits ? liveDeposits.get(regionId) : null;
   const spec = (country.specializedItem || "").toLowerCase();
-  const dep = (region.deposit?.type || "none").toLowerCase();
+  const dep = live ? live.type : (region.deposit?.type || "none").toLowerCase();
   const incomeTax = country.taxes?.income || 0;
   const ind = partyIndustrialism || 0;
 
@@ -59,7 +60,7 @@ function computeRegionEconomics(region, country, partyIndustrialism, prices) {
     calcSR((sr.uranium || []).length),
   ].reduce((a, b) => a + b, 0);
 
-  const depositBonus = dep !== "none" ? 30 : 0;
+  const depositBonus = live ? live.bonus : (dep !== "none" ? 30 : 0);
   const ethicsBonus = ({ 2: 30, 1: 10, "-2": 30, "-1": 10 })[ind] || 0;
 
   let totalBonus = 0;
@@ -92,10 +93,12 @@ function computeRegionEconomics(region, country, partyIndustrialism, prices) {
 
   return {
     bonusSource,
+    regionId,
     productName: DISPLAY_NAMES[bonusSource] || bonusSource,
     srBonus: Math.round(srBonus * 1000) / 1000,
     depositBonus,
     depositType: dep,
+    liveDeposit: !!live,
     ethicsBonus,
     totalBonus: Math.round(totalBonus * 1000) / 1000,
     goodPrice,
@@ -119,7 +122,10 @@ function ethLabel(ind) {
   return "Neutral";
 }
 
-export async function computeProduction() {
+let _cache = null;
+let _pending = null;
+
+async function _doCompute() {
   const k = apiKey();
   if (!k) return null;
 
@@ -142,6 +148,20 @@ export async function computeProduction() {
       : Object.entries(rawPrices || {}).map(([itemCode, price]) => ({ itemCode, price }));
     for (const p of pricesArr) priceMap[p.itemCode || p.item || p.name] = Number(p.price || p.value || 0);
   }
+
+  // Live deposit bonuses (depositDiscovered events) — override the static +30 assumption.
+  const liveDeposits = new Map();
+  try {
+    const dRes = await fetchTrpc("event.getEventsPaginated", { type: "depositDiscovered", limit: 100 }, k);
+    const devts = unwrap(dRes);
+    const items = Array.isArray(devts) ? devts : (devts?.items || devts?.events || []);
+    for (const ev of items) {
+      const ed = ev.data || {};
+      if (ed.itemCode && ed.region && ed.bonusPercent) {
+        liveDeposits.set(String(ed.region), { type: String(ed.itemCode).toLowerCase(), bonus: Number(ed.bonusPercent) || 30 });
+      }
+    }
+  } catch {}
 
   const countryArr = Array.isArray(countries) ? countries : (countries?.items || countries?.results || []);
   const countryById = {};
@@ -182,13 +202,15 @@ export async function computeProduction() {
     const ind = partyIndById[partyId] || 0;
     const partyName = partyNameById[partyId] || "None";
 
-    const econ = computeRegionEconomics(rDetail, country, ind, priceMap);
+    const econ = computeRegionEconomics(rDetail, country, ind, priceMap, liveDeposits);
     if (!econ) continue;
 
     rows.push({
+      regionId: econ.regionId,
       regionName: rDetail.name || "Unknown",
       countryName: cname,
       depositType: econ.depositType,
+      liveDeposit: econ.liveDeposit,
       partyName,
       partyIndustrialism: ind,
       incomeTax: econ.incomeTax,
@@ -223,80 +245,60 @@ export async function computeProduction() {
   return { rows, bestPerProduct, priceMap };
 }
 
-export function renderProductionSection(container, data) {
-  if (!data || !container) {
-    if (container) container.innerHTML = '<p style="color:var(--ink-dim);padding:12px">No production data available.</p>';
-    return;
-  }
-  const { bestPerProduct, rows } = data;
-
-  const profitable = rows.filter(r => r.netWages > 0.01);
-  const topWages = profitable.slice(0, 30);
-  const topProfit = [...rows].filter(r => r.profitPerPP > 0).sort((a, b) => b.profitPerPP - a.profitPerPP).slice(0, 30);
-
-  let html = '';
-
-  html += `<div class="prod-section">
-    <h3 class="cell-title"><iconify-icon icon="mdi:trophy" class="lu"></iconify-icon> Best Region per Product</h3>
-    <div class="prod-table-wrap">
-      <table class="prod-table"><thead><tr>
-        <th>Product</th><th>Region</th><th>Country</th><th class="prod-num">Bonus</th><th class="prod-num">Profit/PP</th><th class="prod-num">Net Wages</th>
-      </tr></thead><tbody>`;
-
-  for (const r of bestPerProduct) {
-    html += `<tr>
-      <td class="prod-cell-name">${r.productName}</td>
-      <td>${r.regionName}</td>
-      <td>${r.countryName}</td>
-      <td class="prod-num">${r.totalBonus.toFixed(1)}%</td>
-      <td class="prod-num prod-profit">${fmtMoney(r.profitPerPP)} ₿</td>
-      <td class="prod-num prod-wages">${fmtMoney(r.netWages)} ₿</td>
-    </tr>`;
-  }
-  html += '</tbody></table></div></div>';
-
-  html += `<div class="prod-section">
-    <h3 class="cell-title"><iconify-icon icon="mdi:map-marker-star" class="lu"></iconify-icon> Top 30 Regions by Net Wages</h3>
-    <div class="prod-table-wrap">
-      <table class="prod-table"><thead><tr>
-        <th>#</th><th>Region</th><th>Country</th><th>Product</th><th class="prod-num">Bonus</th><th class="prod-num">Tax</th><th class="prod-num">Gross</th><th class="prod-num">Net Wages</th>
-      </tr></thead><tbody>`;
-
-  topWages.forEach((r, i) => {
-    html += `<tr>
-      <td class="prod-rank">${i + 1}</td>
-      <td>${r.regionName}</td>
-      <td>${r.countryName}</td>
-      <td class="prod-cell-name">${r.productName}</td>
-      <td class="prod-num">${r.totalBonus.toFixed(1)}%</td>
-      <td class="prod-num">${r.incomeTax}%</td>
-      <td class="prod-num">${fmtMoney(r.grossWages)} ₿</td>
-      <td class="prod-num prod-wages">${fmtMoney(r.netWages)} ₿</td>
-    </tr>`;
+export function computeProduction(force) {
+  if (_cache && !force) return Promise.resolve(_cache);
+  if (_pending) return _pending;
+  _pending = _doCompute().then(d => {
+    _cache = d;
+    _pending = null;
+    return d;
+  }).catch(err => {
+    _pending = null;
+    throw err;
   });
-  html += '</tbody></table></div></div>';
+  return _pending;
+}
 
-  html += `<div class="prod-section">
-    <h3 class="cell-title"><iconify-icon icon="mdi:chart-bar" class="lu"></iconify-icon> Top 30 by Profit per Production Point</h3>
-    <div class="prod-table-wrap">
-      <table class="prod-table"><thead><tr>
-        <th>#</th><th>Region</th><th>Country</th><th>Product</th><th class="prod-num">Price</th><th class="prod-num">RM Cost</th><th class="prod-num">Bonus</th><th class="prod-num">Profit/PP</th>
-      </tr></thead><tbody>`;
+export function getProductionCache() { return _cache; }
 
-  topProfit.forEach((r, i) => {
-    const rmCost = r.rmAmt > 0 ? `${r.rmAmt}×${fmtMoney(r.rmPrice)}` : "—";
-    html += `<tr>
-      <td class="prod-rank">${i + 1}</td>
-      <td>${r.regionName}</td>
-      <td>${r.countryName}</td>
-      <td class="prod-cell-name">${r.productName}</td>
-      <td class="prod-num">${fmtMoney(r.goodPrice)} ₿</td>
-      <td class="prod-num">${rmCost}</td>
-      <td class="prod-num">${r.totalBonus.toFixed(1)}%</td>
-      <td class="prod-num prod-profit">${fmtMoney(r.profitPerPP)} ₿</td>
-    </tr>`;
-  });
-  html += '</tbody></table></div></div>';
+export function goodName(key) { return DISPLAY_NAMES[key] || key; }
 
-  container.innerHTML = html;
+export function regionWageCapacity(regionId) {
+  if (!_cache || !_cache.rows) return null;
+  return _cache.rows.find(r => r.regionId === regionId) || null;
+}
+
+// ── Interactive studio helpers (fidelity-band model, mirrors the Spectator PCS) ──
+// cost per good at a given net wage target, fidelity % and raw-material price:
+//   gross = net / (1 - tax/100)
+//   labour = gross * pp / (1 + (bonus + fidelity)/100)
+//   cost  = labour + rmAmt * rawPrice
+export function studioCost(row, net, fid, rawPrice) {
+  const tax = Number(row.incomeTax || 0);
+  const gross = net / (1 - tax / 100);
+  const labour = gross * Number(row.pp || 1) / (1 + (Number(row.totalBonus || 0) + fid) / 100);
+  return labour + Number(row.rmAmt || 0) * Number(rawPrice || 0);
+}
+
+export function studioNet(row, net, fid, rawPrice, sell) {
+  return Number(sell || 0) - studioCost(row, net, fid, rawPrice);
+}
+
+// Breakeven raw-material price at which cost == sell (null for raw goods / never reachable).
+export function studioBreakevenRaw(row, net, fid, sell) {
+  const tax = Number(row.incomeTax || 0);
+  const labour = (net / (1 - tax / 100)) * Number(row.pp || 1) / (1 + (Number(row.totalBonus || 0) + fid) / 100);
+  const rmAmt = Number(row.rmAmt || 0);
+  if (!(rmAmt > 0)) return null;
+  const x = (Number(sell || 0) - labour) / rmAmt;
+  return isFinite(x) ? x : null;
+}
+
+// Breakeven worker fidelity at which cost == sell (null when never profitable at 1..10%).
+export function studioBreakevenFidelity(row, net, rawPrice, sell) {
+  const M = Number(sell || 0) - Number(row.rmAmt || 0) * Number(rawPrice || 0);
+  if (!(M > 0)) return null;
+  const gross = net / (1 - Number(row.incomeTax || 0) / 100);
+  const f = 100 * (gross * Number(row.pp || 1) / M - 1) - Number(row.totalBonus || 0);
+  return isFinite(f) ? f : null;
 }

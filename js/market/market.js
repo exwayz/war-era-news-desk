@@ -10,7 +10,9 @@ import { renderExecutiveDashboard } from "./renderAnalytics.js";
 import { renderPredictionDashboard } from "./renderPredictions.js";
 import { computePredictions } from "./predictions.js";
 import { storeMarketSnapshot, loadSupabaseHistory, loadWeeklyMVI } from "./marketHistory.js";
-import { computeProduction, renderProductionSection } from "./production.js";
+import { computeProduction } from "./production.js";
+import { renderProductionStudio, renderWorkerYield } from "./renderStudio.js";
+import { renderJobs } from "../jobs/jobs.js";
 import { updateInfobar } from "../visuals/clock.js";
 
 
@@ -310,6 +312,9 @@ export async function loadMarketFull(showLoading=true) {
     computeProduction().then(data => {
       S.market._prodData = data;
       renderMVI();
+      const prodSection = document.querySelector(".production-section");
+      if (prodSection) renderProductionPanel(prodSection);
+      if (S.jobs?.length) renderJobs();
     }).catch(() => {});
   }
 }
@@ -339,6 +344,26 @@ document.addEventListener("click", e => {
 });
 
 let _marketView = "overview";
+let _prodView = "studio";
+
+function renderProductionPanel(section) {
+  if (!section) return;
+  const panel = section.querySelector(`[data-prod-panel="${_prodView}"]`);
+  if (!panel) return;
+  const data = S.market._prodData;
+  if (!data) {
+    panel.innerHTML = '<p style="color:var(--ink-dim);padding:12px">Loading production data…</p>';
+    computeProduction().then(d => {
+      S.market._prodData = d;
+      renderProductionPanel(section);
+    }).catch(e => {
+      panel.innerHTML = `<p style="color:var(--red);padding:12px">Error: ${e.message}</p>`;
+    });
+    return;
+  }
+  if (_prodView === "yield") renderWorkerYield(panel, data);
+  else renderProductionStudio(panel, data);
+}
 
 export function loadMarketView(view) {
   _marketView = view;
@@ -379,20 +404,25 @@ export function loadMarketView(view) {
     if (!section) {
       section = document.createElement("div");
       section.className = "production-section";
+      section.innerHTML = `
+        <div class="tab-pill-group prod-pills">
+          <button class="pill-btn active" data-prod-view="studio">Cost Studio</button>
+          <button class="pill-btn" data-prod-view="yield">Worker Yield</button>
+        </div>
+        <div class="prod-panel" data-prod-panel="studio"></div>
+        <div class="prod-panel" data-prod-panel="yield" hidden></div>`;
       const insertTarget = document.querySelector(".market-grid");
       if (insertTarget) insertTarget.after(section);
-    }
-    if (S.market._prodData) {
-      renderProductionSection(section, S.market._prodData);
-    } else {
-      section.innerHTML = '<p style="color:var(--ink-dim);padding:12px">Loading production data…</p>';
-      computeProduction().then(data => {
-        S.market._prodData = data;
-        renderProductionSection(section, data);
-      }).catch(e => {
-        section.innerHTML = `<p style="color:var(--red);padding:12px">Error: ${e.message}</p>`;
+      section.addEventListener("click", e => {
+        const btn = e.target.closest("[data-prod-view]");
+        if (!btn) return;
+        section.querySelectorAll("[data-prod-view]").forEach(b => b.classList.toggle("active", b === btn));
+        _prodView = btn.dataset.prodView;
+        section.querySelectorAll("[data-prod-panel]").forEach(p => { p.hidden = p.dataset.prodPanel !== _prodView; });
+        renderProductionPanel(section);
       });
     }
+    renderProductionPanel(section);
   }
 }
 

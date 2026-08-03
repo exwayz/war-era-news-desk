@@ -9,6 +9,7 @@ import { highlightUserData } from "../core/profileHighlighter.js";
 import { ensureLookups } from "../timeline/filters.js";
 import { nameCountry, nameRegion } from "../battles/companies.js";
 import { loadCompanyConcentration, loadDepositConcentration, populateDepositFilter } from "./concentration.js";
+import { computeProduction, getProductionCache, regionWageCapacity } from "../market/production.js";
 
 function getCompanyId(job) {
   if (job.companyId) return job.companyId;
@@ -83,6 +84,36 @@ function getJobRegionName(job) {
   return regionId ? nameRegion(String(regionId)) : "";
 }
 
+function getJobRegionId(job) {
+  const c = getJobCompany(job);
+  const rid = (c?.regionId) || job.regionId || job.region?._id || job.region?.id || job.region || "";
+  return rid ? String(rid) : "";
+}
+
+function jobCapacityChip(job, wage) {
+  const rid = getJobRegionId(job);
+  if (!rid) return "";
+  const row = regionWageCapacity(rid);
+  if (row == null) return "";
+  const cap = Number(row.netWages || 0);
+  const tax = Number(row.incomeTax || 0);
+  const grossCap = tax < 100 ? cap / (1 - tax / 100) : 0;
+  if (!(grossCap > 0)) return "";
+  const ratio = Number(wage || 0) / grossCap;
+  const cls = ratio > 1 ? "over" : "ok";
+  const hint = `Region gross wage capacity ≈ ${fmtMoney(grossCap)} BTC/hit`;
+  const live = row.liveDeposit ? ` · active deposit +${row.depositBonus}%` : "";
+  return `<span class="job-chip wage-cap ${cls}" title="${hint}${live}">⚖️ ${ratio.toFixed(2)}× cap</span>`;
+}
+
+let _capRequested = false;
+
+function ensureCapacityData() {
+  if (_capRequested || getProductionCache()) return;
+  _capRequested = true;
+  computeProduction().then(() => { _capRequested = false; renderJobs(); }).catch(() => { _capRequested = false; });
+}
+
 export function renderJobs() {
   const kw=(E.jobSearch?.value||"").toLowerCase();
   const countrySel = (S.jobCountryFilter||"").toLowerCase();
@@ -106,6 +137,7 @@ export function renderJobs() {
 
   E.jobsList.innerHTML="";
   if(!jobs.length){ E.jobsList.innerHTML=`<p style="color:var(--ink-dim)">No job offers found.</p>`; return; }
+  if (jobs.some(j => getJobRegionId(j))) ensureCapacityData();
 
   for(const job of jobs) {
     const card=document.createElement("div"); card.className="job-card";
@@ -131,6 +163,7 @@ export function renderJobs() {
       ${skill?`<p class="job-title">${skill} Worker</p>`:""}
       <div class="job-chips">
         <span class="job-chip wage">💰 ${fmtMoney(wage)} ${currency}/hit${wageNet?` <span style="color:var(--ink-dim)">(net ${fmtMoney(wageNet)})</span>`:""}</span>
+        ${jobCapacityChip(job, wage)}
         <span class="job-chip">📋 ${slots} slot${slots!==1?"s":""}</span>
         ${minSkill?`<span class="job-chip">⭐ Min. skill ${minSkill}</span>`:""}
         ${itemCode?`<span class="job-chip">🏭 ${itemCode}</span>`:""}
