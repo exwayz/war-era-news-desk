@@ -10,3 +10,9 @@ export function applyTheme(t) {
     btn.innerHTML = `<span class="side-icon"><iconify-icon icon="${icon}" class="lu"></iconify-icon></span>`;
   }
 }
+export function applyTexture(on) {
+  document.documentElement.dataset.texture = on ? "on" : "off";
+  localStorage.setItem(STORE.texture, on ? "1" : "0");
+  const cb = document.getElementById("paperTextureToggle");
+  if (cb) cb.checked = !!on;
+}

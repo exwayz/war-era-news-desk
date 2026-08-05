@@ -29,7 +29,7 @@ Push to `main` → CI (`.github/workflows/deploy.yml`) runs `npm ci && npm run b
 - **Vanilla JS ES modules** — single-page app
 - `js/core/state.js`: global mutable singleton `S` (never destructure — passed by ref)
 - `js/core/dom.js`: element references in `E` object (queried at module init — DOM must exist)
-- `js/core/storage.js`: localStorage keys — `STORE = { apiKey:"wa-nd-apikey", theme:"wa-nd-theme", userProfile:"wa-nd-user-profile" }`
+- `js/core/storage.js`: localStorage keys — `STORE = { apiKey:"wa-nd-apikey", theme:"wa-nd-theme", userProfile:"wa-nd-user-profile", texture:"wa-nd-texture" }`
 - **8 tabs** (timeline, battles, market, jobs, politics, rankings, community, links) switched via sidebar `.side-btn[data-tab]` → `js/ui/tabs.js:switchTab()`. A separate `#writerRedirect` button opens an external URL (WarEra Writer).
 - Templates: `#eventCardTemplate`, `#articleCardTemplate`, `#battleCardTemplate` in `index.html`, cloned via `<template>.content.firstElementChild.cloneNode(true)`
 

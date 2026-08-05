@@ -9,7 +9,7 @@ import { populateEventTypes } from "./timeline/filters.js";
 import { loadEvents, startAutoRefresh, scheduleEventsRefresh, renderTimeline, handleEventAction } from "./timeline/timeline.js";
 import { loadArticles, renderArticles, copyArticles, refreshLangDropdown } from "./timeline/articles.js";
 import { switchTab, isTimelineOpen } from "./ui/tabs.js";
-import { toggleTheme, applyTheme } from "./ui/theme.js";
+import { toggleTheme, applyTheme, applyTexture } from "./ui/theme.js";
 import { toast, setStatus } from "./ui/toast.js";
 import { evtData, evtTime, buildTitle, buildSummary } from "./timeline/events.js";
 import { initFeatured, loadFeatured } from "./timeline/featured.js";
@@ -159,6 +159,7 @@ function bindAll() {
     document.getElementById("sfxVolumeSlider").value = Math.round(getSfxVolume() * 100);
     document.getElementById("sfxVolumeValue").textContent = Math.round(getSfxVolume() * 100) + "%";
     document.getElementById("settingsApiKeyInput").value = localStorage.getItem(STORE.apiKey) || "";
+    document.getElementById("paperTextureToggle").checked = localStorage.getItem(STORE.texture) === "1";
     document.getElementById("settingsModal").classList.remove("hidden");
   }
 
@@ -252,6 +253,7 @@ function bindAll() {
   document.getElementById("settingsModal")?.addEventListener("click",e=>{
     if(e.target===document.getElementById("settingsModal")) saveSettings();
   });
+  document.getElementById("paperTextureToggle")?.addEventListener("change", e => applyTexture(e.target.checked));
 
   // About modal
   document.getElementById("aboutBtn")?.addEventListener("click",()=>{
@@ -543,6 +545,7 @@ function bindAll() {
 function init() {
   E.apiKeyInput.value = localStorage.getItem(STORE.apiKey) || "";
   applyTheme(localStorage.getItem(STORE.theme) || "dark");
+  applyTexture(localStorage.getItem(STORE.texture) === "1");
 
   populateEventTypes();
   injectJobsCountryFilter();

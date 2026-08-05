@@ -11,7 +11,7 @@ body {
   overflow: hidden;
 }
 
-body::before {
+html[data-texture="on"] body::before {
   content: '';
   position: fixed;
   inset: 0;
@@ -22,10 +22,10 @@ body::before {
   mix-blend-mode: overlay;
   opacity: 1;
 }
-html[data-theme="dark"] body::before {
+html[data-theme="dark"][data-texture="on"] body::before {
   background-color: rgba(180,140,80,.22);
 }
-html[data-theme="light"] body::before {
+html[data-theme="light"][data-texture="on"] body::before {
   background-color: rgba(180,140,80,.22);
 }
 
