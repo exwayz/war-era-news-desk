@@ -13,6 +13,8 @@ import { storeMarketSnapshot, loadSupabaseHistory, loadWeeklyMVI } from "./marke
 import { computeProduction } from "./production.js";
 import { renderProductionStudio, renderWorkerYield } from "./renderStudio.js";
 import { renderSignalsView, refreshSignals } from "./renderSignals.js";
+import { computeMarketSignals, computeCompositeIndex, indexTrend } from "./signals.js";
+import { ensureHistories } from "./itemHistory.js";
 import { renderJobs } from "../jobs/jobs.js";
 import { updateInfobar } from "../visuals/clock.js";
 
@@ -471,7 +473,17 @@ export function renderMarketOrders(){
   }).join("") || "<p style='color:var(--ink-dim)'>No orders available.</p>";
 }
 
-export function copyMarketReport() {
+async function signalReportRows() {
+  const codes = (S.market.prices || []).map(i => i.itemCode || i.item || i.name).filter(Boolean);
+  if (!S.market.signals.size) {
+    await ensureHistories(codes, { concurrency: 6 });
+    computeMarketSignals();
+    computeCompositeIndex();
+  }
+  return [...(S.market.signals || new Map()).values()].sort((a, b) => b.score - a.score);
+}
+
+export async function copyMarketReport() {
   const ec=S.market.econ; const prices=S.market.prices||[]; const orders=S.market.orders||[];
   let r=`# War Era Market Intelligence Report\nGenerated: ${new Date().toUTCString()}\n\n## Economic Overview\n`;
   if(ec){
@@ -560,6 +572,18 @@ export function copyMarketReport() {
     }
     r += `- Outlook: ${pred.outlook.summary}\n`;
   }
+  const sigRows = await signalReportRows();
+  if (sigRows.length) {
+    r += `\n\n## Commodity Signals\n`;
+    const idx = S.market.compositeIndex;
+    const idxVal = idx && idx.daily.length ? idx.daily[idx.daily.length - 1].value : null;
+    const trend = indexTrend();
+    if (idxVal != null) r += `- Composite Market Index: ${idxVal.toFixed(2)} (${fmtPct(trend)})\n`;
+    for (const s of sigRows) {
+      const rsi = s.rsi != null ? ` | RSI ${s.rsi.toFixed(0)}` : "";
+      r += `- ${marketItemName(s.code)}: ${s.level.name} (score ${s.score.toFixed(3)}) — conf ${Math.round(s.confidence * 100)}% | ${fmtMoney(s.price)} BTC${rsi}\n`;
+    }
+  }
   navigator.clipboard.writeText(r).then(()=>toast("Market report copied."));
 }
 
@@ -568,7 +592,7 @@ function fmtPct(v) {
   return (v > 0 ? "+" : "") + v.toFixed(1) + "%";
 }
 
-export function captureMarketReport() {
+export async function captureMarketReport() {
   const ec=S.market.econ; const prices=S.market.prices||[]; const orders=S.market.orders||[];
   const overviewRows = [];
   if(ec) {
@@ -609,10 +633,22 @@ export function captureMarketReport() {
     prodHtml += cap.section("Production — Top 15 Regions by Net Wages", cap.tableBlock("", ["#","Region","Country","Product","Bonus","Tax","Gross","Net Wages"], wageRows, 15));
   }
 
+  const sigRows = await signalReportRows();
+  let sigHtml = "";
+  if (sigRows.length) {
+    const idx = S.market.compositeIndex;
+    const idxVal = idx && idx.daily.length ? idx.daily[idx.daily.length - 1].value : null;
+    const trend = indexTrend();
+    const sub = idxVal != null ? `<th colspan="7" style="${cap.STYLE.th};text-align:center">Composite Market Index: ${idxVal.toFixed(2)} (${fmtPct(trend)})</th>` : "";
+    const rows = sigRows.slice(0, 20).map((s, i) => [String(i+1), marketItemName(s.code), s.level.name, (s.score >= 0 ? "+" : "") + s.score.toFixed(3), Math.round(s.confidence * 100) + "%", s.rsi != null ? s.rsi.toFixed(0) : "—", fmtMoney(s.price) + " BTC"]);
+    sigHtml = cap.section("Commodity Signals", cap.tableBlock("", ["#","Item","Signal","Score","Confidence","RSI","Price"], rows, 20, sub));
+  }
+
   const html = cap.pageOpen("War Era Market Intelligence Report", "", ["Generated: "+new Date().toUTCString()]) +
     (overviewRows.length ? cap.section("Economic Overview", cap.tableBlock("", ["Metric","Value"], overviewRows, 99)) : "") +
     (priceRows.length ? cap.section("Top Commodity Prices", cap.tableBlock("", ["#","Item","Price"], priceRows.map((r,i)=>[String(i+1),...r]), 10)) : "") +
     (valuableRows.length ? cap.section("Most Valuable Commodities", cap.tableBlock("", ["#","Item","Current Value ("+nowStr+")","Weekly Value"], valuableRows.map((r,i)=>[String(i+1),...r]), 10)) : "") +
+    sigHtml +
     prodHtml +
     cap.pageClose();
   cap.captureHTML(html, "market_report_"+cap.ts()+".png");
