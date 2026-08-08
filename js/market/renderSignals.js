@@ -136,12 +136,34 @@ function positionTip(target) {
   const r = target.getBoundingClientRect();
   const tw = el.offsetWidth, th = el.offsetHeight;
   const pad = 10, m = 8;
+  const vw = document.documentElement.clientWidth || innerWidth;
+  const vh = document.documentElement.clientHeight || innerHeight;
+
+  // Horizontal: prefer aligning left with the badge; if that would overflow
+  // the right edge, shift left; always clamp inside the viewport.
   let x = r.left;
-  let y = r.bottom + m;
-  if (x + tw > innerWidth - pad) x = Math.max(pad, r.right - tw);
-  if (y + th > innerHeight - pad) y = r.top - th - m;
-  el.style.left = x + "px";
-  el.style.top = y + "px";
+  if (x + tw > vw - pad) x = r.right - tw;
+  x = Math.max(pad, Math.min(x, vw - tw - pad));
+
+  // Vertical: prefer below the badge; if the tooltip is taller than the space
+  // below, flip above; if it can't fit either side, pick the side with more
+  // room; always clamp so the whole tooltip stays readable.
+  let y;
+  const spaceBelow = vh - r.bottom - m;
+  const spaceAbove = r.top - m;
+  if (th <= spaceBelow) {
+    y = r.bottom + m;
+  } else if (th <= spaceAbove) {
+    y = r.top - th - m;
+  } else if (spaceBelow >= spaceAbove) {
+    y = r.bottom + m;
+  } else {
+    y = r.top - th - m;
+  }
+  y = Math.max(pad, Math.min(y, vh - th - pad));
+
+  el.style.left = Math.round(x) + "px";
+  el.style.top = Math.round(y) + "px";
 }
 
 function hideSignalTip() {
