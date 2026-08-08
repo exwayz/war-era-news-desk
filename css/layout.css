@@ -375,7 +375,6 @@
 /* ── SIGNAL BADGE TOOLTIP ─────────────────────────── */
 .sig-tooltip {
   position: fixed; z-index: 200000; max-width: min(380px, 92vw);
-  max-height: min(80vh, 520px); overflow-y: auto;
   background: var(--bg); border: 1px solid var(--line);
   padding: 12px 14px; font-size: .76rem; line-height: 1.55; color: var(--ink);
   pointer-events: none;
