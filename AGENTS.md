@@ -67,6 +67,8 @@ Each tab loads data on first visit via `switchTab()` in `tabs.js`:
 - `community`: always reloads via `loadMessages()`
 - `links`: always reloads via `loadCountries()`
 
+Market sub-views (`data-market-view` pills): overview, analytics, predictions, signals, production. `signals` section is created on first visit by `loadMarketView()`; `renderSignalsView()` ensures api2 histories then computes signals+index. Every 10s cycle `refreshSignals()` recomputes cheaply from cached histories (intraday component uses `S.market.prevMids` snapshots).
+
 ## Stateful Gotchas
 - `S.lookupsKey` guards `ensureLookups()` — must reset to `""` before re-fetching on API key change
 - `_trueTxFired` guard in `api.js` prevents re-firing TrueAmount (2000-page tx fetch) on periodic refresh
@@ -82,6 +84,9 @@ Each tab loads data on first visit via `switchTab()` in `tabs.js`:
 | `js/core/constants.js` | API URLs, Supabase keys, event type list |
 | `js/timeline/filters.js` | `ensureLookups(k)` — preloads all countries/regions |
 | `js/market/market.js` | `loadMarketFull()` — economics, prices, orders, MVI |
+| `js/market/signals.js` | Signal engine (trend/RSI/imbalance/volume/intraday → 7-level score) + composite geometric index |
+| `js/market/itemHistory.js` | api2 `itemTrading.getItemTrading` 30-day history, cached in `S.market.itemHistories` (30min TTL) |
+| `js/market/renderSignals.js` | Signals view (index chart + ranked table) + `#commodityModal` dossier (inline SVG, no chart lib) |
 | `js/battles/battles.js` | `loadBattles()`, `makeBattleCard()` |
 | `js/battles/companies.js` | Name resolution: `nameCountry()`, `nameRegion()`, `nameUser()` |
 | `js/community/wall.js` | Community wall — Supabase REST, post/upvote/paginate |

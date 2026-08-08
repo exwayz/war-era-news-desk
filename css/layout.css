@@ -307,19 +307,70 @@
 /* ── MARKET VIEW TOGGLE ──────────────────────────── */
 #tab-market.view-analytics .market-grid,
 #tab-market.view-predictions .market-grid,
-#tab-market.view-production .market-grid { display: none; }
+#tab-market.view-production .market-grid,
+#tab-market.view-signals .market-grid { display: none; }
 #tab-market.view-analytics .analytics-section { display: block; }
 #tab-market.view-analytics .prediction-section,
-#tab-market.view-analytics .production-section { display: none; }
+#tab-market.view-analytics .production-section,
+#tab-market.view-analytics .signals-section { display: none; }
 #tab-market.view-predictions .analytics-section { display: none; }
 #tab-market.view-predictions .prediction-section { display: block; }
-#tab-market.view-predictions .production-section { display: none; }
+#tab-market.view-predictions .production-section,
+#tab-market.view-predictions .signals-section { display: none; }
 #tab-market.view-production .analytics-section,
-#tab-market.view-production .prediction-section { display: none; }
+#tab-market.view-production .prediction-section,
+#tab-market.view-production .signals-section { display: none; }
 #tab-market.view-production .production-section { display: block; }
+#tab-market.view-signals .analytics-section,
+#tab-market.view-signals .prediction-section,
+#tab-market.view-signals .production-section { display: none; }
+#tab-market.view-signals .signals-section { display: block; }
 #tab-market.view-overview .analytics-section,
 #tab-market.view-overview .prediction-section,
-#tab-market.view-overview .production-section { display: none; }
+#tab-market.view-overview .production-section,
+#tab-market.view-overview .signals-section { display: none; }
+.signals-section { padding: 10px; overflow-y: auto; flex: 1; }
+.signals-index-card { margin-bottom: 10px; }
+.signals-idx-meta { display: inline-flex; align-items: center; gap: 8px; font-size: .78rem; }
+.sig-table { }
+.sig-row { display: grid; grid-template-columns: 1.3fr .9fr .7fr .7fr .6fr .7fr .7fr 1fr 1.2fr .7fr; align-items: center; gap: 6px; padding: 5px 4px; border-bottom: 1px solid var(--line); font-size: .76rem; cursor: pointer; }
+.sig-row:hover { background: var(--surface); }
+.sig-head { cursor: default; color: var(--ink-dim); font-weight: 700; text-transform: uppercase; font-size: .66rem; letter-spacing: .04em; }
+.sig-head:hover { background: none; }
+.sig-name { font-weight: 600; }
+.sig-price { font-family: var(--font-mono); }
+.sig-chg { font-family: var(--font-mono); }
+.sig-num { font-family: var(--font-mono); color: var(--ink-dim); text-align: right; }
+.sig-badge { display: inline-flex; justify-content: center; border: 1px solid; padding: 1px 6px; font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+.sig-conf { height: 8px; background: var(--line); position: relative; }
+.sig-conf i { position: absolute; inset: 0 auto 0 0; background: var(--accent); }
+.sig-score { font-weight: 700; }
+.price-row { cursor: pointer; }
+.price-row:hover { background: var(--surface); }
+.sig-chg.up, .cm-stat .up, .signals-idx-meta .up { color: var(--green); }
+.sig-chg.down, .cm-stat .down, .signals-idx-meta .down { color: var(--red); }
+
+/* ── COMMODITY DOSSIER MODAL ───────────────────────── */
+.cm-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+.cm-stat { border: 1px solid var(--line); padding: 8px; display: flex; flex-direction: column; gap: 3px; }
+.cm-stat span { font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-dim); }
+.cm-stat b { font-family: var(--font-mono); font-size: .84rem; }
+.cm-sec { font-size: .78rem; margin: 12px 0 6px; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); }
+.cm-chart { }
+.cm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.cm-obl { display: flex; flex-direction: column; }
+.cm-obl .cm-tx-row { grid-template-columns: 1fr 1fr; }
+.cm-comps { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.cm-comp-row { display: grid; grid-template-columns: 90px 1fr 70px; align-items: center; gap: 8px; font-size: .76rem; }
+.cm-comp-label { color: var(--ink-dim); }
+.cm-comp-bar { height: 8px; background: var(--line); position: relative; overflow: hidden; }
+.cm-comp-bar i { position: absolute; top: 0; height: 100%; background: var(--accent); }
+.cm-comp-bar i.neg { background: var(--red); right: 50%; }
+.cm-comp-bar i.pos { background: var(--green); left: 50%; }
+.cm-comp-val { font-family: var(--font-mono); text-align: right; }
+.cm-tx-table { display: flex; flex-direction: column; }
+.cm-tx-row { display: grid; grid-template-columns: 1.1fr 1.4fr .7fr .8fr; gap: 6px; padding: 4px 0; border-bottom: 1px solid var(--line); font-size: .74rem; font-family: var(--font-mono); }
+.cm-tx-head { color: var(--ink-dim); font-weight: 700; text-transform: uppercase; font-size: .66rem; }
 .prediction-section { border-top: 1px solid var(--line); padding: 10px; overflow-y: auto; flex: 1; }
 .prediction-cards-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .production-section { padding: 10px; overflow-y: auto; flex: 1; }

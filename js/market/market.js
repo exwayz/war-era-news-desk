@@ -12,6 +12,7 @@ import { computePredictions } from "./predictions.js";
 import { storeMarketSnapshot, loadSupabaseHistory, loadWeeklyMVI } from "./marketHistory.js";
 import { computeProduction } from "./production.js";
 import { renderProductionStudio, renderWorkerYield } from "./renderStudio.js";
+import { renderSignalsView, refreshSignals } from "./renderSignals.js";
 import { renderJobs } from "../jobs/jobs.js";
 import { updateInfobar } from "../visuals/clock.js";
 
@@ -169,9 +170,10 @@ export async function loadMarketFull(showLoading=true) {
       S.market.trade.velocity = prevAvg > 0 ? (avg - prevAvg) / prevAvg : 0;
     }
     E.marketPricesData.innerHTML=arr.slice(0,30).map(item=>{
-      const name=marketItemName(item.itemCode||item.item||item.name||"Unknown");
+      const code=item.itemCode||item.item||item.name||"";
+      const name=marketItemName(code);
       const price=Number(item.price||item.value||0);
-      return `<div class="price-row"><span class="price-name">${name}</span><span class="price-val">${fmtMoney(price)} ₿</span></div>`;
+      return `<div class="price-row" data-commodity-code="${code}" title="Open commodity dossier"><span class="price-name">${name}</span><span class="price-val">${fmtMoney(price)} ₿</span></div>`;
     }).join("")||"<p style='color:var(--ink-dim)'>No price data.</p>";
     const priceVals = S.market.priceHistory.map(p=>p.i).filter(v=>isFinite(v));
     E.marketPricesChart.innerHTML = priceVals.length>1 ? miniChart(priceVals,"Price Index (Top-10 Avg ₿)","var(--blue)") : "";
@@ -301,12 +303,13 @@ export async function loadMarketFull(showLoading=true) {
   highlightUserData();
   const panel = document.getElementById("tab-market");
   if (panel && !panel.classList.contains("view-" + _marketView)) {
-    panel.classList.remove("view-overview", "view-analytics", "view-predictions", "view-production");
+    panel.classList.remove("view-overview", "view-analytics", "view-predictions", "view-production", "view-signals");
     panel.classList.add("view-" + _marketView);
   }
   storeMarketSnapshot();
   loadSupabaseHistory();
   loadWeeklyMVI();
+  refreshSignals();
 
   if (!S.market._prodData) {
     computeProduction().then(data => {
@@ -368,7 +371,7 @@ function renderProductionPanel(section) {
 export function loadMarketView(view) {
   _marketView = view;
   const panel = document.getElementById("tab-market");
-  panel.classList.remove("view-overview", "view-analytics", "view-predictions", "view-production");
+  panel.classList.remove("view-overview", "view-analytics", "view-predictions", "view-production", "view-signals");
   panel.classList.add("view-" + view);
   if (view === "predictions") {
     let section = document.querySelector(".prediction-section");
@@ -399,6 +402,15 @@ export function loadMarketView(view) {
     }
     const analytics = calculateAnalytics();
     renderExecutiveDashboard(analytics);
+  } else if (view === "signals") {
+    let section = document.querySelector(".signals-section");
+    if (!section) {
+      section = document.createElement("div");
+      section.className = "signals-section";
+      const insertTarget = document.querySelector(".market-grid");
+      if (insertTarget) insertTarget.after(section);
+    }
+    renderSignalsView(section);
   } else if (view === "production") {
     let section = document.querySelector(".production-section");
     if (!section) {
