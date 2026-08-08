@@ -1,5 +1,5 @@
 import { S } from "../core/state.js";
-import { fmtMoney } from "../core/utils.js";
+import { fmtMoney, escapeHtml } from "../core/utils.js";
 
 export function initClock() {
   function tick() {
@@ -32,7 +32,7 @@ export function updateInfobar() {
     const arrow = item.trend === 1 ? "▲" : item.trend === -1 ? "▼" : "";
     const pct = item.trend !== 0 && item.changePct != null ? `${arrow}${item.changePct >= 0 ? "+" : ""}${item.changePct.toFixed(1)}%` : "";
     const trendCls = item.trend === 1 ? "infobar-pill-up" : item.trend === -1 ? "infobar-pill-down" : "";
-    return `<span class="infobar-pill"><span class="infobar-name">${item.item}</span> <span class="infobar-value ${trendCls}">${fmtMoney(item.value)}${pct ? ` ${pct}` : ""}</span></span>`;
+    return `<span class="infobar-pill"><span class="infobar-name">${escapeHtml(item.item)}</span> <span class="infobar-value ${trendCls}">${fmtMoney(item.value)}${pct ? ` ${pct}` : ""}</span></span>`;
   }
   let track = scroll.querySelector(".infobar-track");
   if (!track) {
@@ -49,7 +49,7 @@ export function updateInfobar() {
     let nameEl = el.querySelector(".infobar-name");
     let valueEl = el.querySelector(".infobar-value");
     if (!nameEl) {
-      el.innerHTML = `<span class="infobar-name">${item.item}</span> <span class="infobar-value ${trendCls}">${fmtMoney(item.value)}${pct ? ` ${pct}` : ""}</span>`;
+      el.innerHTML = `<span class="infobar-name">${escapeHtml(item.item)}</span> <span class="infobar-value ${trendCls}">${fmtMoney(item.value)}${pct ? ` ${pct}` : ""}</span>`;
     } else {
       nameEl.textContent = item.item;
       valueEl.className = `infobar-value ${trendCls}`;

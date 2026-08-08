@@ -171,7 +171,7 @@ function renderPolitics() {
   const countryName = country?.name || _selectedCountryId.slice(-6);
   container.innerHTML = `
     <div class="pol-header">
-      <h3>${countryName}</h3>
+      <h3>${escHtml(countryName)}</h3>
     </div>
     <div class="pol-grid">
       <div class="glass-panel pol-section pol-gov">

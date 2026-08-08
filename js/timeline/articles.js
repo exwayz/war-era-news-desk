@@ -1,7 +1,7 @@
 import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
 import { apiKey, fetchTrpc, fetchTrpcApi2, fetchTrpcApi5, unwrap } from "../core/api.js";
-import { fmtDate } from "../core/utils.js";
+import { fmtDate, sanitizeHtml } from "../core/utils.js";
 import { resolveUsers } from "./filters.js";
 import { resolveContentLinks } from "../core/resolver.js";
 import { highlightUserData } from "../core/profileHighlighter.js";
@@ -210,7 +210,7 @@ export function renderArticles() {
     node.querySelector(".ac-read").addEventListener("click",()=>{
       E.readerTitle.textContent=a.title||"Untitled";
       E.readerAuthor.textContent=`By ${(S.lookups.usersById.get(a.author)?.username||S.lookups.usersById.get(a.author)?.name)||"Unknown"} | 👁 ${stats.views ?? 0} • ✯ ${stats.score ?? 0} • 🖒 ${stats.likes ?? 0} • 🖓 ${stats.dislikes ?? 0} • 🗪 ${stats.comments ?? 0}`;
-      E.readerContent.innerHTML=a.content||"<p>No content available.</p>";
+      E.readerContent.innerHTML=sanitizeHtml(a.content)||"<p>No content available.</p>";
       E.readerContent.querySelectorAll("a").forEach(l=>{ l.target="_blank"; l.rel="noopener noreferrer"; });
       E.readerContent.querySelectorAll("iframe").forEach(f=>{ f.style.width="100%"; f.style.aspectRatio="16/9"; f.style.height="auto"; });
       const openBtn = document.getElementById("openArticleBtn");

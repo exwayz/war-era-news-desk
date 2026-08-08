@@ -19,7 +19,6 @@ function playClick()   { playSfx(audio("assets/audios/click.mp3")); }
 function playRead()    { playSfx(audio("assets/audios/read.mp3")); }
 function playCopy()    { playSfx(audio("assets/audios/copy.mp3")); }
 function playApiSaved(){ playSfx(audio("assets/audios/api_saved.mp3")); }
-function playClock()   { playSfx(audio("assets/audios/clock.mp3")); }
 function playCapture() { playSfx(audio("assets/audios/capture.mp3")); }
 
 function getSfxVolume() { return _sfxVolume; }
@@ -30,6 +29,6 @@ function setSfxVolume(v) {
 }
 
 export {
-  playClick, playRead, playCopy, playApiSaved, playClock, playCapture,
+  playClick, playRead, playCopy, playApiSaved, playCapture,
   setSfxVolume, getSfxVolume,
 };

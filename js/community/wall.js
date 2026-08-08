@@ -52,7 +52,14 @@ export async function loadMessages(sort, page) {
     });
     if (!res.ok) throw new Error("Failed to load");
     const data = await res.json();
-    cachedMessages = currentPage === 1 ? data.messages : cachedMessages.concat(data.messages);
+    if (currentPage === 1) {
+      cachedMessages = data.messages;
+    } else {
+      const seen = new Set(cachedMessages.map(m => m.id));
+      for (const m of data.messages) {
+        if (!seen.has(m.id)) { cachedMessages.push(m); seen.add(m.id); }
+      }
+    }
     totalMessages = data.total;
     return { messages: cachedMessages, total: totalMessages, page: currentPage };
   } catch {
@@ -69,10 +76,6 @@ export async function loadMoreMessages() {
 
 export function getCachedMessages() {
   return cachedMessages;
-}
-
-export function getTotalCount() {
-  return totalMessages;
 }
 
 export function hasMoreMessages() {
@@ -131,21 +134,6 @@ export async function upvoteMessage(id) {
       return { success: true, upvotes: data.upvotes };
     }
     return false;
-  } catch {
-    return false;
-  }
-}
-
-export async function deleteMessage(id) {
-  try {
-    const res = await fetch(`${WALL_API}/messages/${id}`, {
-      method: "DELETE",
-      headers: wallHeaders(),
-    });
-    if (!res.ok) return false;
-    cachedMessages = cachedMessages.filter(m => m.id !== id);
-    totalMessages = Math.max(0, totalMessages - 1);
-    return true;
   } catch {
     return false;
   }

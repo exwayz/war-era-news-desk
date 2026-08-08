@@ -8,9 +8,6 @@ export function nameCountry(id) { if(!id) return ""; return S.lookups.countriesB
 export function nameRegion(id) { if(!id) return ""; return S.lookups.regionsById.get(String(id))?.name||String(id).slice(-6)||""; }
 export function nameUser(id) { if(!id) return ""; const u=S.lookups.usersById.get(id); return u?.username||u?.name||""; }
 export function nameMu(id) { if(!id) return ""; const m=S.lookups.muById.get(id); return m?.name||m?.muName||m?.displayName||m?.fullName||""; }
-export function nameAlliance(id) { if(!id) return ""; const al=S.lookups.alliancesById.get(id); return al?.name||al?.allianceName||""; }
-export function nameArticleTitle(id) { if(!id) return ""; return S.lookups.articlesById.get(id)?.title||""; }
-export function nameParty(id) { if(!id) return ""; const p=S.lookups.partiesById.get(id); return p?.name||p?.partyName||""; }
 
 export function injectBattleSearchBar() {
   const col = document.querySelector(".battle-list-col");

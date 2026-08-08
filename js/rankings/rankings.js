@@ -1,6 +1,6 @@
 import { S } from "../core/state.js";
 import { apiKey, fetchTrpc, fetchTrpcApi2, unwrap } from "../core/api.js";
-import { fmtNum } from "../core/utils.js";
+import { fmtNum, escapeHtml } from "../core/utils.js";
 import { toast } from "../ui/toast.js";
 import * as cap from "../core/captureReport.js";
 import { highlightUserData } from "../core/profileHighlighter.js";
@@ -103,13 +103,13 @@ function getName(type, id, data) {
 function getAvatarHtml(type, id, data) {
   if (type === "country") {
     const code = (data?.shortCode || data?.code || data?.iso || data?.iso2 || "").toLowerCase();
-    const flagUrl = code ? `https://media.warera.io/images/flags/${code}.svg` : "";
+    const flagUrl = code ? `https://media.warera.io/images/flags/${encodeURIComponent(code)}.svg` : "";
     if (flagUrl) return `<img class="rk-avatar" src="${flagUrl}" alt="" loading="lazy">`;
     return "";
   }
   const url = data?.avatarUrl || data?.avatar || "";
-  if (url) return `<img class="rk-avatar rk-avatar--round" src="${url}" alt="" loading="lazy">`;
-  return `<span class="rk-avatar rk-avatar--initials">${(getName(type, id, data).charAt(0) || "?").toUpperCase()}</span>`;
+  if (url) return `<img class="rk-avatar rk-avatar--round" src="${escapeHtml(url)}" alt="" loading="lazy">`;
+  return `<span class="rk-avatar rk-avatar--initials">${escapeHtml((getName(type, id, data).charAt(0) || "?").toUpperCase())}</span>`;
 }
 
 const _cache = {};
@@ -175,7 +175,7 @@ function buildRow(item, type, index) {
   row.innerHTML = `
     <span class="rk-rank">${index + 1}</span>
     ${avatar}
-    <span class="rk-name" title="${name.replace(/"/g,"&quot;")}">${name}</span>
+    <span class="rk-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
     <span class="rk-val">${fmtNum(val)}</span>
   `;
   return row;

@@ -1,7 +1,7 @@
 import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
 import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
-import { fmtNum, fmtDate } from "../core/utils.js";
+import { fmtNum, fmtDate, escapeHtml } from "../core/utils.js";
 import { ensureLookups } from "../timeline/filters.js";
 import { toast } from "../ui/toast.js";
 import * as cap from "../core/captureReport.js";
@@ -80,14 +80,14 @@ export async function loadCompanyConcentration() {
       }).join("");
       const pctLabels = codes.map(([code, count]) => {
         const pct = ((count / total) * 100).toFixed(0);
-        return `<span class="conc-pct-label">${code} ${pct}%</span>`;
+        return `<span class="conc-pct-label">${escapeHtml(code)} ${pct}%</span>`;
       }).join(" ");
-      html += `<div class="conc-row"><div class="conc-row-head"><span class="conc-region">${rname}</span><span class="conc-country">${cname}</span><span class="conc-count">${fmtNum(total)} companies</span><span class="conc-pct-labels">${pctLabels}</span></div><div class="conc-bars">${pctBar}</div></div>`;
+      html += `<div class="conc-row"><div class="conc-row-head"><span class="conc-region">${escapeHtml(rname)}</span><span class="conc-country">${escapeHtml(cname)}</span><span class="conc-count">${fmtNum(total)} companies</span><span class="conc-pct-labels">${pctLabels}</span></div><div class="conc-bars">${pctBar}</div></div>`;
     }
     html += `</div>`;
     container.innerHTML = html;
   } catch (err) {
-    container.innerHTML = `<p class="status-msg" style="padding:12px;color:var(--red)">Error: ${err.message}</p>`;
+    container.innerHTML = `<p class="status-msg" style="padding:12px;color:var(--red)">Error: ${escapeHtml(err.message)}</p>`;
   }
 }
 
@@ -127,12 +127,12 @@ export async function loadDepositConcentration(filterType) {
       const endsAt = new Date(ev.createdAt).getTime() + durationDays * 86400000;
       const remaining = Math.max(0, Math.ceil((endsAt - now) / 86400000));
       if (filterType && itemCode !== filterType) continue;
-      html += `<div class="conc-row"><div class="conc-row-head"><span class="conc-region">${rname}</span><span class="conc-country">${cname}</span><span class="conc-deposit-type">${itemCode}</span><span class="conc-deposit-bonus">+${bonus}%</span><span class="conc-deposit-end">${remaining}d left</span></div></div>`;
+      html += `<div class="conc-row"><div class="conc-row-head"><span class="conc-region">${escapeHtml(rname)}</span><span class="conc-country">${escapeHtml(cname)}</span><span class="conc-deposit-type">${escapeHtml(itemCode)}</span><span class="conc-deposit-bonus">+${bonus}%</span><span class="conc-deposit-end">${remaining}d left</span></div></div>`;
     }
     html += `</div>`;
     list.innerHTML = html;
   } catch (err) {
-    list.innerHTML = `<p class="status-msg" style="padding:12px;color:var(--red)">Error: ${err.message}</p>`;
+    list.innerHTML = `<p class="status-msg" style="padding:12px;color:var(--red)">Error: ${escapeHtml(err.message)}</p>`;
   }
 }
 

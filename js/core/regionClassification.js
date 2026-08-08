@@ -63,11 +63,6 @@ function _build() {
   }
 }
 
-export function getRegionInfo(name) {
-  _build();
-  return _flatMap[name.toLowerCase()] || null;
-}
-
 export function getCountriesInRegion(name) {
   _build();
   const key = name.toLowerCase();

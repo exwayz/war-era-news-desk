@@ -82,7 +82,7 @@ function renderEconomicOverview(md) {
 
   S.market.trade.volume = tradeVol;
   S.market.trade.count = trades.length;
-  S.market.trade.turnover = trades.length;
+  S.market.trade.turnover = tradeVol;
   const tradeQtys = trades.map(t=>Number(t.quantity??0)).filter(v=>v>0);
   const tradeTotalQty = tradeQtys.reduce((s,v)=>s+v,0);
   S.market.trade.VWAP = tradeTotalQty > 0 ? tradeVol / tradeTotalQty : 0;
@@ -95,6 +95,9 @@ function renderEconomicOverview(md) {
     S.market.trade.median=sorted.length%2?sorted[Math.floor(sorted.length/2)]:(sorted[sorted.length/2-1]+sorted[sorted.length/2])/2;
   }
 
+  // Per-minute buckets for the intra-cycle charts only — momentum series
+  // (wageHistory/payrollHistory/tradeVolHistory) stay cycle-level and are
+  // owned by updateHistories(), so getPrevious() never sees a single minute.
   const wageByH={};
   for (const t of wages) {
     const h=new Date(t.createdAt||t.date||0).toISOString().slice(0,16);
@@ -104,9 +107,9 @@ function renderEconomicOverview(md) {
   }
 
   const _wageSorted = Object.entries(wageByH).sort((a,b)=>a[0].localeCompare(b[0]));
-  S.market.wageHistory = _wageSorted.map(([h,v])=>({ h, avg: v.qty > 0 ? v.payroll / v.qty : 0 }));
-  S.market.payrollHistory = _wageSorted.map(([h,v])=>v.payroll);
+  S.market.wageByMinute = _wageSorted.map(([h,v])=>({ h, avg: v.qty > 0 ? v.payroll / v.qty : 0 }));
   S.market.wageHistory.push({ t: Date.now(), avg: avgWage });
+  if (S.market.wageHistory.length > 48) S.market.wageHistory.shift();
 
   const tradeByH={};
   for (const t of trades) {
@@ -115,8 +118,7 @@ function renderEconomicOverview(md) {
     tradeByH[h].vol += txAmt(t);
     tradeByH[h].count += 1;
   }
-  S.market.tradeVolHistory = Object.entries(tradeByH).sort((a,b)=>a[0].localeCompare(b[0])).map(([h,v])=>v.vol);
-  S.market.trade.volHistory = S.market.tradeVolHistory;
+  S.market.tradeVolByMinute = Object.entries(tradeByH).sort((a,b)=>a[0].localeCompare(b[0])).map(([h,v])=>v.vol);
 
   const ec = S.market.econ;
   E.marketEconData.innerHTML = [
@@ -130,8 +132,8 @@ function renderEconomicOverview(md) {
     { label:"Trade Transactions", value:fmtNum(ec.tradeCount) }
   ].map(r=>`<div class="econ-row"><span class="econ-row-label">${r.label}</span><span class="econ-row-val">${r.value}</span></div>`).join("");
 
-  if (S.market.wageHistory.length>1) {
-    const wageVals = S.market.wageHistory.map(w=>w.avg).filter(v=>isFinite(v));
+  if (S.market.wageByMinute && S.market.wageByMinute.length>1) {
+    const wageVals = S.market.wageByMinute.map(w=>w.avg).filter(v=>isFinite(v));
     if (wageVals.length>1) E.marketEconData.innerHTML+=miniChart(wageVals,"Avg Wage by Hour (₿)","var(--accent)");
   }
   E.marketEconStatus.hidden=true; E.marketEconStatus.textContent=""; E.marketEconStatus.classList.remove("error");

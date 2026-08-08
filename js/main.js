@@ -2,13 +2,13 @@ import { S } from "./core/state.js";
 import { E } from "./core/dom.js";
 import { populateRegionOptions } from "./core/regionClassification.js";
 import { STORE } from "./core/storage.js";
-import { apiKey, isValidApiKey } from "./core/api.js";
-import { debounce, parseLocal, fmtDate, fmtNum } from "./core/utils.js";
+import { apiKey, isValidApiKey, resetTxCaches } from "./core/api.js";
+import { debounce, parseLocal, fmtDate, fmtNum, escapeHtml } from "./core/utils.js";
 import { captureHTML, ts } from "./core/captureReport.js";
 import { populateEventTypes } from "./timeline/filters.js";
-import { loadEvents, startAutoRefresh, scheduleEventsRefresh, renderTimeline, handleEventAction } from "./timeline/timeline.js";
+import { loadEvents, startAutoRefresh, scheduleEventsRefresh, handleEventAction } from "./timeline/timeline.js";
 import { loadArticles, renderArticles, copyArticles, refreshLangDropdown } from "./timeline/articles.js";
-import { switchTab, isTimelineOpen } from "./ui/tabs.js";
+import { switchTab } from "./ui/tabs.js";
 import { toggleTheme, applyTheme, applyTexture } from "./ui/theme.js";
 import { toast, setStatus } from "./ui/toast.js";
 import { evtData, evtTime, buildTitle, buildSummary } from "./timeline/events.js";
@@ -21,7 +21,7 @@ import { copyJobsConcentration, captureJobsConcentration } from "./jobs/concentr
 import { initIntro } from "./intro/intro.js";
 import { initRankings, copyRankingsReport, captureRankingsReport, refreshRankings } from "./rankings/rankings.js";
 import { playClick, playRead, playCopy, playApiSaved, setSfxVolume, getSfxVolume } from "./audio/audio.js";
-import { loadProfile, saveProfile, deleteProfile, isRegistered, formatProfileLink, resolveProfile } from "./user/profile.js";
+import { loadProfile, deleteProfile, formatProfileLink, resolveProfile } from "./user/profile.js";
 import { POLICY_TEXT } from "./community/policy.js";
 import { loadMessages, loadMoreMessages, postMessage, upvoteMessage, renderWallMessages, renderWallCount, getMessageById, hasMoreMessages, getRemainingQuota, prependWallCard, updateUpvoteDisplay, copyCommunityReport } from "./community/wall.js";
 import { loadPolitics, initPolitics, copyPoliticsReport, capturePoliticsReport } from "./politics/politics.js";
@@ -167,7 +167,7 @@ function bindAll() {
     const p = loadProfile();
     const icon = document.getElementById("userIcon");
     if (p && p.avatarUrl) {
-      icon.innerHTML = `<img src="${p.avatarUrl}" alt="" style="width:20px;height:20px;border-radius:50%;object-fit:cover">`;
+      icon.innerHTML = `<img src="${escapeHtml(p.avatarUrl)}" alt="" style="width:20px;height:20px;border-radius:50%;object-fit:cover">`;
     } else if (p) {
       icon.textContent = p.username?.charAt(0) || "?";
     } else {
@@ -191,7 +191,7 @@ function bindAll() {
     localStorage.setItem(STORE.apiKey,key);
     E.globalEventsTitle.classList.add("live");
     E.apiKeyModal.classList.add("hidden");
-    if(key){ S.lookupsKey=""; loadEvents(true); loadArticles(true); startAutoRefresh(); loadMarketStats(); playApiSaved(); ensureLibraryIndex(); }
+    if(key){ resetTxCaches(); S.lookupsKey=""; loadEvents(true); loadArticles(true); startAutoRefresh(); loadMarketStats(); playApiSaved(); ensureLibraryIndex(); }
   });
   E.apiKeyModal?.addEventListener("click",e=>{ if(e.target===E.apiKeyModal) E.apiKeyModal.classList.add("hidden"); });
 
@@ -208,6 +208,7 @@ function bindAll() {
     document.getElementById("settingsModal").classList.add("hidden");
     const newKey = localStorage.getItem(STORE.apiKey) || "";
     if (newKey && newKey !== prevKey) {
+      resetTxCaches();
       S.lookupsKey = "";
       loadEvents(true);
       loadArticles(true);

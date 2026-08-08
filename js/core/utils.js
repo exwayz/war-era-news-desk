@@ -4,10 +4,10 @@ export function debounce(fn, ms) {
   let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); };
 }
 
-export function fmtMoney(v) {
+export function fmtMoney(v, precision) {
   const n=Number(v);
   if(!Number.isFinite(n)) return v==null?"—":String(v);
-  return new Intl.NumberFormat(undefined,{maximumFractionDigits:2}).format(n);
+  return new Intl.NumberFormat(undefined,{maximumFractionDigits: Number.isInteger(precision) ? precision : 2}).format(n);
 }
 
 export function fmtNum(v) {
@@ -34,6 +34,58 @@ export function escapeXml(v) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+}
+
+// Allow-list HTML sanitizer for user-authored content (articles). Renders the
+// markup in a detached element, then drops scripts/styles/event handlers and
+// dangerous URLs while keeping common rich-text tags.
+const SANITIZE_TAGS = new Set([
+  "P","BR","B","STRONG","I","EM","U","S","STRIKE","MARK","SMALL","SUB","SUP",
+  "H1","H2","H3","H4","H5","H6","UL","OL","LI","DL","DT","DD","BLOCKQUOTE",
+  "PRE","CODE","HR","A","IMG","TABLE","THEAD","TBODY","TFOOT","TR","TH","TD",
+  "SPAN","DIV","FIGURE","FIGCAPTION","HEADER","FOOTER","SECTION","ARTICLE",
+]);
+const SANITIZE_HREF_OK = /^(https?:|mailto:|tel:|#)/i;
+
+export function sanitizeHtml(html) {
+  if (!html) return "";
+  const template = document.createElement("template");
+  template.innerHTML = String(html);
+  const root = template.content;
+
+  function clean(node) {
+    if (node.nodeType === 3) return;
+    if (node.nodeType !== 1) { node.remove(); return; }
+    const tag = node.tagName.toUpperCase();
+    if (!SANITIZE_TAGS.has(tag) || tag === "IMG") {
+      if (tag === "IMG" && SANITIZE_HREF_OK.test(node.getAttribute("src") || "")) {
+        node.removeAttribute("onerror"); node.removeAttribute("onload");
+        for (const attr of [...node.attributes]) {
+          if (/^on/i.test(attr.name)) node.removeAttribute(attr.name);
+        }
+      } else {
+        node.remove();
+        return;
+      }
+    }
+    for (const attr of [...node.attributes]) {
+      const n = attr.name.toLowerCase();
+      if (/^on/i.test(n) || /^style$/i.test(n) || /^class$/i.test(n)) {
+        node.removeAttribute(attr.name);
+        continue;
+      }
+      if (n === "href" || n === "src") {
+        const v = attr.value.trim();
+        if (SANITIZE_HREF_OK.test(v)) continue;
+        node.removeAttribute(attr.name);
+      }
+      if (n === "target" && attr.value !== "_blank") node.removeAttribute(attr.name);
+      if (n === "rel") node.removeAttribute(attr.name);
+    }
+    [...node.childNodes].forEach(clean);
+  }
+  [...root.childNodes].forEach(clean);
+  return template.innerHTML;
 }
 
 export function getValue(r) {

@@ -45,8 +45,13 @@ export function startTransactionTrueAmount(k) {
         fetchTxPaginated("trading", k, 2000),
       ]);
       _trueTx = { wages, trades };
+      _trueTxErr = null;
       _upgradeFn?.("true");
-    } catch (e) { _trueTxErr = e; }
+    } catch (e) {
+      _trueTxErr = e;
+      // Allow a later retry if this run failed (don't leave the tier stuck).
+      _trueTxFired = false;
+    }
   })();
 }
 
@@ -63,6 +68,15 @@ export function startTransactionLiteAmount(k) {
   })();
 }
 
+// Call when the API key changes so stale tiered tx data from the old key is
+// never served and the true/lite fetch guards can fire again for the new key.
+export function resetTxCaches() {
+  _trueTx = null;
+  _liteTx = null;
+  _trueTxErr = null;
+  _trueTxFired = false;
+}
+
 export function getBestTxData() {
   if (_trueTx) return _trueTx;
   if (_liteTx) return _liteTx;
@@ -70,7 +84,7 @@ export function getBestTxData() {
 }
 
 export function apiKey() {
-  return E.apiKeyInput.value.trim() || localStorage.getItem(STORE.apiKey) || "";
+  return localStorage.getItem(STORE.apiKey) || E.apiKeyInput.value.trim() || "";
 }
 
 const WAE_KEY_RE = /^wae_[a-f0-9]{64,}$/i;
@@ -158,22 +172,6 @@ export function normalizeEvents(r) {
 export function normalizeCursor(r) {
   const d=unwrap(r);
   return d?.nextCursor||d?.cursor||d?.next||null;
-}
-
-export async function fetchFromServer(path, opts = {}) {
-  if (!MARKET_SERVER_URL) return null;
-  try {
-    const r = await fetch(`${MARKET_SERVER_URL}${path}`, {
-      method: opts.method || "GET",
-      headers: opts.body ? { "Content-Type": "application/json" } : undefined,
-      body: opts.body || undefined,
-      signal: AbortSignal.timeout(opts.timeout || 5000),
-    });
-    if (!r.ok) return null;
-    return r.json();
-  } catch {
-    return null;
-  }
 }
 
 export async function fetchAI(prompt) {

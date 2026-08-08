@@ -67,5 +67,3 @@ export async function ensureHistories(codes, { concurrency = 6, force = false } 
   await Promise.all(Array.from({ length: Math.min(concurrency, jobs.length) }, worker));
   return results.filter(Boolean);
 }
-
-export function clearItemHistories() { S.market.itemHistories.clear(); }

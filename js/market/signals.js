@@ -261,5 +261,3 @@ export function indexTrend() {
   const a = d[d.length - 1].value, b = d[Math.max(0, d.length - 8)].value;
   return b > 0 ? ((a - b) / b) * 100 : 0;
 }
-
-export function itemLabel(code) { return marketItemName(code); }

@@ -1,7 +1,7 @@
 import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
 import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
-import { fmtDate, fmtNum, getValue, getPoints, normalizeRankRow } from "../core/utils.js";
+import { fmtDate, fmtNum, getValue, getPoints, normalizeRankRow, escapeHtml } from "../core/utils.js";
 import { nameCountry, nameRegion, nameUser, nameMu } from "./companies.js";
 import { clearBattleDetail, buildAndDownloadXLS, battleId } from "./battles.js";
 
@@ -13,8 +13,10 @@ function orderIssuer(o) {
 }
 
 function makeEntityLink(name, url) {
-  if (!url) return name || "Unknown";
-  return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="entity-link">${name}</a>`;
+  const safeName = escapeHtml(name);
+  if (!url) return safeName || "Unknown";
+  const safeUrl = escapeHtml(url);
+  return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="entity-link">${safeName}</a>`;
 }
 
 function okArr(r) {

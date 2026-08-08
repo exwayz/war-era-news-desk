@@ -1,7 +1,7 @@
 import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
 import { apiKey, fetchTrpc, fetchCached, unwrap } from "../core/api.js";
-import { fmtMoney, fmtNum, fmtDate } from "../core/utils.js";
+import { fmtMoney, fmtNum, fmtDate, escapeHtml } from "../core/utils.js";
 
 import { toast } from "../ui/toast.js";
 import * as cap from "../core/captureReport.js";
@@ -157,24 +157,27 @@ export function renderJobs() {
     const estVal = c?.estimatedValue ? Number(c.estimatedValue) : 0;
     const created = job.createdAt ? fmtDate(job.createdAt) : "";
     const boss = getJobBossName(job);
+    const esc = escapeHtml;
+    const escCompany = esc(company), escSkill = esc(skill), escLoc = esc(locationText);
+    const escCountry = esc(countryName), escBoss = esc(boss), escItem = esc(itemCode), escCid = esc(cid);
 
     card.innerHTML=`
-      <p class="job-company">${company}${locationText?` <span style="color:var(--ink-dim);font-weight:500;font-size:.68rem">· ${locationText}</span>`:""}</p>
-      ${skill?`<p class="job-title">${skill} Worker</p>`:""}
+      <p class="job-company">${escCompany}${escLoc?` <span style="color:var(--ink-dim);font-weight:500;font-size:.68rem">· ${escLoc}</span>`:""}</p>
+      ${escSkill?`<p class="job-title">${escSkill} Worker</p>`:""}
       <div class="job-chips">
         <span class="job-chip wage">💰 ${fmtMoney(wage)} ${currency}/hit${wageNet?` <span style="color:var(--ink-dim)">(net ${fmtMoney(wageNet)})</span>`:""}</span>
         ${jobCapacityChip(job, wage)}
         <span class="job-chip">📋 ${slots} slot${slots!==1?"s":""}</span>
         ${minSkill?`<span class="job-chip">⭐ Min. skill ${minSkill}</span>`:""}
-        ${itemCode?`<span class="job-chip">🏭 ${itemCode}</span>`:""}
-        ${countryName?`<span class="job-chip">🌍 ${countryName}</span>`:""}
-        ${boss?`<span class="job-chip">👔 ${boss}</span>`:""}
+        ${escItem?`<span class="job-chip">🏭 ${escItem}</span>`:""}
+        ${escCountry?`<span class="job-chip">🌍 ${escCountry}</span>`:""}
+        ${escBoss?`<span class="job-chip">👔 ${escBoss}</span>`:""}
         ${estVal?`<span class="job-chip">💎 ${fmtMoney(estVal)} BTC</span>`:""}
         ${created?`<span class="job-chip">🕐 ${created}</span>`:""}
       </div>
       <div class="job-actions">
-        ${cid ?`<button class="job-btn" data-cid="${cid}"><iconify-icon icon="mdi:factory" class="lu"></iconify-icon> View Company</button>` :`<button class="job-btn" disabled title="Company ID not available" style="opacity:.4;cursor:not-allowed"><iconify-icon icon="mdi:factory" class="lu"></iconify-icon> View Company</button>`}
-        <button class="job-btn copy-job" data-wage="${wage}" data-company="${company}" data-skill="${skill}" data-loc="${locationText}"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon> Copy Brief</button>
+        ${escCid ?`<button class="job-btn" data-cid="${escCid}"><iconify-icon icon="mdi:factory" class="lu"></iconify-icon> View Company</button>` :`<button class="job-btn" disabled title="Company ID not available" style="opacity:.4;cursor:not-allowed"><iconify-icon icon="mdi:factory" class="lu"></iconify-icon> View Company</button>`}
+        <button class="job-btn copy-job" data-wage="${wage}" data-company="${escCompany}" data-skill="${escSkill}" data-loc="${escLoc}"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon> Copy Brief</button>
       </div>`;
 
     card.querySelector("[data-cid]")?.addEventListener("click", function() {

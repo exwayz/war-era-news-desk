@@ -4,6 +4,8 @@ import { calculateAnalytics } from "./analytics.js";
 
 const TABLE = "market_snapshots";
 const RETENTION_MS = 7 * 24 * 3600000;
+let _lastSupabaseLoad = 0;
+let _lastMviLoad = 0;
 
 function headers() {
   return {
@@ -77,6 +79,11 @@ export async function storeMarketSnapshot() {
 }
 
 export async function loadSupabaseHistory(limit = 15) {
+  // Rebuilding the momentum series is expensive and clobbers the live
+  // cycle-level history maintained by updateHistories(); throttle to 60s.
+  const now = Date.now();
+  if (now - _lastSupabaseLoad < 60000) return;
+  _lastSupabaseLoad = now;
   const cutoff = new Date(Date.now() - RETENTION_MS).toISOString();
   try {
     const res = await fetch(
@@ -145,6 +152,9 @@ export async function loadSupabaseHistory(limit = 15) {
 }
 
 export async function loadWeeklyMVI() {
+  const now = Date.now();
+  if (now - _lastMviLoad < 300000) return;
+  _lastMviLoad = now;
   const weekAgo = new Date(Date.now() - RETENTION_MS).toISOString();
   try {
     const res = await fetch(
