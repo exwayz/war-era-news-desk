@@ -1,165 +1,96 @@
-# war-era-news-desk
-A real-time newsroom dashboard for War Era journalists. Monitor global events, wars, diplomacy, battles, and articles through an intelligent timeline interface powered by the War Era API.
+# War Era News Desk
 
-# 📰 War Era News Desk
+A real-time newsroom dashboard for War Era journalists. It monitors the game's global events, wars, battles, economy, politics, jobs, and articles through an intelligent, human-readable interface — built on the War Era API.
 
-War Era News Desk is a web-based journalist dashboard tool used to display a global event timeline and War Era articles in real-time via the War Era API.
-
-This project is built with vanilla HTML, CSS, and JavaScript without a framework, with a focus on performance, data structure, and a dynamic war news reading experience.
+Live at **https://exwayz.github.io/war-era-news-desk/**
 
 ---
 
-## 🚀 Live Features
+## Why this exists
 
-### 📡 Global Events Timeline
-- Displays War Era world events in real-time
-- Supports multiple event types:
-- War declared / ended
-- Battle opened / ended
-- Alliance formed / broken
-- Region transfer / liberation
-- Revolution events
-- Economic events (transfer, deposit, bankruptcy, etc.)
+War Era generates a lot of data: events, battles, market movements, government changes. The raw API is a wall of JSON. This desk turns that firehose into something a journalist can actually read — event summaries written like headlines, battle damage reports, market momentum analytics, and copy/paste-ready briefs.
 
-### 📰 Article Feed
-- Displays articles from the War Era API
-- Article search feature
-- Reader mode (modal full article)
-- Copy headlines directly from events
+The whole app is vanilla HTML/CSS/JS with no framework and no build-time dependencies beyond Vite. It runs in your browser and talks directly to the War Era API using your own API key.
 
-### 🔎 Advanced Filtering
-- Filter by:
-- Country
-- Event type
-- Time range (From / To)
-- Auto-resolve country & region names
+## Getting started
 
-### 🔑 API Key System
-- Users must enter a War Era API key
-- Stored in `localStorage`
-- Modal API key input
+1. Open the app (deployed link above, or `npm run dev` locally).
+2. Click the key button and paste your War Era API key (`wae_...`).
+3. The key is stored only in your browser's `localStorage` — nothing is sent to any third-party server except the War Era API itself (and an opt-in community wall backend).
 
-### 🌙 Theme System
-- Light / Dark mode toggle
-- Stored in localStorage
+```
+npm install
+npm run dev      # local dev server on :8023
+npm run build    # production build to dist/
+```
 
-### 🔄 Auto Refresh
-- Timeline auto-refreshes every 30 seconds
-- Load more pagination support
+## Modules
 
----
+| Module | What it does |
+| --- | --- |
+| **Timeline** | Real-time global events feed with auto-refresh, country/type/date filters, and journalist-style summaries (`France declared war on Germany`). |
+| **Battles** | Ongoing and ended battle monitoring, attacker/defender rankings (damage + ground points, by user/MU/country), per-round progress, win-score indicator, XLS export. |
+| **Market** | 24h economic overview (wages, payroll, trade volume), commodity prices, recent orders, most-valuable items, executive analytics dashboard with momentum indicators, trend predictions, production cost studio, and a live commodity signal engine. |
+| **Jobs** | Job market tracker with wage/skill/slot details, company links, regional concentration maps, and deposit tracking. |
+| **Politics** | Country-by-country government, parties, elections, congress, and an AI-assisted political summary generator. |
+| **Rankings** | Weekly / user / MU / country / alliance leaderboards with avatars and flags. |
+| **Community** | Opt-in community wall backed by a Supabase + Cloudflare Workers backend (posts, upvotes, rate limits). |
+| **Library** | Searchable index of War Era articles with a full reader mode. |
+| **Writer** | Quill-based article editor with @mention entity search, image library, paste-URL auto-resolution, and drafts. |
+| **Table Maker** | Build custom tables from your data. |
 
-## 🧠 Core Concept
+### Cross-cutting features
 
-This application works as a **real-time journalist dashboard**:
+- **Intelligence rendering** — raw payloads are turned into readable sentences instead of dumped as JSON.
+- **Entity resolution** — IDs auto-resolve to country/region/user/MU/battle names, with an offline lookup fallback.
+- **Reports** — every module has *Copy Report* and PNG capture actions for embedding in articles or Slack.
+- **Profile highlighter** — register your character; your username, MU, country, and party get highlighted across rankings, battles, and articles.
+- **Audio** — context-sensitive SFX (read, copy, capture, click) with a volume control.
+- **Themes** — light/dark toggle plus an optional paper-texture mode.
+- **Privacy** — no tracking, no analytics, no third-party scripts (except html2canvas for captures and iconify for icons).
 
-1. Fetch event data from:
-https://gateway.warera.io/trpc/event.getEventsPaginated
+## Tech stack
 
-2. Fetch article data dari:
-https://gateway.warera.io/trpc/article.getArticlesPaginated
-3. Resolve additional data:
-- Country names
-- Region names
-- Usernames
-- Battle metadata
+- Vanilla ES modules, HTML5 templates, CSS custom properties
+- [Vite](https://vitejs.dev) for dev server + production build
+- War Era TRPC API (`gateway.warerastats.io`, `api2.warera.io`) with multi-endpoint fallback
+- html2canvas for PNG report capture
+- Quill 1.3.6 for the writer editor
+- Supabase (community wall) behind a Cloudflare Worker
 
-4. Render to UI card-based timeline
+## Project layout
 
----
+```
+js/
+  core/        api, constants, dom, resolver, state, storage, utils
+  timeline/    timeline, articles, events, filters, featured
+  battles/     battles, battleDetail, companies
+  market/      market, analytics, marketHistory, predictions, signals,
+               production, renderStudio, itemHistory
+  jobs/        jobs, concentration
+  politics/    politics
+  rankings/    rankings
+  library/     library
+  writer/      writer
+  tablemaker/  tablemaker
+  community/   wall, policy
+  user/        profile, profileHighlighter
+  ui/          tabs, toast, theme
+  visuals/     clock, oscilloscope
+  audio/       audio
+  intro/       intro
+css/           variables, base, layout, components, visuals, intro, responsive
+data/          offlineLookups.js (static name fallbacks)
+index.html     single page shell
+vite.config.js build config
+```
 
-## 🛠 Tech Stack
+## Documentation
 
-- HTML5 (semantic templates + modal system)
-- CSS3 (custom variables + dark mode system)
-- Vanilla JavaScript (no framework)
-- War Era TRPC API
+- [CHANGELOG](CHANGELOG) — full version history.
+- [LICENSE](LICENSE) — MIT.
 
----
+## Credits
 
-## 📁 Project Structure
-/index.html # Main UI structure
-/style.css # Full styling (light + dark theme)
-/script.js # Core application logic
-
-## ⚙️ How It Works
-
-1. Initialization
-js
-init()
-Load API key from localStorage
-Set theme
-Populate event types
-Start auto refresh if API key is available
-
-2. Event System
-loadEvents({ reset: true })
-Fetch paginated events
-Resolve:
-countries
-regions
-battles
-users
-Render event cards
-
-3. Article System
-loadArticles(true)
-Fetch article list
-Resolve author usernames
-Render article cards
-Support search filtering
-
-4. Auto Refresh Engine
-setInterval(() => loadEvents({ reset: true }), 30000)
-Automatically update timeline every 30 seconds
-Only active if API key is available
-
-🎯 Key Features Explained
-🧾 Event Intelligence Rendering
-
-Events are not only displayed as raw JSON, but are processed into sentences:
-
-Example:
-
-France declared war on Germany
-Tokyo opened a battle in Kanto
-🧠 Data Resolution Layer
-
-Script automatically resolves:
-
-countryId → country name
-regionId → region name
-userId → username
-battleId → battle metadata
-📖 Reader Mode
-
-Articles can be read in modal:
-
-Full content rendering
-iframe auto-resize (YouTube supported)
-External links open in new tab
-🔐 API Requirements
-
-This project requires a War Era API key.
-
-How to use:
-
-Click the 🔑 button
-Enter API key
-The system automatically saves to localStorage
-
-🌐 Deployments
-
-Can be deployed to:
-
-GitHub Pages
-Netlify
-Vercel (static hosting)
-📌 Credits
-Data source: War Era API
-UI/Engine: rooster
-Project: War Era Journalist Tool
-
-## License
-
-This project is licensed under the MIT License. See the LICENSE file for details.
+- Data source: [War Era](https://app.warera.io) API.
+- Built for War Era journalists and newsrooms.

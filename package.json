@@ -1,7 +1,7 @@
 {
   "name": "war-era-news-desk",
   "version": "1.0.0",
-  "description": "War Era News Desk",
+  "description": "A real-time newsroom dashboard for War Era journalists — global events, battles, market intelligence, politics, jobs, and articles on the War Era API.",
   "type": "module",
   "scripts": {
     "dev": "vite",
