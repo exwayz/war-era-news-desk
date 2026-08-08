@@ -1,6 +1,7 @@
 // signals.js — live commodity signal engine + composite market index.
-// Port of the market-sig analysis engine, recomputed client-side every cycle
-// from live order books + prices + cached 30-day daily history (no cron / server).
+// Recomputed client-side every cycle from live order books + prices + cached
+// 30-day daily history (no cron / server). Mean-reversion logic (buy low /
+// sell high): cheap & oversold = positive, expensive & overbought = negative.
 //   score      = 0.30·trend + 0.20·rsi + 0.18·imbalance + 0.22·volume + 0.10·intraday
 //   confidence = 0.45·liquidity + 0.25·agreement + 0.30·historyQuality
 // Levels: >=+0.55 Strong Buy | >=+0.25 Buy | >=+0.08 Accumulate | ±0.08 Hold |
@@ -121,43 +122,47 @@ export function computeItemSignal(code, price, book) {
   const prevMid = S.market.prevMids.get(code);
   S.market.prevMids.set(code, price);
 
-  // trend from daily closes (SMA5/10/20 position + ROC5/10)
+  // trend — mean reversion: price BELOW its moving average = cheap = bullish,
+  // price ABOVE the average = expensive = bearish. Recent drop (negative ROC)
+  // makes it cheaper → positive; recent surge makes it expensive → negative.
   let trend = 0;
   if (closes.length >= 5) {
     const pos = n => {
       const m = sma(closes, n);
-      return m ? clamp(((price - m) / m) * 8) : 0;
+      return m ? clamp(((m - price) / m) * 8) : 0;
     };
     const maScore = (pos(5) + pos(10) + pos(20)) / 3;
-    const r5 = clamp((roc(closes, 5) ?? 0) * 6);
-    const r10 = clamp((roc(closes, 10) ?? 0) * 4);
+    const r5 = clamp(-(roc(closes, 5) ?? 0) * 6);
+    const r10 = clamp(-(roc(closes, 10) ?? 0) * 4);
     trend = clamp(0.4 * maScore + 0.3 * r5 + 0.3 * r10);
   }
 
-  // RSI(14) blended toward mean-reversion (buy-the-dip bias)
+  // RSI(14) — pure mean reversion: oversold (<50) = buy, overbought (>50) = sell
   let rsiScore = 0, rsiVal = null;
   const r = rsi(closes, 14);
   if (r != null) {
     rsiVal = r;
-    rsiScore = clamp(0.45 * ((r - 50) / 50) + 0.55 * ((50 - r) / 40));
+    rsiScore = clamp((50 - r) / 40);
   }
 
-  // live order-book imbalance
-  const imb = clamp((book?.imbalance ?? 0) * 1.4);
+  // live order-book imbalance — contrarian: heavy bid pressure = price already
+  // bid up = less attractive to buy; heavy ask pressure = price pushed down =
+  // better to accumulate.
+  const imb = clamp(-(book?.imbalance ?? 0) * 1.4);
 
-  // volume agreement with trend (3d vs 14d daily qty)
+  // volume agreement with trend (3d vs 14d daily qty): high recent volume
+  // confirms conviction in the trend direction, low volume weakens it.
   const qtys = hist ? hist.values.map(v => v.qty) : [];
   let volume = 0;
   if (qtys.length >= 5) {
     const vr = volRatio(qtys, 3, 14);
-    volume = trend >= 0
-      ? clamp(trend * (0.55 + 0.45 * vr))
-      : clamp(trend * (0.55 + 0.45 * (2 - Math.min(2, vr))));
+    volume = clamp(trend * (0.55 + 0.45 * vr));
   }
 
-  // intraday: move since previous snapshot mid
+  // intraday — mean reversion: price above the previous snapshot = already
+  // gained = reduce/sell; price below the previous snapshot = dip = accumulate.
   const intraday = (prevMid != null && prevMid > 0)
-    ? clamp(((price - prevMid) / prevMid) * 12)
+    ? clamp(((prevMid - price) / prevMid) * 12)
     : 0;
 
   const score = clamp(0.30 * trend + 0.20 * rsiScore + 0.18 * imb + 0.22 * volume + 0.10 * intraday);
