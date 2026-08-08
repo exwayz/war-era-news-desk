@@ -371,6 +371,28 @@
 .cm-tx-table { display: flex; flex-direction: column; }
 .cm-tx-row { display: grid; grid-template-columns: 1.1fr 1.4fr .7fr .8fr; gap: 6px; padding: 4px 0; border-bottom: 1px solid var(--line); font-size: .74rem; font-family: var(--font-mono); }
 .cm-tx-head { color: var(--ink-dim); font-weight: 700; text-transform: uppercase; font-size: .66rem; }
+
+/* ── SIGNAL BADGE TOOLTIP ─────────────────────────── */
+.sig-tooltip {
+  position: fixed; z-index: 200000; max-width: min(380px, 92vw);
+  background: var(--bg); border: 1px solid var(--line);
+  padding: 12px 14px; font-size: .76rem; line-height: 1.55; color: var(--ink);
+  pointer-events: none;
+}
+.st-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.st-name { border: 1px solid; padding: 1px 8px; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.st-band { font-size: .7rem; color: var(--ink-dim); font-family: var(--font-mono); }
+.st-what { font-size: .76rem; color: var(--ink-dim); }
+.st-label { margin: 10px 0 4px; font-size: .66rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); }
+.st-math { font-size: .74rem; color: var(--ink); }
+.st-comps { display: flex; flex-direction: column; gap: 2px; }
+.st-comp { display: grid; grid-template-columns: 1.3fr 1.4fr 1.6fr; align-items: center; gap: 8px; font-size: .72rem; padding: 2px 0; border-bottom: 1px solid var(--line); }
+.st-comp-head { color: var(--ink-dim); text-transform: uppercase; font-size: .64rem; letter-spacing: .03em; }
+.st-comp-total { font-weight: 700; border-bottom: none; }
+.st-comp-bar { height: 6px; background: var(--line); position: relative; }
+.st-comp-bar i { position: absolute; top: 0; height: 100%; background: var(--accent); }
+.st-ref { font-size: .72rem; color: var(--ink-dim); }
+[data-signal-key] { cursor: help; }
 .prediction-section { border-top: 1px solid var(--line); padding: 10px; overflow-y: auto; flex: 1; }
 .prediction-cards-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .production-section { padding: 10px; overflow-y: auto; flex: 1; }

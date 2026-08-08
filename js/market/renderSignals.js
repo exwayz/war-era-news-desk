@@ -17,6 +17,161 @@ const LEVEL_COLOR = {
   hold: "var(--accent)", reduce: "var(--orange)", sell: "var(--red)", strongSell: "var(--red)",
 };
 
+// Reference material shown when hovering a signal badge — what the level means,
+// the math/logic behind the score band, and the indicator concepts used.
+const SIGNAL_REFERENCE = {
+  strongBuy: {
+    name: "Strong Buy", min: 0.55, max: 1.0,
+    what: "Extremely underpriced. The commodity is trading far below its recent norm — well under its 5/10/20-day moving averages, deeply oversold, and below the previous snapshot.",
+    math: "Score ≥ +0.55, driven by all five components reading strongly positive: price far below its moving averages, steeply negative ROC, RSI deep in the oversold zone, price below the previous snapshot, and ask-side pressure on the book.",
+    logic: "Mean reversion: after a sharp selloff the market typically snaps back toward its average. The deeper the discount, the stronger the expected bounce — so the tool rates this as the best value entry.",
+    ref: "RSI oversold band (<30), Wilder's RSI, price vs SMA discount, contrarian/mean-reversion trading.",
+  },
+  buy: {
+    name: "Buy", min: 0.25, max: 0.55,
+    what: "Underpriced. The commodity is trading below its recent averages with momentum pointing down — a solid entry zone rather than an extreme dip.",
+    math: "Score between +0.25 and +0.55: price sits noticeably under its moving averages, short-term ROC is negative, RSI is under 50, and at least one more component (book imbalance or intraday dip) confirms.",
+    logic: "Same mean-reversion idea as Strong Buy but with a milder discount — still a good moment to buy, with a slightly smaller expected rebound.",
+    ref: "RSI <50, price below SMA, negative rate of change (ROC), mean reversion.",
+  },
+  accumulate: {
+    name: "Accumulate", min: 0.08, max: 0.25,
+    what: "Mildly underpriced. Price is modestly below its recent average — enough to start building a position, but without all components aligned yet.",
+    math: "Score between +0.08 and +0.25: trend, RSI and/or intraday are positive but only mildly so, and some components may still be neutral or negative.",
+    logic: "Scaling-in signal: buy in tranches rather than a single large entry, because the discount is real but not extreme and the pullback may deepen further.",
+    ref: "Contrarian accumulation / position scaling, RSI just under 50.",
+  },
+  hold: {
+    name: "Hold", min: -0.08, max: 0.08,
+    what: "Fairly priced. Price is essentially at its recent average with momentum balanced — no edge in either direction.",
+    math: "Score between -0.08 and +0.08: positive and negative components roughly cancel out (price near SMA, RSI near 50, balanced book).",
+    logic: "Neutral zone. Neither buyers nor sellers have a statistical advantage at this price, so the tool recommends standing pat.",
+    ref: "Fair value / mean, RSI ≈ 50, no divergence from the moving average.",
+  },
+  reduce: {
+    name: "Reduce", min: -0.25, max: -0.08,
+    what: "Mildly overpriced. Price is modestly above its recent average — worth trimming a portion of holdings and taking some profit.",
+    math: "Score between -0.25 and -0.08: price slightly above its moving averages, ROC slightly positive, RSI above 50, with only partial confirmation.",
+    logic: "Profit-taking signal: the commodity is a bit richer than its norm, so lightening the position protects gains while leaving room if the trend continues.",
+    ref: "Profit-taking / scaling out, RSI just above 50.",
+  },
+  sell: {
+    name: "Sell", min: -0.55, max: -0.25,
+    what: "Overpriced. The commodity is trading above its recent norm with momentum pointing up — an exit zone.",
+    math: "Score between -0.55 and -0.25: price well above its moving averages, positive ROC, RSI over 50, with confirming pressure from book imbalance or intraday strength.",
+    logic: "Mean reversion to the downside: the price has run ahead of its fair value and is statistically likely to pull back — better to sell into strength.",
+    ref: "RSI >50, price above SMA, positive rate of change (ROC), mean reversion.",
+  },
+  strongSell: {
+    name: "Strong Sell", min: -1.0, max: -0.55,
+    what: "Extremely overpriced. Price is far above its recent norm — well over its moving averages, deeply overbought, and above the previous snapshot.",
+    math: "Score ≤ -0.55: all five components read strongly negative — price far above its moving averages, steeply positive ROC, RSI deep in the overbought zone, price above the previous snapshot, and bid-side pressure inflating the book.",
+    logic: "Distribution signal: the market has run far ahead of fair value and the statistical pullback risk is highest here — the tool rates this as the best moment to exit or short.",
+    ref: "RSI overbought band (>70), Wilder's RSI, price vs SMA premium, overbought distribution.",
+  },
+};
+
+let _tipEl = null;
+let _tipTarget = null;
+
+function tipEl() {
+  if (!_tipEl) {
+    _tipEl = document.createElement("div");
+    _tipEl.className = "sig-tooltip";
+    _tipEl.hidden = true;
+    document.body.appendChild(_tipEl);
+  }
+  return _tipEl;
+}
+
+function signalTooltipHTML(key, sig) {
+  const ref = SIGNAL_REFERENCE[key] || SIGNAL_REFERENCE.hold;
+  const color = LEVEL_COLOR[key] || "var(--ink)";
+  const fmt = v => (v >= 0 ? "+" : "") + v.toFixed(3);
+  const comps = sig && sig.components ? [
+    ["Trend", sig.components.trend, 0.30],
+    ["RSI", sig.components.rsi, 0.20],
+    ["Imbalance", sig.components.imbalance, 0.18],
+    ["Volume", sig.components.volume, 0.22],
+    ["Intraday", sig.components.intraday, 0.10],
+  ] : null;
+  const compRows = comps ? comps.map(([lbl, v, w]) => `
+      <div class="st-comp">
+        <span>${lbl}</span>
+        <span class="st-comp-bar"><i style="width:${Math.round(Math.abs(v) * 100)}%;left:${v >= 0 ? "50%" : "50%"};transform:${v >= 0 ? "translateX(0)" : "translateX(-100%)"}"></i></span>
+        <span style="font-family:var(--font-mono)">${fmt(v)}</span>
+        <span style="color:var(--ink-dim);font-family:var(--font-mono)">×${w.toFixed(2)} = ${fmt(v * w)}</span>
+      </div>`).join("") : "";
+  const fmtBand = v => (v >= 0 ? "+" : "") + v.toFixed(2);
+  const band = `${fmtBand(ref.min)} → ${fmtBand(ref.max)}`;
+  return `
+    <div class="st-head"><span class="st-name" style="color:${color};border-color:${color}">${ref.name}</span>
+      <span class="st-band">score ${band}</span></div>
+    <div class="st-what">${ref.what}</div>
+    <div class="st-label">Math &amp; logic</div>
+    <div class="st-math">${ref.math}</div>
+    <div class="st-label">Why it says so here</div>
+    <div class="st-comps">
+      <div class="st-comp st-comp-head"><span>Component</span><span style="text-align:center">Value</span><span>Weight → contribution</span></div>
+      ${compRows}
+      <div class="st-comp st-comp-total"><span>Score</span><span></span><span style="font-family:var(--font-mono);text-align:right">${sig ? fmt(sig.score) : "—"}</span></div>
+    </div>
+    <div class="st-label">Reference</div>
+    <div class="st-ref">${ref.ref}</div>`;
+}
+
+function showSignalTip(target, sig) {
+  const key = target.dataset.signalKey;
+  if (!key) return;
+  const el = tipEl();
+  el.innerHTML = signalTooltipHTML(key, sig);
+  el.hidden = false;
+  _tipTarget = target;
+  positionTip(target);
+}
+
+function positionTip(target) {
+  const el = tipEl();
+  if (!el || el.hidden) return;
+  const r = target.getBoundingClientRect();
+  const tw = el.offsetWidth, th = el.offsetHeight;
+  const pad = 10, m = 8;
+  let x = r.left;
+  let y = r.bottom + m;
+  if (x + tw > innerWidth - pad) x = Math.max(pad, r.right - tw);
+  if (y + th > innerHeight - pad) y = r.top - th - m;
+  el.style.left = x + "px";
+  el.style.top = y + "px";
+}
+
+function hideSignalTip() {
+  _tipTarget = null;
+  const el = tipEl();
+  el.hidden = true;
+}
+
+// Delegated hover for signal badges in the table + dossier modal.
+document.addEventListener("mouseover", e => {
+  const b = e.target.closest("[data-signal-key]");
+  if (b) {
+    const row = b.closest("[data-commodity-code]");
+    const code = row ? row.dataset.commodityCode : (_modalCode || "");
+    const sig = code ? S.market.signals.get(code) : null;
+    showSignalTip(b, sig);
+  }
+});
+document.addEventListener("mousemove", e => {
+  if (_tipTarget && !tipEl().hidden) {
+    const b = e.target.closest("[data-signal-key]");
+    if (b) positionTip(b);
+  }
+});
+document.addEventListener("mouseout", e => {
+  if (!_tipTarget) return;
+  const t = e.target;
+  if (!t || typeof t.closest !== "function" || !t.closest("[data-signal-key]")) hideSignalTip();
+});
+
 function livePrice(code) {
   const p = (S.market.prices || []).find(i => (i.itemCode || i.item || i.name) === code);
   return p ? Number(p.price || p.value || 0) : 0;
@@ -104,7 +259,7 @@ function signalsHTML() {
       <span class="sig-num">${s.rsi != null ? s.rsi.toFixed(0) : "—"}</span>
       <span class="sig-num">${spr == null ? "—" : spr.toFixed(1) + "%"}</span>
       <span class="sig-num">${imb == null ? "—" : (imb > 0 ? "+" : "") + imb.toFixed(0) + "%"}</span>
-      <span class="sig-badge" style="color:${color};border-color:${color}">${s.level.name}</span>
+      <span class="sig-badge" style="color:${color};border-color:${color}" data-signal-key="${s.level.key}">${s.level.name}</span>
       <span class="sig-conf"><i style="width:${conf}%"></i></span>
       <span class="sig-num sig-score">${s.score.toFixed(3)}</span>
     </div>`;
@@ -264,7 +419,7 @@ async function renderCommodityModal(code, keepBody = false) {
   body.innerHTML = `
     <div class="cm-stats">
       <div class="cm-stat"><span>Live Price</span><b>${fmtMoney(price)} ₿</b></div>
-      <div class="cm-stat"><span>Signal</span><b style="color:${color}">${sig.level.name}</b></div>
+      <div class="cm-stat"><span>Signal</span><b style="color:${color}" data-signal-key="${sig.level.key}">${sig.level.name}</b></div>
       <div class="cm-stat"><span>Score</span><b>${sig.score.toFixed(3)}</b></div>
       <div class="cm-stat"><span>Confidence</span><b>${Math.round(sig.confidence * 100)}%</b></div>
       <div class="cm-stat"><span>RSI(14)</span><b>${sig.rsi != null ? sig.rsi.toFixed(1) : "—"}</b></div>
