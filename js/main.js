@@ -20,7 +20,7 @@ import { loadJobs, renderJobs, copyJobsReport, captureJobsReport, initJobViews }
 import { copyJobsConcentration, captureJobsConcentration } from "./jobs/concentration.js";
 import { initIntro } from "./intro/intro.js";
 import { initRankings, copyRankingsReport, captureRankingsReport, refreshRankings } from "./rankings/rankings.js";
-import { playClick, playRead, playCopy, playApiSaved, setSfxVolume, getSfxVolume } from "./audio/audio.js";
+import { playClick, playRead, playCopy, playApiSaved, setSfxVolume, getSfxVolume, getSfxEnabled, setSfxEnabled } from "./audio/audio.js";
 import { loadProfile, deleteProfile, formatProfileLink, resolveProfile } from "./user/profile.js";
 import { POLICY_TEXT } from "./community/policy.js";
 import { loadMessages, loadMoreMessages, postMessage, upvoteMessage, renderWallMessages, renderWallCount, getMessageById, hasMoreMessages, getRemainingQuota, prependWallCard, updateUpvoteDisplay, copyCommunityReport } from "./community/wall.js";
@@ -160,6 +160,7 @@ function bindAll() {
     document.getElementById("sfxVolumeValue").textContent = Math.round(getSfxVolume() * 100) + "%";
     document.getElementById("settingsApiKeyInput").value = localStorage.getItem(STORE.apiKey) || "";
     document.getElementById("paperTextureToggle").checked = localStorage.getItem(STORE.texture) === "1";
+    document.getElementById("audioEnabledToggle").checked = getSfxEnabled();
     document.getElementById("settingsModal").classList.remove("hidden");
   }
 
@@ -255,6 +256,7 @@ function bindAll() {
     if(e.target===document.getElementById("settingsModal")) saveSettings();
   });
   document.getElementById("paperTextureToggle")?.addEventListener("change", e => applyTexture(e.target.checked));
+  document.getElementById("audioEnabledToggle")?.addEventListener("change", e => setSfxEnabled(e.target.checked));
 
   // About modal
   document.getElementById("aboutBtn")?.addEventListener("click",()=>{
