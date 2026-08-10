@@ -26,6 +26,7 @@ import { POLICY_TEXT } from "./community/policy.js";
 import { loadMessages, loadMoreMessages, postMessage, upvoteMessage, renderWallMessages, renderWallCount, getMessageById, hasMoreMessages, getRemainingQuota, prependWallCard, updateUpvoteDisplay, copyCommunityReport } from "./community/wall.js";
 import { loadPolitics, initPolitics, copyPoliticsReport, capturePoliticsReport } from "./politics/politics.js";
 import { initLibrary, ensureLibraryIndex } from "./library/library.js";
+import { initBookmarkButton } from "./library/bookmarks.js";
 import { initTableMaker } from "./tablemaker/tablemaker.js";
 import { highlightUserData } from "./core/profileHighlighter.js";
 import { initClock, updateInfobar } from "./visuals/clock.js";
@@ -522,6 +523,7 @@ function bindAll() {
   initMarketView();
   initPolitics();
   initLibrary();
+  initBookmarkButton();
   initTableMaker();
 
   document.getElementById("jobWageFilter")?.addEventListener("input", () => {

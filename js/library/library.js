@@ -6,6 +6,7 @@ import { langName } from "../timeline/articles.js";
 import { resolveUsers } from "../timeline/filters.js";
 import { resolveContentLinks } from "../core/resolver.js";
 import { getMeta, saveMeta, loadAll, saveMany, clearStore } from "./libraryStore.js";
+import { setCurrentArticle, getBookmarkRecords, isBookmarked, ensureBookmarksLoaded } from "./bookmarks.js";
 
 const CATEGORY_META = {
   news:          { label: "News",          icon: "mdi:newspaper-variant-outline" },
@@ -236,21 +237,36 @@ export function renderBookshelf() {
   const counts = categoryCounts();
   const categories = ["all", ...Object.keys(CATEGORY_META)];
   const isActive = (c) => (L.category || "all") === c;
-  el.innerHTML = categories.map(c => {
-    const meta = c === "all" ? { label: "All", icon: "mdi:bookshelf" } : CATEGORY_META[c];
-    const count = counts[c] || 0;
-    const label = (c === "all" ? "All Articles" : meta.label) || c;
-    return `<button class="lib-book${isActive(c) ? " active" : ""}" data-lib-cat="${c}" title="${escapeHtml(label)} — ${count} articles">
-      <iconify-icon icon="${meta.icon}" class="lu"></iconify-icon>
-      <span class="lib-book-name">${escapeHtml(label)}</span>
-      <span class="lib-book-count">${fmtNum(count)}</span>
-    </button>`;
-  }).join("");
+  const books = getBookmarkRecords();
+  const buttons = [
+    ...categories.map(c => {
+      const meta = c === "all" ? { label: "All", icon: "mdi:bookshelf" } : CATEGORY_META[c];
+      const count = counts[c] || 0;
+      const label = (c === "all" ? "All Articles" : meta.label) || c;
+      return `<button class="lib-book${isActive(c) ? " active" : ""}" data-lib-cat="${c}" title="${escapeHtml(label)} — ${count} articles">
+        <iconify-icon icon="${meta.icon}" class="lu"></iconify-icon>
+        <span class="lib-book-name">${escapeHtml(label)}</span>
+        <span class="lib-book-count">${fmtNum(count)}</span>
+      </button>`;
+    }),
+    `<button class="lib-book${isActive("bookmarks") ? " active" : ""}" data-lib-cat="bookmarks" title="${books.length} bookmarked articles">
+      <iconify-icon icon="mdi:bookmark-multiple-outline" class="lu"></iconify-icon>
+      <span class="lib-book-name">Bookmarks</span>
+      <span class="lib-book-count">${fmtNum(books.length)}</span>
+    </button>`,
+  ].join("");
+  el.innerHTML = buttons;
 }
 
 function getFiltered() {
-  let arts = L.index;
-  if (L.category) arts = arts.filter(a => (a.category || "other") === L.category);
+  let arts;
+  if (L.category === "bookmarks") {
+    arts = [...getBookmarkRecords()];
+    arts.sort((a, b) => (b.bookmarkedAt || 0) - (a.bookmarkedAt || 0));
+  } else {
+    arts = L.index;
+    if (L.category) arts = arts.filter(a => (a.category || "other") === L.category);
+  }
   if (L.langs.length) arts = arts.filter(a => L.langs.includes(a.language));
   const term = L.searchTerm.trim();
   if (term) {
@@ -290,7 +306,10 @@ export function renderLibrary() {
   }
 
   if (!shown.length) {
-    listEl.innerHTML = `<p class="library-empty">${L.index.length ? "No articles match the current filters." : "The library is still indexing…"}</p>`;
+    const msg = L.category === "bookmarks"
+      ? "No bookmarks yet. Open an article and hit the bookmark icon."
+      : (L.index.length ? "No articles match the current filters." : "The library is still indexing…");
+    listEl.innerHTML = `<p class="library-empty">${msg}</p>`;
   } else {
     listEl.innerHTML = "";
     for (const a of shown) {
@@ -312,7 +331,11 @@ export function renderLibrary() {
   const metaEl = document.getElementById("libraryMeta");
   if (metaEl) {
     const suffix = termLabel();
-    metaEl.textContent = `${shown.length} shown (${arts.length} match${suffix ? " · " + suffix : ""}) · ${L.index.length} indexed`;
+    if (L.category === "bookmarks") {
+      metaEl.textContent = `${shown.length} shown (${arts.length} bookmarked${suffix ? " · " + suffix : ""})`;
+    } else {
+      metaEl.textContent = `${shown.length} shown (${arts.length} match${suffix ? " · " + suffix : ""}) · ${L.index.length} indexed`;
+    }
   }
 }
 
@@ -324,6 +347,7 @@ function termLabel() {
 
 function openReader(a) {
   const stats = a.stats || {};
+  setCurrentArticle(a);
   E.readerTitle.textContent = a.title || "Untitled";
   E.readerAuthor.textContent = `By ${authorName(a.author)} | 👁 ${stats.views ?? 0} • ✯ ${stats.score ?? 0} • 🖒 ${stats.likes ?? 0} • 🖓 ${stats.dislikes ?? 0} • 🗪 ${stats.comments ?? 0}`;
   E.readerContent.innerHTML = sanitizeHtml(a.content) || "<p>No content available.</p>";
@@ -451,8 +475,7 @@ export function initLibrary() {
     });
   }
 
-  document.getElementById("libraryRebuildBtn")?.addEventListener("click", async () => {
-    if (L.building) { status("Library is already syncing — please wait.", "error"); return; }
+  document.getElementById("libraryRebuildBtn")?.addEventListener("click", async () => {    if (L.building) { status("Library is already syncing — please wait.", "error"); return; }
     await clearStore();
     L.index.length = 0;
     seen.clear();
@@ -490,4 +513,9 @@ export function initLibrary() {
   renderLibrary();
   populateLangDropdown();
   ensureLibraryIndex();
+  ensureBookmarksLoaded().then(() => { renderBookshelf(); renderLibrary(); });
+  document.addEventListener("nd:bookmarks-changed", () => {
+    renderBookshelf();
+    renderLibrary();
+  });
 }

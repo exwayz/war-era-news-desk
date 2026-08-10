@@ -5,6 +5,7 @@ import { resolveUsers } from "./filters.js";
 import { resolveContentLinks } from "../core/resolver.js";
 import { playRead } from "../audio/audio.js";
 import { sanitizeHtml } from "../core/utils.js";
+import { setCurrentArticle } from "../library/bookmarks.js";
 
 const MAX_FEATURED = 10;
 const AUTO_INTERVAL = 10000;
@@ -98,6 +99,7 @@ export async function loadFeatured() {
 function openReader(a) {
   if (!a) return;
   const stats = a.stats || {};
+  setCurrentArticle(a);
   E.readerTitle.textContent = a.title || "Untitled";
   E.readerAuthor.textContent = `By ${(S.lookups.usersById.get(a.author)?.username || S.lookups.usersById.get(a.author)?.name) || "Unknown"} | 👁 ${stats.views ?? 0} • ✯ ${stats.score ?? 0} • 🖒 ${stats.likes ?? 0} • 🖓 ${stats.dislikes ?? 0} • 🗪 ${stats.comments ?? 0}`;
   E.readerContent.innerHTML = sanitizeHtml(a.content) || "<p>No content available.</p>";

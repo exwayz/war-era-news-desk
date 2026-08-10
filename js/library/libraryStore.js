@@ -1,6 +1,7 @@
 const DB_NAME = "wa-nd-library";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const OBJ = "articles";
+const OBJ_BOOKMARKS = "bookmarks";
 const META_KEY = "wa-nd-library-meta";
 
 let dbPromise = null;
@@ -29,6 +30,9 @@ function openDB() {
         const db = req.result;
         if (!db.objectStoreNames.contains(OBJ)) {
           db.createObjectStore(OBJ, { keyPath: "_id" });
+        }
+        if (!db.objectStoreNames.contains(OBJ_BOOKMARKS)) {
+          db.createObjectStore(OBJ_BOOKMARKS, { keyPath: "_id" });
         }
       };
       req.onsuccess = () => resolve(req.result);
@@ -79,6 +83,51 @@ export async function clearStore() {
       tx.objectStore(OBJ).clear();
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error || new Error("clear failed"));
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function getBookmarks() {
+  try {
+    const db = await openDB();
+    return await new Promise((resolve, reject) => {
+      const req = db.transaction(OBJ_BOOKMARKS, "readonly").objectStore(OBJ_BOOKMARKS).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error || new Error("getBookmarks failed"));
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function saveBookmark(record) {
+  try {
+    const db = await openDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(OBJ_BOOKMARKS, "readwrite");
+      tx.objectStore(OBJ_BOOKMARKS).put(record);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error("saveBookmark failed"));
+      tx.onabort = () => reject(tx.error || new Error("saveBookmark aborted"));
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function deleteBookmark(id) {
+  try {
+    const db = await openDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(OBJ_BOOKMARKS, "readwrite");
+      tx.objectStore(OBJ_BOOKMARKS).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error("deleteBookmark failed"));
+      tx.onabort = () => reject(tx.error || new Error("deleteBookmark aborted"));
     });
     return true;
   } catch {

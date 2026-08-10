@@ -5,6 +5,7 @@ import { fmtDate, sanitizeHtml } from "../core/utils.js";
 import { resolveUsers } from "./filters.js";
 import { resolveContentLinks } from "../core/resolver.js";
 import { highlightUserData } from "../core/profileHighlighter.js";
+import { setCurrentArticle } from "../library/bookmarks.js";
 
 const LANG_NAMES = {
   en:"English",de:"Deutsch",es:"Español",fr:"Français",pt:"Português",ru:"Русский",
@@ -208,6 +209,7 @@ export function renderArticles() {
     node.querySelector(".ac-stats").textContent = `👁 ${stats.views ?? 0} • Score ${stats.score ?? 0}`;
     node.querySelector(".ac-open").addEventListener("click",()=>window.open(`https://app.warera.io/article/${a._id||a.id}`,"_blank","noopener"));
     node.querySelector(".ac-read").addEventListener("click",()=>{
+      setCurrentArticle(a);
       E.readerTitle.textContent=a.title||"Untitled";
       E.readerAuthor.textContent=`By ${(S.lookups.usersById.get(a.author)?.username||S.lookups.usersById.get(a.author)?.name)||"Unknown"} | 👁 ${stats.views ?? 0} • ✯ ${stats.score ?? 0} • 🖒 ${stats.likes ?? 0} • 🖓 ${stats.dislikes ?? 0} • 🗪 ${stats.comments ?? 0}`;
       E.readerContent.innerHTML=sanitizeHtml(a.content)||"<p>No content available.</p>";
