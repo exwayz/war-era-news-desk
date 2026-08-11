@@ -87,7 +87,6 @@ const SCHEME_COLORS = {
   sand:       { light: "#58584D", normal: "#4A4B41", dark: "#3D3D36" },
   gray:       { light: "#445561", normal: "#3A4852", dark: "#2F3B43" },
 };
-const ACCENT_SHADES = { light: "light", normal: "normal", dark: "dark" };
 
 export function countryColor(id) {
   if (!id) return "";
@@ -95,7 +94,7 @@ export function countryColor(id) {
   if (!c) return "";
   const shades = SCHEME_COLORS[c.scheme];
   if (!shades) return "";
-  return shades[ACCENT_SHADES[c.mapAccent] || "normal"];
+  return shades.light;
 }
 
 export function battleSideColors(b) {
