@@ -4,6 +4,7 @@ import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
 import { fmtDate, fmtNum, getValue, getPoints, normalizeRankRow, escapeHtml } from "../core/utils.js";
 import { nameCountry, nameRegion, nameUser, nameMu } from "./companies.js";
 import { clearBattleDetail, buildAndDownloadXLS, battleId } from "./battles.js";
+import { fetchBattleContracts, bountyAndContractsSectionHtml } from "./bounty.js";
 
 function orderIssuer(o) {
   if (o.mu) return nameMu(o.mu) || `MU ${String(o.mu).slice(-6)}`;
@@ -37,7 +38,7 @@ export async function loadBattleDetail(battle, bid, silent=false) {
   const k = apiKey(); if(!k) return;
   if (!silent) E.battleDetailPane.innerHTML = `<div style="padding:24px;color:var(--ink-dim)">Loading intelligence report…</div>`;
   try {
-    const [rUsrMerged, rMuMerged, rCtyMerged, rGpUsrAtk, rGpUsrDef, rGpMuAtk, rGpMuDef, rGpCtyAtk, rGpCtyDef, rOrdAtk, rOrdDef, rDetail] = await Promise.allSettled([
+    const [rUsrMerged, rMuMerged, rCtyMerged, rGpUsrAtk, rGpUsrDef, rGpMuAtk, rGpMuDef, rGpCtyAtk, rGpCtyDef, rOrdAtk, rOrdDef, rDetail, rContracts] = await Promise.allSettled([
       fetchTrpc("battleRanking.getRanking",{battleId:bid,dataType:"damage",type:"user",side:"merged"},k),
       fetchTrpc("battleRanking.getRanking",{battleId:bid,dataType:"damage",type:"mu",side:"merged"},k),
       fetchTrpc("battleRanking.getRanking",{battleId:bid,dataType:"damage",type:"country",side:"merged"},k),
@@ -50,6 +51,7 @@ export async function loadBattleDetail(battle, bid, silent=false) {
       fetchTrpc("battleOrder.getByBattle",{battleId:bid,side:"attacker"},k),
       fetchTrpc("battleOrder.getByBattle",{battleId:bid,side:"defender"},k),
       fetchTrpc("battle.getById",{battleId:bid},k),
+      fetchBattleContracts(bid),
     ]);
 
     const [rUsrAtk, rUsrDef] = await Promise.allSettled([
@@ -218,13 +220,15 @@ export async function loadBattleDetail(battle, bid, silent=false) {
       }));
     }
 
-    renderBattleDetail(bdDetail, bid, allUsers, allMu, allCountry, gpUsers, gpMu, gpCountry, allOrders, atkParticipantCount, defParticipantCount, roundsData, roundGpData);
+    const contracts = rContracts.status === "fulfilled" ? rContracts.value : { items: [], won: [], active: [], expired: [], totalBudget: 0, totalPayout: 0, side: { attacker: { count: 0, budget: 0, payout: 0 }, defender: { count: 0, budget: 0, payout: 0 } } };
+
+    renderBattleDetail(bdDetail, bid, allUsers, allMu, allCountry, gpUsers, gpMu, gpCountry, allOrders, atkParticipantCount, defParticipantCount, roundsData, roundGpData, contracts);
   } catch (err) {
     if (!silent) E.battleDetailPane.innerHTML = `<div class="status-msg error">${err.message||"Failed to load battle detail"}</div>`;
   }
 }
 
-function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpMu, gpCountry, orders, atkPar, defPar, roundsData, roundGpData) {
+function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpMu, gpCountry, orders, atkPar, defPar, roundsData, roundGpData, contracts) {
   const isTournament = b.type === "tournament";
   let atk, def, atkId, defId, atkAvatar, defAvatar;
   if (isTournament) {
@@ -381,6 +385,8 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
   <div class="br-narrative">${narrative}</div>`;
 
   html += battleScoreHtml;
+
+  html += bountyAndContractsSectionHtml(b, contracts);
 
   if (sortedRounds.length > 0) {
     html += `<div id="brRoundGpBars_${bid}">`;

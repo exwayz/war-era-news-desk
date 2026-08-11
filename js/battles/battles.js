@@ -200,7 +200,20 @@ function makeBattleCard(battle) {
   const cachedDmg = S.battleDamageCache.get(bid);
   const dispDmg = cachedDmg ?? battle.totalDamage ?? battle.damage;
   if (dispDmg) chipsData.push("⚔ "+fmtNum(dispDmg)+" DMG");
-  for (const txt of chipsData.slice(0,2)) {
+  const atkPerK = battle.attacker?.moneyPer1kDamages ?? battle.attackerMoneyPer1kDamages;
+  const defPerK = battle.defender?.moneyPer1kDamages ?? battle.defenderMoneyPer1kDamages;
+  const atkPool = battle.attacker?.moneyPool ?? battle.attackerMoneyPool;
+  const defPool = battle.defender?.moneyPool ?? battle.defenderMoneyPool;
+  const hasPerK = atkPerK != null || defPerK != null;
+  const poolTotal = (Number(atkPool)||0) + (Number(defPool)||0);
+  if (hasPerK || poolTotal > 0) {
+    const perK = atkPerK != null || defPerK != null ? (atkPerK ?? defPerK) : null;
+    const parts = [];
+    if (perK != null) parts.push("💰 $"+Number(perK)+"/1k DMG");
+    if (poolTotal > 0) parts.push("🏦 $"+fmtNum(poolTotal)+" pooled");
+    if (parts.length) chipsData.push(parts.join(" · "));
+  }
+  for (const txt of chipsData.slice(0,3)) {
     const c=document.createElement("span"); c.className="bc-chip"; c.textContent=txt; chips.append(c);
   }
 
