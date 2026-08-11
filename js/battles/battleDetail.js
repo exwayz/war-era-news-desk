@@ -4,7 +4,7 @@ import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
 import { fmtDate, fmtNum, getValue, getPoints, normalizeRankRow, escapeHtml } from "../core/utils.js";
 import { nameCountry, nameRegion, nameUser, nameMu } from "./companies.js";
 import { clearBattleDetail, buildAndDownloadXLS, battleId } from "./battles.js";
-import { fetchBattleContracts, bountyAndContractsSectionHtml } from "./bounty.js";
+import { fetchBattleContracts, bountySummaryHtml, bindBountySummaryButtons } from "./bounty.js";
 
 function orderIssuer(o) {
   if (o.mu) return nameMu(o.mu) || `MU ${String(o.mu).slice(-6)}`;
@@ -386,7 +386,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
 
   html += battleScoreHtml;
 
-  html += bountyAndContractsSectionHtml(b, contracts);
+  html += bountySummaryHtml(b, contracts);
 
   if (sortedRounds.length > 0) {
     html += `<div id="brRoundGpBars_${bid}">`;
@@ -567,6 +567,8 @@ ${Array.from({length:maxRows}).map((_,i)=>{
 
   E.battleDetailPane.innerHTML = html;
 
+  bindBountySummaryButtons(E.battleDetailPane, b, bid, contracts);
+
   document.getElementById("clearBattleDetailBtn")?.addEventListener("click", () => { clearBattleDetail(); });
 
   const roundTabContainer = document.getElementById(`brRoundTabs_${bid}`);
@@ -589,6 +591,7 @@ ${Array.from({length:maxRows}).map((_,i)=>{
     E.battleReportTitle.textContent = "Battle Report: "+title;
     E.battleReportMeta.textContent = `${isLive?"Live":"Ended"} · ${started?fmtDate(started):""}${ended?" → "+fmtDate(ended):""}`;
     E.battleReportContent.innerHTML = html.replace(/<div[^>]*>\s*<button[^>]*id="openFullReportBtn"[^>]*>[\s\S]*?<\/div>/,"");
+    bindBountySummaryButtons(E.battleReportContent, b, bid, contracts);
     if (E.openBattlePageBtn) {E.openBattlePageBtn.dataset.battleId = bid;}
     E.battleReportModal.classList.remove("hidden");
   });
