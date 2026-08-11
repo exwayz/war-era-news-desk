@@ -190,7 +190,7 @@ function sideBoxHtml(label, name, spent, count, perK, pool, color) {
 export function bountySummaryHtml(b, contracts, money) {
   const spend = battleSpend(b, contracts, money);
   const { atkName, defName } = battleNames(b);
-  const { atkColor, defColor } = battleSideColors(b);
+  const { atkText, defText } = battleSideColors(b);
   const hasAny = spend.atkSpent > 0 || spend.defSpent > 0 || spend.atkPerK != null || spend.defPerK != null;
   if (!hasAny) return "";
   return `<div class="br-section">
@@ -199,9 +199,9 @@ export function bountySummaryHtml(b, contracts, money) {
       <button class="btn-secondary" data-open-bounty style="padding:3px 10px;min-width:auto;font-size:.72rem">Open Report</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center">
-      ${sideBoxHtml("Attacker", atkName, spend.atkSpent, spend.atkCount, spend.atkPerK, spend.atkPool, atkColor)}
+      ${sideBoxHtml("Attacker", atkName, spend.atkSpent, spend.atkCount, spend.atkPerK, spend.atkPool, atkText)}
       <div style="font-size:.66rem;font-weight:800;color:var(--ink-dim);text-align:center">VS</div>
-      ${sideBoxHtml("Defender", defName, spend.defSpent, spend.defCount, spend.defPerK, spend.defPool, defColor)}
+      ${sideBoxHtml("Defender", defName, spend.defSpent, spend.defCount, spend.defPerK, spend.defPool, defText)}
     </div>
   </div>`;
 }
@@ -232,11 +232,12 @@ function spendRow(label, perK, count, budget, payout, moneyTotal, color) {
   </tr>`;
 }
 
-function contractCardHtml(x, atkName, defName, atkColor, defColor) {
+function contractCardHtml(x, atkName, defName, atkText, defText, atkColor, defColor) {
   const s = sideKey(x);
   const isDef = s === "defender";
   const sideName = isDef ? defName : atkName;
   const sideColor = isDef ? defColor : atkColor;
+  const sideTextColor = isDef ? defText : atkText;
   const bids = x.bids || [];
   const perK = (v) => Number.isFinite(Number(v)) ? Number(v) : "—";
   const bidsHtml = bids.length ? `
@@ -255,7 +256,7 @@ function contractCardHtml(x, atkName, defName, atkColor, defColor) {
   return `<div style="border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;margin-bottom:8px;background:var(--surface)">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-        <span style="font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:${sideColor};border:1px solid ${sideColor};border-radius:999px;padding:1px 8px">${escapeHtml(sideName)}</span>
+        <span style="font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:${sideTextColor};border:1px solid ${sideColor};border-radius:999px;padding:1px 8px">${escapeHtml(sideName)}</span>
         <span style="font-size:.7rem;font-weight:700">${statusLabel(x.status)}</span>
         ${x.professionalsOnly ? `<span style="font-size:.66rem;color:var(--ink-dim);border:1px solid var(--line);border-radius:999px;padding:1px 8px">👑 Pros only</span>` : ""}
         <span style="font-size:.66rem;color:var(--ink-dim)">duration ${Number(x.duration) || "—"} min</span>
@@ -338,7 +339,7 @@ export function bountyModalBodyHtml(b, contracts, money, filter = "all", moneyTy
   const c = contracts || { items: [], won: [], active: [], expired: [], totalBudget: 0, totalPayout: 0, totalSpent: 0, side: { attacker: { count: 0, budget: 0, payout: 0, spent: 0 }, defender: { count: 0, budget: 0, payout: 0, spent: 0 } } };
   const spend = battleSpend(b, c, money);
   const { atkName, defName } = battleNames(b);
-  const { atkColor, defColor } = battleSideColors(b);
+  const { atkColor, defColor, atkText, defText } = battleSideColors(b);
   const bid = b._id || b.battleId || b.id || "";
   const battleLink = bid ? ` <a href="https://app.warera.io/battle/${encodeURIComponent(bid)}" target="_blank" rel="noopener noreferrer" class="entity-link">Open battle in War Era</a>` : "";
   const totalMoney = spend.atkSpent + spend.defSpent;
@@ -363,7 +364,7 @@ export function bountyModalBodyHtml(b, contracts, money, filter = "all", moneyTy
   const filtered = filter === "all" ? c.items : c.items.filter(i => i.status === filter);
   const shown = filtered.slice(0, MAX_CARDS);
   const cards = shown.length
-    ? shown.map(x => contractCardHtml(x, atkName, defName, atkColor, defColor)).join("")
+    ? shown.map(x => contractCardHtml(x, atkName, defName, atkText, defText, atkColor, defColor)).join("")
     : `<p style="color:var(--ink-dim);text-align:center;padding:16px 0">No mercenary contracts in this status.</p>`;
   const moreNote = filtered.length > MAX_CARDS
     ? `<p style="font-size:.7rem;color:var(--ink-dim);margin:4px 0 0">Showing first ${MAX_CARDS} of ${filtered.length} contracts. Refine with the filter tabs above.</p>`
@@ -378,12 +379,12 @@ export function bountyModalBodyHtml(b, contracts, money, filter = "all", moneyTy
       <table class="rank-table"><thead>
         <tr><th>Side</th><th>Bounty / 1k</th><th>Contracts</th><th>Contract Budget</th><th>Contract Paid</th><th>Money Paid (Bounty+Contracts)</th></tr>
       </thead><tbody>
-        ${spendRow(atkName, spend.atkPerK, spend.atkCount, c.side.attacker.budget, c.side.attacker.payout, spend.atkSpent, atkColor)}
-        ${spendRow(defName, spend.defPerK, spend.defCount, c.side.defender.budget, c.side.defender.payout, spend.defSpent, defColor)}
+        ${spendRow(atkName, spend.atkPerK, spend.atkCount, c.side.attacker.budget, c.side.attacker.payout, spend.atkSpent, atkText)}
+        ${spendRow(defName, spend.defPerK, spend.defCount, c.side.defender.budget, c.side.defender.payout, spend.defSpent, defText)}
       </tbody></table>
       <p style="font-size:.7rem;color:var(--ink-dim);margin:6px 0 0">Money Paid = total public bounty paid out + mercenary contract payouts for the side, from the game's money ranking.</p>
     </div>
-    ${moneyRankingSectionHtml(money, moneyType, atkColor, defColor)}
+    ${moneyRankingSectionHtml(money, moneyType, atkText, defText)}
     <div class="br-section">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">
         <h3 class="br-section-title" style="margin:0">Mercenary Contracts (${c.items.length})</h3>

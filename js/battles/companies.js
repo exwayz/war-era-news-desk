@@ -110,24 +110,14 @@ function brightenHex(hex, amt) {
   return `#${[mix(c.r), mix(c.g), mix(c.b)].map(v => v.toString(16).padStart(2, "0")).join("")}`;
 }
 
-function darkenHex(hex, amt) {
-  const c = hexToRgb(hex);
-  if (!c) return "";
-  const mix = v => Math.round(v * (1 - amt));
-  return `#${[mix(c.r), mix(c.g), mix(c.b)].map(v => v.toString(16).padStart(2, "0")).join("")}`;
-}
-
 export function battleSideColors(b) {
   const atkId = b?.attacker?.country || b.attackerCountry || b.attacker?.countryId;
   const defId = b?.defender?.country || b.defenderCountry || b.defender?.countryId;
-  const atkBase = countryColor(atkId);
-  const defBase = countryColor(defId);
-  const isDark = document.documentElement.dataset.theme !== "light";
-  const adapt = (base, fallback) => base ? (isDark ? brightenHex(base, 0.5) : darkenHex(base, 0.4)) : fallback;
-  return {
-    atkColor: adapt(atkBase, "var(--blue)"),
-    defColor: adapt(defBase, "var(--red)"),
-  };
+  const atkColor = countryColor(atkId) || "var(--blue)";
+  const defColor = countryColor(defId) || "var(--red)";
+  const atkText = countryColor(atkId) ? brightenHex(atkColor, 0.25) : atkColor;
+  const defText = countryColor(defId) ? brightenHex(defColor, 0.25) : defColor;
+  return { atkColor, defColor, atkText, defText };
 }
 
 export function injectBattleSearchBar() {

@@ -255,7 +255,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     atkAvatar = atkCode ? `<img src="https://media.warera.io/images/flags/${atkCode.toLowerCase()}.svg" alt="" style="width:32px;display:block">` : "";
     defAvatar = defCode ? `<img src="https://media.warera.io/images/flags/${defCode.toLowerCase()}.svg" alt="" style="width:32px;display:block">` : "";
   }
-  const { atkColor, defColor } = battleSideColors(b);
+  const { atkColor, defColor, atkText, defText } = battleSideColors(b);
   const reg = nameRegion(b.defender?.region||b.defenderRegion||b.region);
   const isLive = !b.endedAt || b.isActive===true || b.active===true;
   const started = b.createdAt||b.startedAt||"";
@@ -346,9 +346,9 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
       ${rdStatus}
     </div>
     <div style="display:flex;justify-content:space-between;font-size:.76rem;margin-bottom:5px">
-      <span style="color:${atkColor};font-weight:800">${atk || "Attacker"} <strong>${fmtNum(atkPts)}</strong> pts</span>
+      <span style="color:${atkText};font-weight:800">${atk || "Attacker"} <strong>${fmtNum(atkPts)}</strong> pts</span>
       <span style="color:var(--ink-dim);font-size:.68rem">First to 300 wins</span>
-      <span style="color:${defColor};font-weight:800"><strong>${fmtNum(defPts)}</strong> pts ${def || "Defender"}</span>
+      <span style="color:${defText};font-weight:800"><strong>${fmtNum(defPts)}</strong> pts ${def || "Defender"}</span>
     </div>
     <div style="position:relative;height:16px;background:var(--line);overflow:hidden;display:flex;align-items:center;">
       <div style="position:absolute;left:0;top:0;bottom:0;width:${atkBarPct}%;background:${atkColor};transition:width .5s ease;"></div>
@@ -366,7 +366,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     <div>${atkAvatar}</div>
     <div style="display:flex;justify-content:center;align-items:center;gap:16px">
       <div style="text-align:center">
-        <div style="font-size:2rem;font-weight:900;color:${atkColor};line-height:1">${atkRoundsWon}</div>
+        <div style="font-size:2rem;font-weight:900;color:${atkText};line-height:1">${atkRoundsWon}</div>
         <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;color:var(--ink-dim);margin-top:2px">${atk||"Attacker"}</div>
       </div>
       <div style="text-align:center;color:var(--ink-dim)">
@@ -374,7 +374,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
         <div style="font-size:.66rem;margin-top:2px">First to ${roundsToWin} rounds wins</div>
       </div>
       <div style="text-align:center">
-        <div style="font-size:2rem;font-weight:900;color:${defColor};line-height:1">${defRoundsWon}</div>
+        <div style="font-size:2rem;font-weight:900;color:${defText};line-height:1">${defRoundsWon}</div>
         <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;color:var(--ink-dim);margin-top:2px">${def||"Defender"}</div>
       </div>
     </div>
@@ -405,12 +405,12 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
 
   html += `<div class="score-bar-wrap" style="margin-top:8px">
       <div class="score-bar-labels">
-        <span style="color:${atkColor};font-weight:800">${atk||"Attacker"} ${atkPct}%</span>
+        <span style="color:${atkText};font-weight:800">${atk||"Attacker"} ${atkPct}%</span>
         <span style="color:var(--ink-dim);font-size:.72rem">DAMAGE SHARE</span>
-        <span style="color:${defColor};font-weight:800">${defPct}% ${def||"Defender"}</span>
+        <span style="color:${defText};font-weight:800">${defPct}% ${def||"Defender"}</span>
       </div>
       <div class="score-bar">
-  <div style="width:${atkPct}%; background:${atkColor};"></div>
+  <div style="width:${atkPct}%; background:${atkColor}; border-right:2px solid rgba(255,255,255,0.65);"></div>
   <div style="width:${defPct}%; background:${defColor};"></div>
 </div>
     </div>`;
@@ -436,7 +436,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
   if (rankUsers.length) {
     html+=`<div class="br-section"><h3 class="br-section-title">⚔ Top 10 Fighters by Damage</h3>
     <table class="rank-table"><thead>
-    <tr><th colspan="3" style="color:${atkColor}">ATTACKER</th><th colspan="3" style="color:${defColor}">DEFENDER</th></tr>
+    <tr><th colspan="3" style="color:${atkText}">ATTACKER</th><th colspan="3" style="color:${defText}">DEFENDER</th></tr>
 <tr><th>#</th><th>Fighter</th><th>Damage</th><th>#</th><th>Fighter</th><th>Damage</th></tr>
 </thead><tbody>
 ${Array.from({length:maxRows},(_,i)=>{
@@ -455,7 +455,7 @@ ${Array.from({length:maxRows},(_,i)=>{
   if (gpUsers.length) {
     html+=`<div class="br-section"><h3 class="br-section-title">🏴 Top 10 Fighters by Ground Points</h3>
     <table class="rank-table"><thead>
-    <tr><th colspan="3" style="color:${atkColor}">ATTACKER</th><th colspan="3" style="color:${defColor}">DEFENDER</th></tr>
+    <tr><th colspan="3" style="color:${atkText}">ATTACKER</th><th colspan="3" style="color:${defText}">DEFENDER</th></tr>
 <tr><th>#</th><th>Fighter</th><th>Ground Points</th><th>#</th><th>Fighter</th><th>Ground Points</th></tr>
 </thead><tbody>
 ${Array.from({length:maxRowsUGP},(_,i)=>{
@@ -472,7 +472,7 @@ ${Array.from({length:maxRowsUGP},(_,i)=>{
     const defRankMu = rankMu.filter(r => r._side === "defender").sort((a,b) => getValue(b) - getValue(a)).slice(0,10);
     const maxRowsMu = Math.max(atkRankMu.length, defRankMu.length);
     html += `<div class="br-section"><h3 class="br-section-title">🎖 Top 10 Military Units by Damage</h3>
-    <table class="rank-table"><thead>    <tr><th colspan="3" style="color:${atkColor}">ATTACKER</th><th colspan="3" style="color:${defColor}">DEFENDER</th></tr>
+    <table class="rank-table"><thead>    <tr><th colspan="3" style="color:${atkText}">ATTACKER</th><th colspan="3" style="color:${defText}">DEFENDER</th></tr>
     <tr><th>#</th><th>Military Unit</th><th>Damage</th><th>#</th><th>Military Unit</th><th>Damage</th></tr></thead><tbody>
 ${Array.from({length:maxRowsMu},(_,i)=>{
   const a = atkRankMu[i]; const d = defRankMu[i];
@@ -488,7 +488,7 @@ ${Array.from({length:maxRowsMu},(_,i)=>{
     const defRankMuGP = gpMu.filter(r => r._side === "defender").sort((a,b) => getPoints(b) - getPoints(a)).slice(0,10);
     const maxRowsMuGP = Math.max(atkRankMuGP.length, defRankMuGP.length);
     html += `<div class="br-section"><h3 class="br-section-title">🎖 Top 10 Military Units by Ground Points</h3>
-    <table class="rank-table"><thead>    <tr><th colspan="3" style="color:${atkColor}">ATTACKER</th><th colspan="3" style="color:${defColor}">DEFENDER</th></tr>
+    <table class="rank-table"><thead>    <tr><th colspan="3" style="color:${atkText}">ATTACKER</th><th colspan="3" style="color:${defText}">DEFENDER</th></tr>
     <tr><th>#</th><th>Military Unit</th><th>Ground Points</th><th>#</th><th>Military Unit</th><th>Ground Points</th></tr></thead><tbody>
 ${Array.from({length:maxRowsMuGP},(_,i)=>{
   const a = atkRankMuGP[i]; const d = defRankMuGP[i];
@@ -504,7 +504,7 @@ ${Array.from({length:maxRowsMuGP},(_,i)=>{
     const defRankCountry = rankCountry.filter(r => r._side === "defender").sort((a,b)=>getValue(b)-getValue(a)).slice(0,10);
     const maxRowsCountry = Math.max(atkRankCountry.length, defRankCountry.length);
     html += `<div class="br-section"><h3 class="br-section-title">🌍 Top 10 Countries by Damage</h3>
-    <table class="rank-table"><thead>    <tr><th colspan="3" style="color:${atkColor}">ATTACKER</th><th colspan="3" style="color:${defColor}">DEFENDER</th></tr>
+    <table class="rank-table"><thead>    <tr><th colspan="3" style="color:${atkText}">ATTACKER</th><th colspan="3" style="color:${defText}">DEFENDER</th></tr>
     <tr><th>#</th><th>Country</th><th>Damage</th><th>#</th><th>Country</th><th>Damage</th></tr></thead><tbody>
 ${Array.from({length:maxRowsCountry},(_,i)=>{
   const a = atkRankCountry[i]; const d = defRankCountry[i];
@@ -520,7 +520,7 @@ ${Array.from({length:maxRowsCountry},(_,i)=>{
     const defRankCountryGP = gpCountry.filter(r => r._side === "defender").sort((a,b)=>getPoints(b)-getPoints(a)).slice(0,10);
     const maxRowsCountryGP = Math.max(atkRankCountryGP.length, defRankCountryGP.length);
     html += `<div class="br-section"><h3 class="br-section-title">🌍 Top 10 Countries by Ground Points</h3>
-    <table class="rank-table"><thead>    <tr><th colspan="3" style="color:${atkColor}">ATTACKER</th><th colspan="3" style="color:${defColor}">DEFENDER</th></tr>
+    <table class="rank-table"><thead>    <tr><th colspan="3" style="color:${atkText}">ATTACKER</th><th colspan="3" style="color:${defText}">DEFENDER</th></tr>
     <tr><th>#</th><th>Country</th><th>Ground Points</th><th>#</th><th>Country</th><th>Ground Points</th></tr></thead><tbody>
 ${Array.from({length:maxRowsCountryGP},(_,i)=>{
   const a = atkRankCountryGP[i]; const d = defRankCountryGP[i];
@@ -538,7 +538,7 @@ ${Array.from({length:maxRowsCountryGP},(_,i)=>{
     const maxRows = Math.max(atkOrders.length, defOrders.length);
     html+=`<div class="br-section"><h3 class="br-section-title">🎯 Battle Orders</h3>
     <table class="rank-table"><thead>
-<tr><th colspan="4" style="color:${atkColor}">ATTACKER</th><th colspan="4" style="color:${defColor}">DEFENDER</th></tr>
+<tr><th colspan="4" style="color:${atkText}">ATTACKER</th><th colspan="4" style="color:${defText}">DEFENDER</th></tr>
 <tr><th>Through</th><th>Issuer</th><th>Issued By</th><th>Priority</th><th>Through</th><th>Issuer</th><th>Issued By</th><th>Priority</th></tr>
 </thead><tbody>
 ${Array.from({length:maxRows}).map((_,i)=>{
