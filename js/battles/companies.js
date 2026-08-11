@@ -110,26 +110,23 @@ function brightenHex(hex, amt) {
   return `#${[mix(c.r), mix(c.g), mix(c.b)].map(v => v.toString(16).padStart(2, "0")).join("")}`;
 }
 
-function glowRgba(hex, alpha) {
-  const bright = brightenHex(hex, 0.55);
-  const c = hexToRgb(bright);
+function darkenHex(hex, amt) {
+  const c = hexToRgb(hex);
   if (!c) return "";
-  return `rgba(${c.r},${c.g},${c.b},${alpha})`;
+  const mix = v => Math.round(v * (1 - amt));
+  return `#${[mix(c.r), mix(c.g), mix(c.b)].map(v => v.toString(16).padStart(2, "0")).join("")}`;
 }
 
 export function battleSideColors(b) {
   const atkId = b?.attacker?.country || b.attackerCountry || b.attacker?.countryId;
   const defId = b?.defender?.country || b.defenderCountry || b.defender?.countryId;
-  const atkColor = countryColor(atkId) || "var(--blue)";
-  const defColor = countryColor(defId) || "var(--red)";
+  const atkBase = countryColor(atkId);
+  const defBase = countryColor(defId);
   const isDark = document.documentElement.dataset.theme !== "light";
+  const adapt = (base, fallback) => base ? (isDark ? brightenHex(base, 0.5) : darkenHex(base, 0.4)) : fallback;
   return {
-    atkColor,
-    defColor,
-    atkGlow: isDark ? glowRgba(atkColor, 0.7) : "",
-    defGlow: isDark ? glowRgba(defColor, 0.7) : "",
-    atkGlowStrong: isDark ? glowRgba(atkColor, 0.5) : "",
-    defGlowStrong: isDark ? glowRgba(defColor, 0.5) : "",
+    atkColor: adapt(atkBase, "var(--blue)"),
+    defColor: adapt(defBase, "var(--red)"),
   };
 }
 

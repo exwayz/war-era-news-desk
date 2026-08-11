@@ -14,8 +14,6 @@ let _modalData = null;
 let _bountyFilter = "all";
 let _moneyType = "users";
 
-const sideText = (color, glow) => glow ? `color:${color};text-shadow:0 0 3px ${glow}` : `color:${color}`;
-
 export function summarizeContracts(items) {
   const won = items.filter(i => i.status === "won");
   const active = items.filter(i => i.status === "active");
@@ -177,13 +175,13 @@ function battleNames(b) {
   return { atkName, defName };
 }
 
-function sideBoxHtml(label, name, spent, count, perK, pool, color, glow) {
+function sideBoxHtml(label, name, spent, count, perK, pool, color) {
   const parts = ["public bounty + contracts"];
   if (perK != null) parts.push(`$${Number(perK)}/1k`);
   if (count) parts.push(`${count} contract${count === 1 ? "" : "s"}`);
   if (pool > 0) parts.push(`${fmtMoney(pool)} pool left`);
   return `<div style="border:1px solid var(--line);border-radius:var(--radius);padding:8px 10px;background:var(--surface-hi)">
-    <div style="font-size:.62rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;${sideText(color, glow)}">${label} · ${escapeHtml(name)}</div>
+    <div style="font-size:.62rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:${color}">${label} · ${escapeHtml(name)}</div>
     <div style="font-size:1.15rem;font-weight:900;line-height:1.3">${fmtMoney(spent)} BTC</div>
     <div style="font-size:.66rem;color:var(--ink-dim)">${parts.join(" · ")}</div>
   </div>`;
@@ -192,7 +190,7 @@ function sideBoxHtml(label, name, spent, count, perK, pool, color, glow) {
 export function bountySummaryHtml(b, contracts, money) {
   const spend = battleSpend(b, contracts, money);
   const { atkName, defName } = battleNames(b);
-  const { atkColor, defColor, atkGlow, defGlow } = battleSideColors(b);
+  const { atkColor, defColor } = battleSideColors(b);
   const hasAny = spend.atkSpent > 0 || spend.defSpent > 0 || spend.atkPerK != null || spend.defPerK != null;
   if (!hasAny) return "";
   return `<div class="br-section">
@@ -201,9 +199,9 @@ export function bountySummaryHtml(b, contracts, money) {
       <button class="btn-secondary" data-open-bounty style="padding:3px 10px;min-width:auto;font-size:.72rem">Open Report</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center">
-      ${sideBoxHtml("Attacker", atkName, spend.atkSpent, spend.atkCount, spend.atkPerK, spend.atkPool, atkColor, atkGlow)}
+      ${sideBoxHtml("Attacker", atkName, spend.atkSpent, spend.atkCount, spend.atkPerK, spend.atkPool, atkColor)}
       <div style="font-size:.66rem;font-weight:800;color:var(--ink-dim);text-align:center">VS</div>
-      ${sideBoxHtml("Defender", defName, spend.defSpent, spend.defCount, spend.defPerK, spend.defPool, defColor, defGlow)}
+      ${sideBoxHtml("Defender", defName, spend.defSpent, spend.defCount, spend.defPerK, spend.defPool, defColor)}
     </div>
   </div>`;
 }
@@ -222,10 +220,10 @@ function statBox(val, label, extraStyle) {
   return `<div class="br-stat-box"${extraStyle ? ` style="${extraStyle}"` : ""}><span class="br-stat-val">${val}</span><span class="br-stat-lbl">${label}</span></div>`;
 }
 
-function spendRow(label, perK, count, budget, payout, moneyTotal, color, glow) {
+function spendRow(label, perK, count, budget, payout, moneyTotal, color) {
   const perKStr = perK != null ? `$${Number(perK)} / 1k DMG` : "—";
   return `<tr>
-    <td style="font-weight:800;${sideText(color, glow)}">${escapeHtml(label)}</td>
+    <td style="font-weight:800;color:${color}">${escapeHtml(label)}</td>
     <td>${perKStr}</td>
     <td>${count}</td>
     <td>${fmtMoney(budget)}</td>
@@ -234,12 +232,11 @@ function spendRow(label, perK, count, budget, payout, moneyTotal, color, glow) {
   </tr>`;
 }
 
-function contractCardHtml(x, atkName, defName, atkColor, defColor, atkGlow, defGlow) {
+function contractCardHtml(x, atkName, defName, atkColor, defColor) {
   const s = sideKey(x);
   const isDef = s === "defender";
   const sideName = isDef ? defName : atkName;
   const sideColor = isDef ? defColor : atkColor;
-  const sideGlow = isDef ? defGlow : atkGlow;
   const bids = x.bids || [];
   const perK = (v) => Number.isFinite(Number(v)) ? Number(v) : "—";
   const bidsHtml = bids.length ? `
@@ -258,7 +255,7 @@ function contractCardHtml(x, atkName, defName, atkColor, defColor, atkGlow, defG
   return `<div style="border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;margin-bottom:8px;background:var(--surface)">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-        <span style="font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:${sideColor};border:1px solid ${sideColor};border-radius:999px;padding:1px 8px;${sideGlow ? `box-shadow:0 0 8px ${sideGlow};` : ""}">${escapeHtml(sideName)}</span>
+        <span style="font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:${sideColor};border:1px solid ${sideColor};border-radius:999px;padding:1px 8px">${escapeHtml(sideName)}</span>
         <span style="font-size:.7rem;font-weight:700">${statusLabel(x.status)}</span>
         ${x.professionalsOnly ? `<span style="font-size:.66rem;color:var(--ink-dim);border:1px solid var(--line);border-radius:999px;padding:1px 8px">👑 Pros only</span>` : ""}
         <span style="font-size:.66rem;color:var(--ink-dim)">duration ${Number(x.duration) || "—"} min</span>
@@ -311,7 +308,7 @@ function moneySideBySide(atkArr, defArr, type) {
   return rows.join("");
 }
 
-function moneyRankingSectionHtml(money, moneyType, atkColor, defColor, atkGlow, defGlow) {
+function moneyRankingSectionHtml(money, moneyType, atkColor, defColor) {
   const atk = money?.atk;
   const def = money?.def;
   if (!atk || !def || (!atk.users.length && !def.users.length)) return "";
@@ -328,7 +325,7 @@ function moneyRankingSectionHtml(money, moneyType, atkColor, defColor, atkGlow, 
       <div style="display:flex;gap:6px">${tabs}</div>
     </div>
     <table class="rank-table"><thead>
-      <tr><th colspan="3" style="${sideText(atkColor, atkGlow)}">ATTACKER · ${fmtMoney(atk.total)} BTC</th><th colspan="3" style="${sideText(defColor, defGlow)}">DEFENDER · ${fmtMoney(def.total)} BTC</th></tr>
+      <tr><th colspan="3" style="color:${atkColor}">ATTACKER · ${fmtMoney(atk.total)} BTC</th><th colspan="3" style="color:${defColor}">DEFENDER · ${fmtMoney(def.total)} BTC</th></tr>
       <tr><th>#</th><th>${typeLabel}</th><th>Earned</th><th>#</th><th>${typeLabel}</th><th>Earned</th></tr>
     </thead><tbody>
       ${moneySideBySide(atk[typeKey], def[typeKey], typeKey)}
@@ -341,7 +338,7 @@ export function bountyModalBodyHtml(b, contracts, money, filter = "all", moneyTy
   const c = contracts || { items: [], won: [], active: [], expired: [], totalBudget: 0, totalPayout: 0, totalSpent: 0, side: { attacker: { count: 0, budget: 0, payout: 0, spent: 0 }, defender: { count: 0, budget: 0, payout: 0, spent: 0 } } };
   const spend = battleSpend(b, c, money);
   const { atkName, defName } = battleNames(b);
-  const { atkColor, defColor, atkGlow, defGlow } = battleSideColors(b);
+  const { atkColor, defColor } = battleSideColors(b);
   const bid = b._id || b.battleId || b.id || "";
   const battleLink = bid ? ` <a href="https://app.warera.io/battle/${encodeURIComponent(bid)}" target="_blank" rel="noopener noreferrer" class="entity-link">Open battle in War Era</a>` : "";
   const totalMoney = spend.atkSpent + spend.defSpent;
@@ -366,7 +363,7 @@ export function bountyModalBodyHtml(b, contracts, money, filter = "all", moneyTy
   const filtered = filter === "all" ? c.items : c.items.filter(i => i.status === filter);
   const shown = filtered.slice(0, MAX_CARDS);
   const cards = shown.length
-    ? shown.map(x => contractCardHtml(x, atkName, defName, atkColor, defColor, atkGlow, defGlow)).join("")
+    ? shown.map(x => contractCardHtml(x, atkName, defName, atkColor, defColor)).join("")
     : `<p style="color:var(--ink-dim);text-align:center;padding:16px 0">No mercenary contracts in this status.</p>`;
   const moreNote = filtered.length > MAX_CARDS
     ? `<p style="font-size:.7rem;color:var(--ink-dim);margin:4px 0 0">Showing first ${MAX_CARDS} of ${filtered.length} contracts. Refine with the filter tabs above.</p>`
@@ -381,12 +378,12 @@ export function bountyModalBodyHtml(b, contracts, money, filter = "all", moneyTy
       <table class="rank-table"><thead>
         <tr><th>Side</th><th>Bounty / 1k</th><th>Contracts</th><th>Contract Budget</th><th>Contract Paid</th><th>Money Paid (Bounty+Contracts)</th></tr>
       </thead><tbody>
-        ${spendRow(atkName, spend.atkPerK, spend.atkCount, c.side.attacker.budget, c.side.attacker.payout, spend.atkSpent, atkColor, atkGlow)}
-        ${spendRow(defName, spend.defPerK, spend.defCount, c.side.defender.budget, c.side.defender.payout, spend.defSpent, defColor, defGlow)}
+        ${spendRow(atkName, spend.atkPerK, spend.atkCount, c.side.attacker.budget, c.side.attacker.payout, spend.atkSpent, atkColor)}
+        ${spendRow(defName, spend.defPerK, spend.defCount, c.side.defender.budget, c.side.defender.payout, spend.defSpent, defColor)}
       </tbody></table>
       <p style="font-size:.7rem;color:var(--ink-dim);margin:6px 0 0">Money Paid = total public bounty paid out + mercenary contract payouts for the side, from the game's money ranking.</p>
     </div>
-    ${moneyRankingSectionHtml(money, moneyType, atkColor, defColor, atkGlow, defGlow)}
+    ${moneyRankingSectionHtml(money, moneyType, atkColor, defColor)}
     <div class="br-section">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">
         <h3 class="br-section-title" style="margin:0">Mercenary Contracts (${c.items.length})</h3>
