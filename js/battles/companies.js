@@ -97,12 +97,39 @@ export function countryColor(id) {
   return shades.light;
 }
 
+function hexToRgb(hex) {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || "");
+  if (!m) return null;
+  return { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) };
+}
+
+function brightenHex(hex, amt) {
+  const c = hexToRgb(hex);
+  if (!c) return "";
+  const mix = v => Math.round(v + (255 - v) * amt);
+  return `#${[mix(c.r), mix(c.g), mix(c.b)].map(v => v.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function glowRgba(hex, alpha) {
+  const bright = brightenHex(hex, 0.55);
+  const c = hexToRgb(bright);
+  if (!c) return "";
+  return `rgba(${c.r},${c.g},${c.b},${alpha})`;
+}
+
 export function battleSideColors(b) {
   const atkId = b?.attacker?.country || b.attackerCountry || b.attacker?.countryId;
   const defId = b?.defender?.country || b.defenderCountry || b.defender?.countryId;
+  const atkColor = countryColor(atkId) || "var(--blue)";
+  const defColor = countryColor(defId) || "var(--red)";
+  const isDark = document.documentElement.dataset.theme !== "light";
   return {
-    atkColor: countryColor(atkId) || "var(--blue)",
-    defColor: countryColor(defId) || "var(--red)",
+    atkColor,
+    defColor,
+    atkGlow: isDark ? glowRgba(atkColor, 0.2) : "",
+    defGlow: isDark ? glowRgba(defColor, 0.2) : "",
+    atkGlowStrong: isDark ? glowRgba(atkColor, 0.45) : "",
+    defGlowStrong: isDark ? glowRgba(defColor, 0.45) : "",
   };
 }
 
