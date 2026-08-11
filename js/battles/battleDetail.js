@@ -464,17 +464,29 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
 
   const anyRank = [rankUsers, gpUsers, rankMu, gpMu, rankCountry, gpCountry].some(l => l && l.length);
   if (anyRank) {
+    const rankCatPills = [
+      ["damage", "💥 Damage"],
+      ["points", "🏴 Ground Points"],
+    ];
+    const rankTypePills = [
+      ["users", "Users"],
+      ["mus", "MUs"],
+      ["countries", "Countries"],
+    ];
+    const rankPillHtml = (list, group, defaultVal) => list.map(([val, label]) =>
+      `<button class="pill-btn${val === defaultVal ? " active" : ""}" data-rank-${group}="${val}" style="font-size:.72rem">${label}</button>`
+    ).join("");
+    const rankTablesHtml = rankCatPills.map(([cat]) => rankTypePills.map(([type]) =>
+      `<div data-rank-table="${cat}-${type}" style="${cat === "damage" && type === "users" ? "" : "display:none"}">${rankTableHtml(cat, type)}</div>`
+    ).join("")).join("");
     html += `<div class="br-section">
       <h3 class="br-section-title">🏆 Rankings</h3>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
-        <button class="pill-btn active" data-rank-cat="damage" style="font-size:.72rem">💥 Damage</button>
-        <button class="pill-btn" data-rank-cat="points" style="font-size:.72rem">🏴 Ground Points</button>
+      <div id="brRankTabs_${bid}" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+        ${rankPillHtml(rankCatPills, "cat", "damage")}
         <span style="width:10px"></span>
-        <button class="pill-btn active" data-rank-type="users" style="font-size:.72rem">Users</button>
-        <button class="pill-btn" data-rank-type="mus" style="font-size:.72rem">MUs</button>
-        <button class="pill-btn" data-rank-type="countries" style="font-size:.72rem">Countries</button>
+        ${rankPillHtml(rankTypePills, "type", "users")}
       </div>
-      <div id="brRankTable_${bid}">${rankTableHtml("damage", "users")}</div>
+      <div id="brRankTables_${bid}">${rankTablesHtml}</div>
     </div>`;
   }
 
@@ -522,19 +534,20 @@ ${Array.from({length:maxRows}).map((_,i)=>{
   bindBountySummaryButtons(E.battleDetailPane, b, bid, contracts);
 
   function bindRankTabs(root) {
-    const tableEl = root?.querySelector(`#brRankTable_${bid}`);
-    if (!tableEl) return;
+    const tableBox = root?.querySelector(`#brRankTables_${bid}`);
+    if (!tableBox) return;
+    const syncRankTables = () => {
+      const cat = root.querySelector("[data-rank-cat].active")?.dataset.rankCat || "damage";
+      const type = root.querySelector("[data-rank-type].active")?.dataset.rankType || "users";
+      tableBox.querySelectorAll("[data-rank-table]").forEach(t => {
+        t.style.display = t.dataset.rankTable === `${cat}-${type}` ? "block" : "none";
+      });
+    };
     root.querySelectorAll("[data-rank-cat], [data-rank-type]").forEach(btn => {
       btn.addEventListener("click", () => {
-        root.querySelectorAll("[data-rank-cat], [data-rank-type]").forEach(other => {
-          if (other === btn) return;
-          const sameGroup = btn.dataset.rankCat ? other.dataset.rankCat === btn.dataset.rankCat : other.dataset.rankType === btn.dataset.rankType;
-          if (sameGroup) other.classList.remove("active");
-        });
-        btn.classList.add("active");
-        const cat = root.querySelector("[data-rank-cat].active")?.dataset.rankCat || "damage";
-        const type = root.querySelector("[data-rank-type].active")?.dataset.rankType || "users";
-        tableEl.innerHTML = rankTableHtml(cat, type);
+        const group = btn.hasAttribute("data-rank-cat") ? "data-rank-cat" : "data-rank-type";
+        root.querySelectorAll(`[${group}]`).forEach(other => other.classList.toggle("active", other === btn));
+        syncRankTables();
       });
     });
   }
