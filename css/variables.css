@@ -20,6 +20,9 @@
   --purple:          #a78bfa;
   --orange:          #fb923c;
   --cyan:            #22d3ee;
+  --gold:            #f2c94c;
+  --silver:          #cfd3da;
+  --bronze:          #e0a066;
   --surface:         #1a1a1a;
   --surface-hi:      #242424;
 }
@@ -45,6 +48,9 @@
   --purple:          #7c3aed;
   --orange:          #e65100;
   --cyan:            #0097a7;
+  --gold:            #a87800;
+  --silver:          #7d828c;
+  --bronze:          #a85f2f;
   --surface:         #f0f0d0;
   --surface-hi:      #e8e8c8;
 }

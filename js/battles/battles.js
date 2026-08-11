@@ -256,10 +256,10 @@ function makeBattleCard(battle) {
 
   const chips = node.querySelector(".bc-chips");
   const chipsData = [];
-  if (battle.participants?.length||battle.participantCount) chipsData.push("👥 "+(battle.participants?.length||battle.participantCount||"?")+" fighters");
+  if (battle.participants?.length||battle.participantCount) chipsData.push(`<iconify-icon icon="mdi:account-group-outline" class="lu"></iconify-icon> ${battle.participants?.length||battle.participantCount||"?"} fighters`);
   const cachedDmg = S.battleDamageCache.get(bid);
   const dispDmg = cachedDmg ?? battle.totalDamage ?? battle.damage;
-  if (dispDmg) chipsData.push("⚔ "+fmtNum(dispDmg)+" DMG");
+  if (dispDmg) chipsData.push(`<iconify-icon icon="mdi:sword-cross" class="lu"></iconify-icon> ${fmtNum(dispDmg)} DMG`);
   const atkPerK = battle.attacker?.moneyPer1kDamages ?? battle.attackerMoneyPer1kDamages;
   const defPerK = battle.defender?.moneyPer1kDamages ?? battle.defenderMoneyPer1kDamages;
   const atkPool = battle.attacker?.moneyPool ?? battle.attackerMoneyPool;
@@ -269,12 +269,12 @@ function makeBattleCard(battle) {
   if (hasPerK || poolTotal > 0) {
     const perK = atkPerK != null || defPerK != null ? (atkPerK ?? defPerK) : null;
     const parts = [];
-    if (perK != null) parts.push("💰 $"+Number(perK)+"/1k DMG");
-    if (poolTotal > 0) parts.push("🏦 $"+fmtNum(poolTotal)+" pooled");
+    if (perK != null) parts.push(`<iconify-icon icon="mdi:cash" class="lu"></iconify-icon> $${Number(perK)}/1k DMG`);
+    if (poolTotal > 0) parts.push(`<iconify-icon icon="mdi:bank-outline" class="lu"></iconify-icon> $${fmtNum(poolTotal)} pooled`);
     if (parts.length) chipsData.push(parts.join(" · "));
   }
   for (const txt of chipsData.slice(0,3)) {
-    const c=document.createElement("span"); c.className="bc-chip"; c.textContent=txt; chips.append(c);
+    const c=document.createElement("span"); c.className="bc-chip"; c.innerHTML=txt; chips.append(c);
   }
 
   const btn = node.querySelector(".bc-select");

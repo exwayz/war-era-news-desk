@@ -1,6 +1,6 @@
 import { E } from "../core/dom.js";
 import { apiKey, fetchTrpcApi2, unwrap } from "../core/api.js";
-import { fmtMoney, fmtNum, fmtDate, escapeHtml } from "../core/utils.js";
+import { fmtMoney, fmtNum, fmtDate, escapeHtml, rankBadgeHtml } from "../core/utils.js";
 import { resolveEntityByType } from "../core/resolver.js";
 import { nameCountry, nameMu, nameUser, nameRegion, battleSideColors } from "./companies.js";
 
@@ -154,12 +154,13 @@ export function contractWinnerHtml(c) {
 }
 
 function statusLabel(s) {
-  if (s === "won") return "💰 Won";
-  if (s === "active") return "🟢 Active";
-  if (s === "expiredNoBids") return "💤 No bids";
-  if (s === "cancelled") return "✖ Cancelled";
-  if (s === "expiredBattle") return "⚰ Battle ended";
-  if (s === "expiredRound") return "🔁 Round ended";
+  const icon = (name, color) => `<iconify-icon icon="${name}" class="lu"${color ? ` style="color:${color}"` : ""}></iconify-icon>`;
+  if (s === "won") return `${icon("mdi:cash")} Won`;
+  if (s === "active") return `${icon("mdi:check-circle-outline", "var(--green)")} Active`;
+  if (s === "expiredNoBids") return `${icon("mdi:sleep")} No bids`;
+  if (s === "cancelled") return `${icon("mdi:cancel")} Cancelled`;
+  if (s === "expiredBattle") return `${icon("mdi:history")} Battle ended`;
+  if (s === "expiredRound") return `${icon("mdi:reload")} Round ended`;
   return s || "—";
 }
 
@@ -195,7 +196,7 @@ export function bountySummaryHtml(b, contracts, money) {
   if (!hasAny) return "";
   return `<div class="br-section">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <h3 class="br-section-title" style="margin:0">💰 Bounty &amp; Mercenaries</h3>
+      <h3 class="br-section-title" style="margin:0"><iconify-icon icon="mdi:hand-coin" class="lu"></iconify-icon> Bounty &amp; Mercenaries</h3>
       <button class="btn-secondary" data-open-bounty style="padding:3px 10px;min-width:auto;font-size:.72rem">Open Report</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center">
@@ -258,7 +259,7 @@ function contractCardHtml(x, atkName, defName, atkText, defText, atkColor, defCo
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
         <span style="font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:${sideTextColor};border:1px solid ${sideColor};border-radius:999px;padding:1px 8px">${escapeHtml(sideName)}</span>
         <span style="font-size:.7rem;font-weight:700">${statusLabel(x.status)}</span>
-        ${x.professionalsOnly ? `<span style="font-size:.66rem;color:var(--ink-dim);border:1px solid var(--line);border-radius:999px;padding:1px 8px">👑 Pros only</span>` : ""}
+        ${x.professionalsOnly ? `<span style="font-size:.66rem;color:var(--ink-dim);border:1px solid var(--line);border-radius:999px;padding:1px 8px"><iconify-icon icon="mdi:crown-outline" class="lu"></iconify-icon> Pros only</span>` : ""}
         <span style="font-size:.66rem;color:var(--ink-dim)">duration ${Number(x.duration) || "—"} min</span>
       </div>
       <div style="font-size:.66rem;color:var(--ink-dim)">${fmtDate(x.createdAt)} → ${fmtDate(x.expiresAt)}</div>
@@ -292,8 +293,7 @@ function moneyEntityNameLink(r, type) {
 }
 
 function moneyCell(rank, name, url, value) {
-  const badge = rank <= 3 ? (rank === 1 ? "🥇" : rank === 2 ? "🥈" : "🥉") : rank;
-  return `<td>${badge}</td><td><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="entity-link">${escapeHtml(name)}</a></td><td style="font-weight:700">${fmtMoney(value)}</td>`;
+  return `<td>${rankBadgeHtml(rank)}</td><td><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="entity-link">${escapeHtml(name)}</a></td><td style="font-weight:700">${fmtMoney(value)}</td>`;
 }
 
 function moneySideBySide(atkArr, defArr, type) {
@@ -322,7 +322,7 @@ function moneyRankingSectionHtml(money, moneyType, atkColor, defColor) {
   ].map(([k, lab]) => `<button class="pill-btn${moneyType === k ? " active" : ""}" data-money-type="${k}" style="font-size:.72rem">${lab}</button>`).join("");
   return `<div class="br-section">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">
-      <h3 class="br-section-title" style="margin:0">💰 Money Ranking — Who Earned What</h3>
+      <h3 class="br-section-title" style="margin:0"><iconify-icon icon="mdi:cash-multiple" class="lu"></iconify-icon> Money Ranking — Who Earned What</h3>
       <div style="display:flex;gap:6px">${tabs}</div>
     </div>
     <table class="rank-table"><thead>

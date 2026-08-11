@@ -29,6 +29,13 @@ export function escapeHtml(s) {
   return String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
 
+// Playfair Display rank number; top 3 tinted gold/silver/bronze, the rest plain.
+export function rankBadgeHtml(rank) {
+  const n = Number(rank);
+  const color = n === 1 ? "var(--gold)" : n === 2 ? "var(--silver)" : n === 3 ? "var(--bronze)" : "";
+  return `<span style="font-family:var(--font-ui);font-weight:700;${color ? `color:${color};` : ""}">${n}</span>`;
+}
+
 export function escapeXml(v) {
   return String(v ?? "")
     .replace(/&/g, "&amp;")

@@ -1,7 +1,7 @@
 import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
 import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
-import { fmtDate, fmtNum, getValue, getPoints, normalizeRankRow, escapeHtml } from "../core/utils.js";
+import { fmtDate, fmtNum, getValue, getPoints, normalizeRankRow, escapeHtml, rankBadgeHtml } from "../core/utils.js";
 import { nameCountry, nameRegion, nameUser, nameMu, battleSideColors } from "./companies.js";
 import { clearBattleDetail, buildAndDownloadXLS, battleId } from "./battles.js";
 import { fetchBattleContracts, fetchBattleMoney, bountySummaryHtml, bindBountySummaryButtons } from "./bounty.js";
@@ -314,7 +314,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     ${sortedRounds.map((rd,i)=>{
       const rdWinner = rd.wonBy === "attacker" ? (atk||"ATK") : rd.wonBy === "defender" ? (def||"DEF") : null;
       const isActive = (rd.isActive===true || rd._isCurrent===true || !rd.endedAt) && !rdWinner;
-      const badge = rdWinner ? `<span style="font-size:.6rem;margin-left:3px">🏆</span>` : isActive ? `<span style="color:var(--red);font-size:.6rem;margin-left:3px">●</span>` : "";
+      const badge = rdWinner ? `<iconify-icon icon="mdi:trophy" class="lu" style="font-size:.6rem;margin-left:3px"></iconify-icon>` : isActive ? `<span style="color:var(--red);font-size:.6rem;margin-left:3px">●</span>` : "";
       return `<button class="pill-btn${i===sortedRounds.length-1?" active":""}" data-round-idx="${i}" data-round-tab-bid="${bid}" style="font-size:.72rem">Round ${i+1}${badge}</button>`;
     }).join("")}
     <button class="pill-btn active" data-round-idx="overall" data-round-tab-bid="${bid}" style="font-size:.72rem">Overall</button>
@@ -335,9 +335,9 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     const defBarPct = Math.round((safeDef / MAX_GP) * 50);
     const rdWinner = rd?.wonBy === "attacker" ? (atk || "Attacker") : rd?.wonBy === "defender" ? (def || "Defender") : null;
     const rdStatus = rdWinner
-      ? `<span style="color:var(--green);font-size:.72rem">🏆 Won by ${rdWinner}</span>`
+      ? `<span style="color:var(--green);font-size:.72rem"><iconify-icon icon="mdi:trophy" class="lu"></iconify-icon> Won by ${rdWinner}</span>`
       : (rd?.isActive === true || rd?._isCurrent === true || !rd?.endedAt)
-      ? `<span style="color:var(--red);font-size:.72rem">🔴 Active</span>`
+      ? `<span style="color:var(--red);font-size:.72rem">● Active</span>`
       : `<span style="color:var(--ink-dim);font-size:.72rem">Ended</span>`;
 
     return `<div class="br-section" style="margin-bottom:14px">
@@ -426,10 +426,10 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
       ${reg?`<div class="br-stat-box"><span class="br-stat-val" style="font-size:.82rem">${reg}</span><span class="br-stat-lbl">Region</span></div>`:""}
       ${started?`<div class="br-stat-box"><span class="br-stat-val" style="font-size:.72rem">${fmtDate(started)}</span><span class="br-stat-lbl">Started</span></div>`:""}
       ${ended?`<div class="br-stat-box"><span class="br-stat-val" style="font-size:.72rem">${fmtDate(ended)}</span><span class="br-stat-lbl">Ended</span></div>`:""}
-      ${winner?`<div class="br-stat-box" style="border-color:var(--green)"><span class="br-stat-val">🏆 ${winner}</span><span class="br-stat-lbl">Winner</span></div>`:""}
+      ${winner?`<div class="br-stat-box" style="border-color:var(--green)"><span class="br-stat-val"><iconify-icon icon="mdi:trophy" class="lu"></iconify-icon> ${winner}</span><span class="br-stat-lbl">Winner</span></div>`:""}
     </div></div>`;
 
-  const rankRowMedal = i => i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1;
+  const rankRowNum = i => rankBadgeHtml(i + 1);
 
   const rankConfig = {
     damage: { value: getValue, label: "Damage", sources: { users: rankUsers, mus: rankMu, countries: rankCountry } },
@@ -452,8 +452,8 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     const maxRows = Math.max(atkRank.length, defRank.length);
     const rows = Array.from({ length: maxRows }, (_, i) => {
       const a = atkRank[i], d = defRank[i];
-      const atkHtml = a ? `<td>${rankRowMedal(i)}</td><td>${makeEntityLink(ent.name(a) || "Unknown", ent.link(a))}</td><td>${fmtNum(cfg.value(a))}</td>` : `<td></td><td></td><td></td>`;
-      const defHtml = d ? `<td>${rankRowMedal(i)}</td><td>${makeEntityLink(ent.name(d) || "Unknown", ent.link(d))}</td><td>${fmtNum(cfg.value(d))}</td>` : `<td></td><td></td><td></td>`;
+      const atkHtml = a ? `<td>${rankRowNum(i)}</td><td>${makeEntityLink(ent.name(a) || "Unknown", ent.link(a))}</td><td>${fmtNum(cfg.value(a))}</td>` : `<td></td><td></td><td></td>`;
+      const defHtml = d ? `<td>${rankRowNum(i)}</td><td>${makeEntityLink(ent.name(d) || "Unknown", ent.link(d))}</td><td>${fmtNum(cfg.value(d))}</td>` : `<td></td><td></td><td></td>`;
       return `<tr>${atkHtml}${defHtml}</tr>`;
     }).join("");
     return `<table class="rank-table"><thead>
@@ -465,8 +465,8 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
   const anyRank = [rankUsers, gpUsers, rankMu, gpMu, rankCountry, gpCountry].some(l => l && l.length);
   if (anyRank) {
     const rankCatPills = [
-      ["damage", "💥 Damage"],
-      ["points", "🏴 Ground Points"],
+      ["damage", `<iconify-icon icon="mdi:sword-cross" class="lu"></iconify-icon> Damage`],
+      ["points", `<iconify-icon icon="mdi:flag" class="lu"></iconify-icon> Ground Points`],
     ];
     const rankTypePills = [
       ["users", "Users"],
@@ -480,7 +480,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
       `<div data-rank-table="${cat}-${type}" style="${cat === "damage" && type === "users" ? "" : "display:none"}">${rankTableHtml(cat, type)}</div>`
     ).join("")).join("");
     html += `<div class="br-section">
-      <h3 class="br-section-title">🏆 Rankings</h3>
+      <h3 class="br-section-title"><iconify-icon icon="mdi:podium" class="lu"></iconify-icon> Rankings</h3>
       <div id="brRankTabs_${bid}" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
         ${rankPillHtml(rankCatPills, "cat", "damage")}
         <span style="width:10px"></span>
@@ -495,7 +495,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     const atkOrders = orders.filter(o => (o.side || o.attackerDefender || o._side) === "attacker").sort((a, b) => (priorityRank[b.priority?.toLowerCase()] || 0) - (priorityRank[a.priority?.toLowerCase()] || 0));
     const defOrders = orders.filter(o => (o.side || o.attackerDefender || o._side) === "defender").sort((a, b) => (priorityRank[b.priority?.toLowerCase()] || 0) - (priorityRank[a.priority?.toLowerCase()] || 0));
     const maxRows = Math.max(atkOrders.length, defOrders.length);
-    html+=`<div class="br-section"><h3 class="br-section-title">🎯 Battle Orders</h3>
+    html+=`<div class="br-section"><h3 class="br-section-title"><iconify-icon icon="mdi:bullseye-arrow" class="lu"></iconify-icon> Battle Orders</h3>
     <table class="rank-table"><thead>
 <tr><th colspan="4" style="color:${atkText}">ATTACKER</th><th colspan="4" style="color:${defText}">DEFENDER</th></tr>
 <tr><th>Through</th><th>Issuer</th><th>Issued By</th><th>Priority</th><th>Through</th><th>Issuer</th><th>Issued By</th><th>Priority</th></tr>
@@ -517,15 +517,15 @@ ${Array.from({length:maxRows}).map((_,i)=>{
 </tbody></table></div>`;
   }
 
-  if (isLive) html+=`<p style="text-align:center;color:var(--ink-dim);font-size:.76rem;padding:6px 0">🔄 Auto-refreshing every 8 s</p>`;
+  if (isLive) html+=`<p style="text-align:center;color:var(--ink-dim);font-size:.76rem;padding:6px 0"><iconify-icon icon="mdi:sync" class="lu nd-spin"></iconify-icon> Auto-refreshing every 8 s</p>`;
 
   const startedDate = new Date(started);
   const endedDate = ended ? new Date(ended) : new Date();
   const durationMs = endedDate - startedDate;
   const durationStr = durationMs > 0 ? formatDuration(durationMs) : "";
   html+=`<div style="padding:8px 0;display:flex;gap:8px;flex-wrap:wrap">
-    <button class="btn-primary" id="openFullReportBtn" style="flex:1">📄 Open Full Report</button>
-    <button class="btn-secondary" id="exportBattleXlsBtn" style="flex:1">📊 Export XLS</button>
+    <button class="btn-primary" id="openFullReportBtn" style="flex:1"><iconify-icon icon="mdi:file-document-outline" class="lu"></iconify-icon> Open Full Report</button>
+    <button class="btn-secondary" id="exportBattleXlsBtn" style="flex:1"><iconify-icon icon="mdi:file-excel-outline" class="lu"></iconify-icon> Export XLS</button>
         <button class="btn-secondary" id="captureBattlePaneBtn" style="flex:1"><iconify-icon icon="mdi:camera" class="lu"></iconify-icon> Capture Report</button>
   </div>`;
 
