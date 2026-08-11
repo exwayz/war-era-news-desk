@@ -4,6 +4,7 @@ import { fmtDate, fmtNum } from "../core/utils.js";
 import { playCopy } from "../audio/audio.js";
 import { getCountriesInRegion, populateRegionOptions } from "../core/regionClassification.js";
 import { apiKey } from "../core/api.js";
+import { offlineResolve } from "../core/resolver.js";
 import { ensureLookups } from "../timeline/filters.js";
 import { OBJECT_ID_RE } from "../core/constants.js";
 
@@ -58,8 +59,8 @@ async function applyBattleSearch(raw) {
 
 export function nameCountry(id) { if(!id) return ""; return S.lookups.countriesById.get(id)?.name||id?.slice(-6)||""; }
 export function nameRegion(id) { if(!id) return ""; return S.lookups.regionsById.get(String(id))?.name||String(id).slice(-6)||""; }
-export function nameUser(id) { if(!id) return ""; const u=S.lookups.usersById.get(id); return u?.username||u?.name||""; }
-export function nameMu(id) { if(!id) return ""; const m=S.lookups.muById.get(id); return m?.name||m?.muName||m?.displayName||m?.fullName||""; }
+export function nameUser(id) { if(!id) return ""; const u=S.lookups.usersById.get(id)||offlineResolve("user",id); return u?.username||u?.name||""; }
+export function nameMu(id) { if(!id) return ""; const m=S.lookups.muById.get(id)||offlineResolve("mu",id); return m?.name||m?.muName||m?.displayName||m?.fullName||""; }
 
 export function injectBattleSearchBar() {
   const col = document.querySelector(".battle-list-col");

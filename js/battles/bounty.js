@@ -1,6 +1,7 @@
 import { E } from "../core/dom.js";
 import { apiKey, fetchTrpcApi2, unwrap } from "../core/api.js";
 import { fmtMoney, fmtNum, fmtDate, escapeHtml } from "../core/utils.js";
+import { resolveEntityByType } from "../core/resolver.js";
 import { nameCountry, nameMu, nameUser, nameRegion } from "./companies.js";
 
 const CONTRACT_STATUSES = ["won", "active", "expiredNoBids"];
@@ -408,14 +409,38 @@ export function openBountyModal(b, bid, contracts) {
   if (E.bountyModalBody) {
     E.bountyModalBody.innerHTML = '<p style="color:var(--ink-dim)">Loading bounty, money ranking &amp; contract data…</p>';
     Promise.all([fetchBattleContracts(bid, true), fetchBattleMoney(bid, true)])
-      .then(([c, money]) => {
+      .then(async ([c, money]) => {
         _modalData = { b, contracts: c, money };
+        await resolveContractEntities(c, money);
         renderBountyModalBody();
       })
       .catch(() => {
         if (E.bountyModalBody) E.bountyModalBody.innerHTML = '<p class="status-msg error">Failed to load bounty &amp; contract data.</p>';
       });
   }
+}
+
+async function resolveContractEntities(contracts, money) {
+  const k = apiKey();
+  if (!k) return;
+  const muIds = new Set();
+  const userIds = new Set();
+  for (const c of contracts?.items || []) {
+    if (c.currentWinner) muIds.add(c.currentWinner);
+    if (c.currentWinnerUser) userIds.add(c.currentWinnerUser);
+    for (const bd of c.bids || []) {
+      if (bd.mu) muIds.add(bd.mu);
+      if (bd.user) userIds.add(bd.user);
+    }
+  }
+  for (const side of [money?.atk, money?.def]) {
+    for (const r of side?.mus || []) if (r.mu) muIds.add(r.mu);
+    for (const r of side?.users || []) if (r.user) userIds.add(r.user);
+  }
+  await Promise.allSettled([
+    ...[...muIds].map(id => resolveEntityByType("mu", id, k)),
+    ...[...userIds].map(id => resolveEntityByType("user", id, k)),
+  ]);
 }
 
 export function copyBountyReport() {
