@@ -5,10 +5,13 @@ import { nameCountry, nameMu, nameUser, nameRegion } from "./companies.js";
 
 const CONTRACT_STATUSES = ["won", "active", "expiredNoBids"];
 const CONTRACT_TTL = 60000;
+const MONEY_TTL = 60000;
 const MAX_CARDS = 150;
 const _contractCache = new Map();
+const _moneyCache = new Map();
 let _modalData = null;
 let _bountyFilter = "all";
+let _moneyType = "users";
 
 export function summarizeContracts(items) {
   const won = items.filter(i => i.status === "won");
@@ -59,7 +62,56 @@ export async function fetchBattleContracts(battleId, force = false) {
   return result;
 }
 
-export function battleSpend(b, contracts) {
+/**
+ * Money gained per battle participant (public bounty pools + mercenary contract
+ * payouts), from battleRanking.getRanking { dataType:"money" }. Summing the
+ * country values per side equals the sum of all user values, i.e. the total
+ * money a side paid out in the battle.
+ */
+async function fetchMoneyRanking(battleId, type, side, pageLimit) {
+  const k = apiKey();
+  if (!k) return [];
+  const all = [];
+  let cursor;
+  for (let page = 0; page < pageLimit; page++) {
+    let res;
+    try {
+      res = await fetchTrpcApi2("battleRanking.getRanking", { battleId, dataType: "money", type, side, limit: 100, cursor }, k);
+    } catch { break; }
+    const data = unwrap(res);
+    const items = Array.isArray(data) ? data : (data?.items || []);
+    if (!items.length) break;
+    all.push(...items);
+    cursor = data?.nextCursor || data?.cursor || null;
+    if (!cursor) break;
+  }
+  return all;
+}
+
+export async function fetchBattleMoney(battleId, force = false) {
+  if (!battleId) return null;
+  const cached = _moneyCache.get(battleId);
+  if (!force && cached && Date.now() - cached.ts < MONEY_TTL) return cached.data;
+  const k = apiKey();
+  if (!k) return null;
+  const sideMoney = async (side) => {
+    const [users, mus, countries] = await Promise.all([
+      fetchMoneyRanking(battleId, "user", side, 1),
+      fetchMoneyRanking(battleId, "mu", side, 1),
+      fetchMoneyRanking(battleId, "country", side, 10),
+    ]);
+    const total = countries.reduce((s, i) => s + (Number(i.value) || 0), 0);
+    return { users, mus, countries, total };
+  };
+  const data = {
+    atk: await sideMoney("attacker"),
+    def: await sideMoney("defender"),
+  };
+  _moneyCache.set(battleId, { ts: Date.now(), data });
+  return data;
+}
+
+export function battleSpend(b, contracts, money) {
   const a = b?.attacker || {};
   const d = b?.defender || {};
   const c = contracts || { items: [], side: { attacker: { count: 0, budget: 0, payout: 0, spent: 0 }, defender: { count: 0, budget: 0, payout: 0, spent: 0 } } };
@@ -67,9 +119,11 @@ export function battleSpend(b, contracts) {
   const defPool = Number(d.moneyPool ?? b.defenderMoneyPool) || 0;
   const atkC = c.side.attacker || { count: 0, budget: 0, payout: 0, spent: 0 };
   const defC = c.side.defender || { count: 0, budget: 0, payout: 0, spent: 0 };
+  const atkSpent = money?.atk?.total != null ? Number(money.atk.total) : (atkC.spent + atkPool);
+  const defSpent = money?.def?.total != null ? Number(money.def.total) : (defC.spent + defPool);
   return {
-    atkSpent: atkC.spent + atkPool,
-    defSpent: defC.spent + defPool,
+    atkSpent, defSpent,
+    atkContractsSpent: atkC.spent, defContractsSpent: defC.spent,
     atkPool, defPool,
     atkCount: atkC.count, defCount: defC.count,
     atkPerK: a.moneyPer1kDamages ?? b.attackerMoneyPer1kDamages,
@@ -120,18 +174,20 @@ function battleNames(b) {
   return { atkName, defName };
 }
 
-function sideBoxHtml(label, name, spent, count, perK, color) {
-  const perKStr = perK != null ? ` · $${Number(perK)}/1k` : "";
-  const countStr = count ? ` · ${count} contracts` : "";
+function sideBoxHtml(label, name, spent, count, perK, pool, color) {
+  const parts = ["public bounty + contracts"];
+  if (perK != null) parts.push(`$${Number(perK)}/1k`);
+  if (count) parts.push(`${count} contract${count === 1 ? "" : "s"}`);
+  if (pool > 0) parts.push(`${fmtMoney(pool)} pool left`);
   return `<div style="border:1px solid var(--line);border-radius:var(--radius);padding:8px 10px;background:var(--surface-hi)">
     <div style="font-size:.62rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:${color}">${label} · ${escapeHtml(name)}</div>
-    <div style="font-size:1.15rem;font-weight:900;line-height:1.3">${fmtMoney(spent)}</div>
-    <div style="font-size:.66rem;color:var(--ink-dim)">spent${countStr}${perKStr}</div>
+    <div style="font-size:1.15rem;font-weight:900;line-height:1.3">${fmtMoney(spent)} BTC</div>
+    <div style="font-size:.66rem;color:var(--ink-dim)">${parts.join(" · ")}</div>
   </div>`;
 }
 
-export function bountySummaryHtml(b, contracts) {
-  const spend = battleSpend(b, contracts);
+export function bountySummaryHtml(b, contracts, money) {
+  const spend = battleSpend(b, contracts, money);
   const { atkName, defName } = battleNames(b);
   const hasAny = spend.atkSpent > 0 || spend.defSpent > 0 || spend.atkPerK != null || spend.defPerK != null;
   if (!hasAny) return "";
@@ -141,9 +197,9 @@ export function bountySummaryHtml(b, contracts) {
       <button class="btn-secondary" data-open-bounty style="padding:3px 10px;min-width:auto;font-size:.72rem">Open Report</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center">
-      ${sideBoxHtml("Attacker", atkName, spend.atkSpent, spend.atkCount, spend.atkPerK, "var(--blue)")}
+      ${sideBoxHtml("Attacker", atkName, spend.atkSpent, spend.atkCount, spend.atkPerK, spend.atkPool, "var(--blue)")}
       <div style="font-size:.66rem;font-weight:800;color:var(--ink-dim);text-align:center">VS</div>
-      ${sideBoxHtml("Defender", defName, spend.defSpent, spend.defCount, spend.defPerK, "var(--red)")}
+      ${sideBoxHtml("Defender", defName, spend.defSpent, spend.defCount, spend.defPerK, spend.defPool, "var(--red)")}
     </div>
   </div>`;
 }
@@ -162,16 +218,15 @@ function statBox(val, label, extraStyle) {
   return `<div class="br-stat-box"${extraStyle ? ` style="${extraStyle}"` : ""}><span class="br-stat-val">${val}</span><span class="br-stat-lbl">${label}</span></div>`;
 }
 
-function spendRow(label, perK, pool, count, budget, payout, spent, color) {
+function spendRow(label, perK, count, budget, payout, moneyTotal, color) {
   const perKStr = perK != null ? `$${Number(perK)} / 1k DMG` : "—";
   return `<tr>
     <td style="font-weight:800;color:${color}">${escapeHtml(label)}</td>
     <td>${perKStr}</td>
-    <td>${fmtMoney(pool)}</td>
     <td>${count}</td>
     <td>${fmtMoney(budget)}</td>
     <td>${fmtMoney(payout)}</td>
-    <td style="font-weight:800">${fmtMoney(spent)}</td>
+    <td style="font-weight:800">${fmtMoney(moneyTotal)}</td>
   </tr>`;
 }
 
@@ -220,18 +275,76 @@ function contractCardHtml(x, atkName, defName) {
   </div>`;
 }
 
-export function bountyModalBodyHtml(b, contracts, filter = "all") {
+function moneyEntityNameLink(r, type) {
+  if (type === "mus") {
+    const id = r.mu;
+    return [nameMu(id) || `MU ${String(id).slice(-6)}`, `https://app.warera.io/mu/${id}`];
+  }
+  if (type === "countries") {
+    const id = r.country;
+    return [nameCountry(id) || String(id).slice(-6), `https://app.warera.io/country/${id}`];
+  }
+  const id = r.user;
+  return [nameUser(id) || `User ${String(id).slice(-6)}`, `https://app.warera.io/user/${id}`];
+}
+
+function moneyCell(rank, name, url, value) {
+  const badge = rank <= 3 ? (rank === 1 ? "🥇" : rank === 2 ? "🥈" : "🥉") : rank;
+  return `<td>${badge}</td><td><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="entity-link">${escapeHtml(name)}</a></td><td style="font-weight:700">${fmtMoney(value)}</td>`;
+}
+
+function moneySideBySide(atkArr, defArr, type) {
+  const rows = [];
+  const max = Math.max(atkArr.length, defArr.length);
+  for (let i = 0; i < max && i < 10; i++) {
+    const a = atkArr[i];
+    const d = defArr[i];
+    const aH = a ? (() => { const [n, u] = moneyEntityNameLink(a, type); return moneyCell(Number(a.rank) || i + 1, n, u, a.value); })() : `<td></td><td></td><td></td>`;
+    const dH = d ? (() => { const [n, u] = moneyEntityNameLink(d, type); return moneyCell(Number(d.rank) || i + 1, n, u, d.value); })() : `<td></td><td></td><td></td>`;
+    rows.push(`<tr>${aH}${dH}</tr>`);
+  }
+  return rows.join("");
+}
+
+function moneyRankingSectionHtml(money, moneyType) {
+  const atk = money?.atk;
+  const def = money?.def;
+  if (!atk || !def || (!atk.users.length && !def.users.length)) return "";
+  const typeKey = moneyType === "mus" ? "mus" : moneyType === "countries" ? "countries" : "users";
+  const typeLabel = moneyType === "mus" ? "MU" : moneyType === "countries" ? "Country" : "Fighter";
+  const tabs = [
+    ["users", "Users"],
+    ["mus", "MUs"],
+    ["countries", "Countries"],
+  ].map(([k, lab]) => `<button class="pill-btn${moneyType === k ? " active" : ""}" data-money-type="${k}" style="font-size:.72rem">${lab}</button>`).join("");
+  return `<div class="br-section">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+      <h3 class="br-section-title" style="margin:0">💰 Money Ranking — Who Earned What</h3>
+      <div style="display:flex;gap:6px">${tabs}</div>
+    </div>
+    <table class="rank-table"><thead>
+      <tr><th colspan="3" style="color:var(--blue)">ATTACKER · ${fmtMoney(atk.total)} BTC</th><th colspan="3" style="color:var(--red)">DEFENDER · ${fmtMoney(def.total)} BTC</th></tr>
+      <tr><th>#</th><th>${typeLabel}</th><th>Earned</th><th>#</th><th>${typeLabel}</th><th>Earned</th></tr>
+    </thead><tbody>
+      ${moneySideBySide(atk[typeKey], def[typeKey], typeKey)}
+    </tbody></table>
+    <p style="font-size:.7rem;color:var(--ink-dim);margin:6px 0 0">Money earned by participants from public bounty pools and mercenary contract payouts.</p>
+  </div>`;
+}
+
+export function bountyModalBodyHtml(b, contracts, money, filter = "all", moneyType = "users") {
   const c = contracts || { items: [], won: [], active: [], expired: [], totalBudget: 0, totalPayout: 0, totalSpent: 0, side: { attacker: { count: 0, budget: 0, payout: 0, spent: 0 }, defender: { count: 0, budget: 0, payout: 0, spent: 0 } } };
-  const spend = battleSpend(b, c);
+  const spend = battleSpend(b, c, money);
   const { atkName, defName } = battleNames(b);
   const bid = b._id || b.battleId || b.id || "";
   const battleLink = bid ? ` <a href="https://app.warera.io/battle/${encodeURIComponent(bid)}" target="_blank" rel="noopener noreferrer" class="entity-link">Open battle in War Era</a>` : "";
+  const totalMoney = spend.atkSpent + spend.defSpent;
 
   const summaryCells = [
     statBox(c.items.length, "Contracts"),
-    statBox(fmtMoney(c.totalBudget), "Total Budget"),
-    statBox(fmtMoney(c.totalPayout), "Total Paid"),
-    statBox(fmtMoney(c.totalSpent), "Total Spent"),
+    statBox(fmtMoney(c.totalBudget), "Contract Budget"),
+    statBox(fmtMoney(c.totalPayout), "Contract Payouts"),
+    statBox(fmtMoney(totalMoney), "Money Paid (Bounty+Contracts)"),
     statBox(c.won.length, "Won"),
     statBox(c.active.length, "Active"),
     statBox(c.expired.length, "No Bids"),
@@ -260,12 +373,14 @@ export function bountyModalBodyHtml(b, contracts, filter = "all") {
     <div class="br-section">
       <h3 class="br-section-title">Per-Side Spend</h3>
       <table class="rank-table"><thead>
-        <tr><th>Side</th><th>Bounty / 1k</th><th>Public Pool</th><th>Contracts</th><th>Budget</th><th>Paid Out</th><th>Total Spent</th></tr>
+        <tr><th>Side</th><th>Bounty / 1k</th><th>Contracts</th><th>Contract Budget</th><th>Contract Paid</th><th>Money Paid (Bounty+Contracts)</th></tr>
       </thead><tbody>
-        ${spendRow(atkName, spend.atkPerK, spend.atkPool, spend.atkCount, c.side.attacker.budget, c.side.attacker.payout, spend.atkSpent, "var(--blue)")}
-        ${spendRow(defName, spend.defPerK, spend.defPool, spend.defCount, c.side.defender.budget, c.side.defender.payout, spend.defSpent, "var(--red)")}
+        ${spendRow(atkName, spend.atkPerK, spend.atkCount, c.side.attacker.budget, c.side.attacker.payout, spend.atkSpent, "var(--blue)")}
+        ${spendRow(defName, spend.defPerK, spend.defCount, c.side.defender.budget, c.side.defender.payout, spend.defSpent, "var(--red)")}
       </tbody></table>
+      <p style="font-size:.7rem;color:var(--ink-dim);margin:6px 0 0">Money Paid = total public bounty paid out + mercenary contract payouts for the side, from the game's money ranking.</p>
     </div>
+    ${moneyRankingSectionHtml(money, moneyType)}
     <div class="br-section">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">
         <h3 class="br-section-title" style="margin:0">Mercenary Contracts (${c.items.length})</h3>
@@ -278,7 +393,7 @@ export function bountyModalBodyHtml(b, contracts, filter = "all") {
 
 export function renderBountyModalBody() {
   if (!_modalData || !E.bountyModalBody) return;
-  E.bountyModalBody.innerHTML = bountyModalBodyHtml(_modalData.b, _modalData.contracts, _bountyFilter);
+  E.bountyModalBody.innerHTML = bountyModalBodyHtml(_modalData.b, _modalData.contracts, _modalData.money, _bountyFilter, _moneyType);
 }
 
 export function openBountyModal(b, bid, contracts) {
@@ -289,14 +404,17 @@ export function openBountyModal(b, bid, contracts) {
   if (E.bountyModalTitle) E.bountyModalTitle.textContent = "Bounty & Mercenary Contracts";
   if (E.bountyModalByline) E.bountyModalByline.textContent = `${atkName} vs ${defName}${reg ? " — " + reg : ""}`;
   _bountyFilter = "all";
+  _moneyType = "users";
   if (E.bountyModalBody) {
-    E.bountyModalBody.innerHTML = '<p style="color:var(--ink-dim)">Loading bounty &amp; contract data…</p>';
-    fetchBattleContracts(bid, true).then(c => {
-      _modalData = { b, contracts: c };
-      renderBountyModalBody();
-    }).catch(() => {
-      if (E.bountyModalBody) E.bountyModalBody.innerHTML = '<p class="status-msg error">Failed to load bounty &amp; contract data.</p>';
-    });
+    E.bountyModalBody.innerHTML = '<p style="color:var(--ink-dim)">Loading bounty, money ranking &amp; contract data…</p>';
+    Promise.all([fetchBattleContracts(bid, true), fetchBattleMoney(bid, true)])
+      .then(([c, money]) => {
+        _modalData = { b, contracts: c, money };
+        renderBountyModalBody();
+      })
+      .catch(() => {
+        if (E.bountyModalBody) E.bountyModalBody.innerHTML = '<p class="status-msg error">Failed to load bounty &amp; contract data.</p>';
+      });
   }
 }
 
@@ -313,6 +431,11 @@ document.addEventListener("click", e => {
   const tab = e.target.closest("[data-bounty-filter]");
   if (tab) {
     _bountyFilter = tab.dataset.bountyFilter;
+    renderBountyModalBody();
+  }
+  const moneyTab = e.target.closest("[data-money-type]");
+  if (moneyTab) {
+    _moneyType = moneyTab.dataset.moneyType;
     renderBountyModalBody();
   }
 });
