@@ -14,7 +14,7 @@ let _modalData = null;
 let _bountyFilter = "all";
 let _moneyType = "users";
 
-const sideText = (color, glow) => glow ? `background:${glow};padding:1px 5px;border-radius:4px;color:${color}` : `color:${color}`;
+const sideText = (color, glow) => glow ? `color:${color};text-shadow:0 0 6px ${glow},0 0 14px ${glow}` : `color:${color}`;
 
 export function summarizeContracts(items) {
   const won = items.filter(i => i.status === "won");

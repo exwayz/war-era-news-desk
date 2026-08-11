@@ -256,8 +256,8 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     defAvatar = defCode ? `<img src="https://media.warera.io/images/flags/${defCode.toLowerCase()}.svg" alt="" style="width:32px;display:block">` : "";
   }
   const { atkColor, defColor, atkGlow, defGlow, atkGlowStrong, defGlowStrong } = battleSideColors(b);
-  const sideText = (color, glow) => glow ? `background:${glow};padding:1px 5px;border-radius:4px;color:${color}` : `color:${color}`;
-  const sideBar = (color, glow) => glow ? `background:${color};box-shadow:0 0 8px ${glow}` : `background:${color}`;
+  const sideText = (color, glow) => glow ? `color:${color};text-shadow:0 0 6px ${glow},0 0 14px ${glow}` : `color:${color}`;
+  const sideBar = (color, glow) => glow ? `background:${color};box-shadow:0 0 6px ${glow},0 0 14px ${glow}` : `background:${color}`;
   const reg = nameRegion(b.defender?.region||b.defenderRegion||b.region);
   const isLive = !b.endedAt || b.isActive===true || b.active===true;
   const started = b.createdAt||b.startedAt||"";
@@ -368,7 +368,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     <div>${atkAvatar}</div>
     <div style="display:flex;justify-content:center;align-items:center;gap:16px">
       <div style="text-align:center">
-        <div style="font-size:2rem;font-weight:900;${sideText(atkColor, atkGlow)};line-height:1;padding:0 6px;border-radius:4px">${atkRoundsWon}</div>
+        <div style="font-size:2rem;font-weight:900;${sideText(atkColor, atkGlow)};line-height:1">${atkRoundsWon}</div>
         <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;color:var(--ink-dim);margin-top:2px">${atk||"Attacker"}</div>
       </div>
       <div style="text-align:center;color:var(--ink-dim)">
@@ -376,7 +376,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
         <div style="font-size:.66rem;margin-top:2px">First to ${roundsToWin} rounds wins</div>
       </div>
       <div style="text-align:center">
-        <div style="font-size:2rem;font-weight:900;${sideText(defColor, defGlow)};line-height:1;padding:0 6px;border-radius:4px">${defRoundsWon}</div>
+        <div style="font-size:2rem;font-weight:900;${sideText(defColor, defGlow)};line-height:1">${defRoundsWon}</div>
         <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;color:var(--ink-dim);margin-top:2px">${def||"Defender"}</div>
       </div>
     </div>

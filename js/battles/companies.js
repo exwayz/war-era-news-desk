@@ -126,10 +126,10 @@ export function battleSideColors(b) {
   return {
     atkColor,
     defColor,
-    atkGlow: isDark ? glowRgba(atkColor, 0.2) : "",
-    defGlow: isDark ? glowRgba(defColor, 0.2) : "",
-    atkGlowStrong: isDark ? glowRgba(atkColor, 0.45) : "",
-    defGlowStrong: isDark ? glowRgba(defColor, 0.45) : "",
+    atkGlow: isDark ? glowRgba(atkColor, 0.6) : "",
+    defGlow: isDark ? glowRgba(defColor, 0.6) : "",
+    atkGlowStrong: isDark ? glowRgba(atkColor, 0.5) : "",
+    defGlowStrong: isDark ? glowRgba(defColor, 0.5) : "",
   };
 }
 
