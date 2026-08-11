@@ -77,31 +77,91 @@ export async function loadBattles(reset=true) {
   const k = apiKey(); if (!k) return;
   stopBattlePolling();
   updateBattleTabPills();
-  setBattleStatus("Loading battles…");
   if (reset) { S.battles=[]; S.battleCursor=null; E.battleList.innerHTML=""; }
+  const mode = S.battleSearchMode;
+  setBattleStatus(mode==="id" ? "Loading battle…" : (mode ? "Searching battles…" : "Loading battles…"));
   try {
-    const payload = { limit:20, isActive: S.battleMode==="live", cursor:reset?undefined:S.battleCursor };
-    const result = await fetchTrpc("battle.getBattles", payload, k);
-    const data = unwrap(result);
-    const battles = Array.isArray(data)?data:(data?.items||data?.battles||[]);
-    S.battleCursor = data?.nextCursor||null;
-    for (const b of battles) {
-      const id=battleId(b); if(id) S.lookups.battlesById.set(id,b);
+    if (mode==="id") {
+      await loadBattleById(k);
+    } else if (mode==="country") {
+      await loadBattleCountryPage(reset, k);
+    } else if (mode==="region") {
+      await loadBattleRegionPages(reset, k);
+    } else {
+      await loadBattleFeed(reset, k);
     }
-    S.battles = reset ? battles : [...S.battles, ...battles];
-    await resolveTournamentMUs(k);
     renderBattleList();
-    clearBattleStatus();
+    if (mode && S.battleSearchLabel) setBattleStatus(mode==="id" ? "Showing "+S.battleSearchLabel+"." : "Showing "+S.battleSearchLabel+" battles.");
+    else clearBattleStatus();
     if (S.battleMode === "history") refreshBattleDamageCache();
+    if (mode==="id" && S.battles.length) {
+      const btn = E.battleList.querySelector(".battle-card .bc-select");
+      if (btn) btn.click();
+    }
   } catch (err) {
     setBattleStatus("Could not load battles: "+(err.message||""), "error");
   }
-  E.loadMoreBattlesBtn.hidden = !S.battleCursor;
+  E.loadMoreBattlesBtn.hidden = !battleSearchHasMore();
+}
+
+function battleSearchHasMore() {
+  if (S.battleSearchMode==="id") return false;
+  if (S.battleSearchMode==="country") return !!S.battleSearchCursor;
+  if (S.battleSearchMode==="region") return Object.values(S.battleSearchRegionCursors||{}).some(Boolean);
+  return !!S.battleCursor;
+}
+
+async function loadBattleFeed(reset, k) {
+  const payload = { limit:20, isActive: S.battleMode==="live", cursor:reset?undefined:S.battleCursor };
+  const result = await fetchTrpc("battle.getBattles", payload, k);
+  const data = unwrap(result);
+  const battles = Array.isArray(data)?data:(data?.items||data?.battles||[]);
+  S.battleCursor = data?.nextCursor||null;
+  for (const b of battles) { const id=battleId(b); if(id) S.lookups.battlesById.set(id,b); }
+  S.battles = reset ? battles : [...S.battles, ...battles];
+  await resolveTournamentMUs(k);
+}
+
+async function loadBattleById(k) {
+  const bid = S.battleSearchId;
+  let battle = S.lookups.battlesById.get(bid);
+  if (!battle) {
+    const result = await fetchTrpc("battle.getById", { battleId: bid }, k);
+    battle = unwrap(result);
+  }
+  S.battles = battle ? [battle] : [];
+}
+
+async function loadBattleCountryPage(reset, k) {
+  const payload = { limit:20, isActive: S.battleMode==="live", countryId:S.battleSearchCountryId, cursor:reset?undefined:S.battleSearchCursor };
+  const result = await fetchTrpc("battle.getBattles", payload, k);
+  const data = unwrap(result);
+  const battles = Array.isArray(data)?data:(data?.items||data?.battles||[]);
+  S.battleSearchCursor = data?.nextCursor||null;
+  for (const b of battles) { const id=battleId(b); if(id) S.lookups.battlesById.set(id,b); }
+  S.battles = reset ? battles : [...S.battles, ...battles];
+  await resolveTournamentMUs(k);
+}
+
+async function loadBattleRegionPages(reset, k) {
+  if (reset) S.battleSearchRegionCursors = {};
+  const pages = await Promise.all((S.battleSearchRegionIds||[]).map(async cid => {
+    if (!reset && !S.battleSearchRegionCursors[cid]) return [];
+    const payload = { limit:20, isActive: S.battleMode==="live", countryId:cid, cursor:reset?undefined:S.battleSearchRegionCursors[cid] };
+    const result = await fetchTrpc("battle.getBattles", payload, k).catch(()=>null);
+    const data = unwrap(result);
+    if (result && data) S.battleSearchRegionCursors[cid] = data?.nextCursor||null;
+    return result && data ? (Array.isArray(data)?data:(data?.items||data?.battles||[])) : [];
+  }));
+  const all = pages.flat();
+  for (const b of all) { const id=battleId(b); if(id) S.lookups.battlesById.set(id,b); }
+  S.battles = reset ? all : [...S.battles, ...all];
+  await resolveTournamentMUs(k);
 }
 
 export function renderBattleList() {
   E.battleList.innerHTML="";
-  const kw = S.battleSearch||"";
+  const kw = S.battleSearchMode ? "" : (S.battleSearch||"");
   const regionK = (S.battleRegionFilter||"").toLowerCase();
   const regionCountryNames = regionK ? getCountriesInRegion(regionK) : [];
   const regionSet = regionCountryNames.length ? new Set(regionCountryNames.map(n => n.toLowerCase())) : null;
@@ -158,7 +218,7 @@ export function renderBattleList() {
     return new Date(be).getTime() - new Date(ae).getTime();
   });
   if (!list.length) {
-    E.battleList.innerHTML=`<p style="color:var(--ink-dim);padding:20px;text-align:center">${kw?"No battles match your search.":"No battles found."}</p>`;
+    E.battleList.innerHTML=`<p style="color:var(--ink-dim);padding:20px;text-align:center">${S.battleSearchMode==="id" ? "Battle not found." : kw ? "No battles match your search." : "No battles found."}</p>`;
     return;
   }
   const frag=document.createDocumentFragment();

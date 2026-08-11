@@ -1,8 +1,60 @@
 import { S } from "../core/state.js";
-import { renderBattleList, battleId } from "./battles.js";
+import { renderBattleList, battleId, loadBattles } from "./battles.js";
 import { fmtDate, fmtNum } from "../core/utils.js";
 import { playCopy } from "../audio/audio.js";
 import { getCountriesInRegion, populateRegionOptions } from "../core/regionClassification.js";
+import { apiKey } from "../core/api.js";
+import { ensureLookups } from "../timeline/filters.js";
+import { OBJECT_ID_RE } from "../core/constants.js";
+
+const BATTLE_URL_RE = /battle\/([a-f0-9]{24})/i;
+
+export function resetBattleSearchState() {
+  S.battleSearchMode=""; S.battleSearchId=""; S.battleSearchCountryId="";
+  S.battleSearchRegionIds=[]; S.battleSearchCursor=null; S.battleSearchRegionCursors={}; S.battleSearchLabel="";
+}
+
+async function applyBattleSearch(raw) {
+  if (!raw.trim()) { resetBattleSearchState(); loadBattles(true); return; }
+  const urlM = raw.match(BATTLE_URL_RE);
+  const isId = urlM ? true : OBJECT_ID_RE.test(raw.trim());
+  if (urlM || isId) {
+    resetBattleSearchState();
+    S.battleSearchId = urlM ? urlM[1] : raw.trim();
+    S.battleSearchMode = "id";
+    S.battleSearchLabel = "battle #"+S.battleSearchId.slice(-8);
+    await loadBattles(true);
+    return;
+  }
+  const q = raw.trim().toLowerCase();
+  const k = apiKey();
+  if (q) {
+    if (k && S.lookupsKey!==k) await ensureLookups(k).catch(()=>{});
+    const cid = S.lookups.countryIdsByName.get(q);
+    if (cid) {
+      resetBattleSearchState();
+      S.battleSearchCountryId = cid;
+      S.battleSearchMode = "country";
+      S.battleSearchLabel = "country "+nameCountry(cid);
+      await loadBattles(true);
+      return;
+    }
+    const regionCountries = getCountriesInRegion(q);
+    if (regionCountries.length) {
+      const ids = regionCountries.map(n => S.lookups.countryIdsByName.get(n.toLowerCase())).filter(Boolean);
+      if (ids.length) {
+        resetBattleSearchState();
+        S.battleSearchRegionIds = ids;
+        S.battleSearchMode = "region";
+        S.battleSearchLabel = "region "+raw.trim();
+        await loadBattles(true);
+        return;
+      }
+    }
+  }
+  resetBattleSearchState();
+  renderBattleList();
+}
 
 export function nameCountry(id) { if(!id) return ""; return S.lookups.countriesById.get(id)?.name||id?.slice(-6)||""; }
 export function nameRegion(id) { if(!id) return ""; return S.lookups.regionsById.get(String(id))?.name||String(id).slice(-6)||""; }
@@ -18,7 +70,7 @@ export function injectBattleSearchBar() {
   wrap.className = "sticky-toolbar";
   wrap.innerHTML = `
 <div class="input-wrap search-bar">
-  <input id="battleSearch" type="text" placeholder="Search by country or region…">
+  <input id="battleSearch" type="text" placeholder="Search by battle ID, URL, or name…">
   <button class="clear-btn" id="clearBattleSearch" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
 </div>
 <button id="battleLoadMini" class="btn-load-mini">More</button>
@@ -53,14 +105,20 @@ export function injectBattleSearchBar() {
 
   const inp = document.getElementById("battleSearch");
   const clr = document.getElementById("clearBattleSearch");
+  let searchTimer = null;
   inp.addEventListener("input", () => {
     S.battleSearch = inp.value.trim().toLowerCase();
     renderBattleList();
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => applyBattleSearch(inp.value), 400);
   });
+  inp.addEventListener("keydown", (e) => { if (e.key === "Enter") { clearTimeout(searchTimer); applyBattleSearch(inp.value); } });
   clr.addEventListener("click", () => {
+    clearTimeout(searchTimer);
     inp.value = "";
     S.battleSearch = "";
-    renderBattleList();
+    resetBattleSearchState();
+    loadBattles(true);
     inp.focus();
   });
 
@@ -98,7 +156,7 @@ export function injectBattleSearchBar() {
 
   document.getElementById("copyBattleListBtn")?.addEventListener("click", () => {
     playCopy();
-    const kw = S.battleSearch||"";
+    const kw = S.battleSearchMode ? "" : (S.battleSearch||"");
     let list = [...S.battles];
     if (kw) {
       list = list.filter(b => {
