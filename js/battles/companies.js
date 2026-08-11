@@ -62,6 +62,51 @@ export function nameRegion(id) { if(!id) return ""; return S.lookups.regionsById
 export function nameUser(id) { if(!id) return ""; const u=S.lookups.usersById.get(id)||offlineResolve("user",id); return u?.username||u?.name||""; }
 export function nameMu(id) { if(!id) return ""; const m=S.lookups.muById.get(id)||offlineResolve("mu",id); return m?.name||m?.muName||m?.displayName||m?.fullName||""; }
 
+const SCHEME_COLORS = {
+  red:        { light: "#782122", normal: "#651C1D", dark: "#531718" },
+  deepOrange: { light: "#803025", normal: "#6D2820", dark: "#59211A" },
+  orange:     { light: "#7E3E22", normal: "#6B341D", dark: "#572B18" },
+  lightOrange:{ light: "#805626", normal: "#6C4920", dark: "#583B1A" },
+  amber:      { light: "#705825", normal: "#5F4B1F", dark: "#4E3D1A" },
+  yellow:     { light: "#696224", normal: "#58531F", dark: "#484419" },
+  olive:      { light: "#5C5E48", normal: "#4E4F3D", dark: "#404132" },
+  lime:       { light: "#485B32", normal: "#3D4D2B", dark: "#323F23" },
+  lightGreen: { light: "#336131", normal: "#2B5229", dark: "#234322" },
+  green:      { light: "#235A37", normal: "#1D4C2F", dark: "#183E26" },
+  emerald:    { light: "#236A49", normal: "#1D5A3D", dark: "#184932" },
+  teal:       { light: "#1F6558", normal: "#1A564B", dark: "#16463D" },
+  cyan:       { light: "#255A5F", normal: "#1F4C51", dark: "#1A3E42" },
+  lightBlue:  { light: "#155B91", normal: "#124D7B", dark: "#0E3F64" },
+  blue:       { light: "#1E3F88", normal: "#193673", dark: "#152C5E" },
+  indigo:     { light: "#362A7C", normal: "#2E2369", dark: "#261D56" },
+  purple:     { light: "#4C3076", normal: "#402963", dark: "#352151" },
+  violet:     { light: "#5A3274", normal: "#4D2A62", dark: "#3F2350" },
+  pink:       { light: "#743265", normal: "#622A55", dark: "#502346" },
+  deepPink:   { light: "#7D2939", normal: "#6A2331", dark: "#561C28" },
+  brown:      { light: "#59504C", normal: "#4C4341", dark: "#3E3735" },
+  sand:       { light: "#58584D", normal: "#4A4B41", dark: "#3D3D36" },
+  gray:       { light: "#445561", normal: "#3A4852", dark: "#2F3B43" },
+};
+const ACCENT_SHADES = { light: "light", normal: "normal", dark: "dark" };
+
+export function countryColor(id) {
+  if (!id) return "";
+  const c = S.lookups.countriesById.get(id);
+  if (!c) return "";
+  const shades = SCHEME_COLORS[c.scheme];
+  if (!shades) return "";
+  return shades[ACCENT_SHADES[c.mapAccent] || "normal"];
+}
+
+export function battleSideColors(b) {
+  const atkId = b?.attacker?.country || b.attackerCountry || b.attacker?.countryId;
+  const defId = b?.defender?.country || b.defenderCountry || b.defender?.countryId;
+  return {
+    atkColor: countryColor(atkId) || "var(--blue)",
+    defColor: countryColor(defId) || "var(--red)",
+  };
+}
+
 export function injectBattleSearchBar() {
   const col = document.querySelector(".battle-list-col");
   if (!col) return;
