@@ -256,8 +256,8 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     defAvatar = defCode ? `<img src="https://media.warera.io/images/flags/${defCode.toLowerCase()}.svg" alt="" style="width:32px;display:block">` : "";
   }
   const { atkColor, defColor, atkGlow, defGlow, atkGlowStrong, defGlowStrong } = battleSideColors(b);
-  const sideText = (color, glow) => glow ? `color:${color};text-shadow:0 0 6px ${glow},0 0 14px ${glow}` : `color:${color}`;
-  const sideBar = (color, glow) => glow ? `background:${color};box-shadow:0 0 6px ${glow},0 0 14px ${glow}` : `background:${color}`;
+  const sideText = (color, glow) => glow ? `color:${color};text-shadow:0 0 3px ${glow}` : `color:${color}`;
+  const sideBar = (color, glow) => glow ? `background:${color};box-shadow:0 0 4px ${glow},0 0 12px ${glow}` : `background:${color}`;
   const reg = nameRegion(b.defender?.region||b.defenderRegion||b.region);
   const isLive = !b.endedAt || b.isActive===true || b.active===true;
   const started = b.createdAt||b.startedAt||"";
