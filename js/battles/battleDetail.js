@@ -429,106 +429,53 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
       ${winner?`<div class="br-stat-box" style="border-color:var(--green)"><span class="br-stat-val">🏆 ${winner}</span><span class="br-stat-lbl">Winner</span></div>`:""}
     </div></div>`;
 
-  const atkRank = rankUsers.filter(r => r._side === "attacker").sort((a,b) => getValue(b) - getValue(a)).slice(0,10);
-  const defRank = rankUsers.filter(r => r._side === "defender").sort((a,b) => getValue(b) - getValue(a)).slice(0,10);
-  const maxRows = Math.max(atkRank.length, defRank.length);
+  const rankRowMedal = i => i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1;
 
-  if (rankUsers.length) {
-    html+=`<div class="br-section"><h3 class="br-section-title">⚔ Top 10 Fighters by Damage</h3>
-    <table class="rank-table"><thead>
+  const rankConfig = {
+    damage: { value: getValue, label: "Damage", sources: { users: rankUsers, mus: rankMu, countries: rankCountry } },
+    points: { value: getPoints, label: "Ground Points", sources: { users: gpUsers, mus: gpMu, countries: gpCountry } },
+  };
+  const rankEntity = {
+    users: { label: "Fighter", name: r => nameUser(r.userId || r.user) || r.username, link: r => `https://app.warera.io/user/${r.userId || r.user}` },
+    mus: { label: "Military Unit", name: r => nameMu(r.muId || r.mu) || `MU ${String(r.muId || r.mu).slice(-6)}`, link: r => `https://app.warera.io/mu/${r.muId || r.mu}` },
+    countries: { label: "Country", name: r => nameCountry(r.countryId || r.country) || r.countryName || r.name, link: r => `https://app.warera.io/country/${r.countryId || r.country}` },
+  };
+
+  function rankTableHtml(cat, type) {
+    const cfg = rankConfig[cat];
+    const ent = rankEntity[type];
+    const list = cfg.sources[type];
+    if (!list || !list.length) return `<p style="color:var(--ink-dim);text-align:center;padding:12px 0">No ranking data available.</p>`;
+    const atkRank = list.filter(r => r._side === "attacker").sort((a, b) => cfg.value(b) - cfg.value(a)).slice(0, 10);
+    const defRank = list.filter(r => r._side === "defender").sort((a, b) => cfg.value(b) - cfg.value(a)).slice(0, 10);
+    if (!atkRank.length && !defRank.length) return `<p style="color:var(--ink-dim);text-align:center;padding:12px 0">No ranking data available.</p>`;
+    const maxRows = Math.max(atkRank.length, defRank.length);
+    const rows = Array.from({ length: maxRows }, (_, i) => {
+      const a = atkRank[i], d = defRank[i];
+      const atkHtml = a ? `<td>${rankRowMedal(i)}</td><td>${makeEntityLink(ent.name(a) || "Unknown", ent.link(a))}</td><td>${fmtNum(cfg.value(a))}</td>` : `<td></td><td></td><td></td>`;
+      const defHtml = d ? `<td>${rankRowMedal(i)}</td><td>${makeEntityLink(ent.name(d) || "Unknown", ent.link(d))}</td><td>${fmtNum(cfg.value(d))}</td>` : `<td></td><td></td><td></td>`;
+      return `<tr>${atkHtml}${defHtml}</tr>`;
+    }).join("");
+    return `<table class="rank-table"><thead>
     <tr><th colspan="3" style="color:${atkText}">ATTACKER</th><th colspan="3" style="color:${defText}">DEFENDER</th></tr>
-<tr><th>#</th><th>Fighter</th><th>Damage</th><th>#</th><th>Fighter</th><th>Damage</th></tr>
-</thead><tbody>
-${Array.from({length:maxRows},(_,i)=>{
-  const a = atkRank[i]; const d = defRank[i];
-  const atkHtml = a ? `<td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td><td>${makeEntityLink(nameUser(a.userId||a.user)||a.username||"Unknown",`https://app.warera.io/user/${a.userId||a.user}`)}</td><td>${fmtNum(getValue(a))}</td>` : `<td></td><td></td><td></td>`;
-  const defHtml = d ? `<td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td><td>${makeEntityLink(nameUser(d.userId||d.user)||d.username||"Unknown",`https://app.warera.io/user/${d.userId||d.user}`)}</td><td>${fmtNum(getValue(d))}</td>` : `<td></td><td></td><td></td>`;
-  return `<tr>${atkHtml}${defHtml}</tr>`;
-}).join("")}
-</tbody></table></div>`;
+    <tr><th>#</th><th>${ent.label}</th><th>${cfg.label}</th><th>#</th><th>${ent.label}</th><th>${cfg.label}</th></tr>
+    </thead><tbody>${rows}</tbody></table>`;
   }
 
-  const atkRankGP = gpUsers.filter(r => r._side === "attacker").sort((a,b)=>getPoints(b)-getPoints(a)).slice(0,10);
-  const defRankGP = gpUsers.filter(r => r._side === "defender").sort((a,b)=>getPoints(b)-getPoints(a)).slice(0,10);
-  const maxRowsUGP = Math.max(atkRankGP.length, defRankGP.length);
-
-  if (gpUsers.length) {
-    html+=`<div class="br-section"><h3 class="br-section-title">🏴 Top 10 Fighters by Ground Points</h3>
-    <table class="rank-table"><thead>
-    <tr><th colspan="3" style="color:${atkText}">ATTACKER</th><th colspan="3" style="color:${defText}">DEFENDER</th></tr>
-<tr><th>#</th><th>Fighter</th><th>Ground Points</th><th>#</th><th>Fighter</th><th>Ground Points</th></tr>
-</thead><tbody>
-${Array.from({length:maxRowsUGP},(_,i)=>{
-  const a = atkRankGP[i]; const d = defRankGP[i];
-  const atkHtml = a ? `<td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td><td>${makeEntityLink(nameUser(a.userId||a.user)||a.username||"Unknown",`https://app.warera.io/user/${a.userId||a.user}`)}</td><td>${fmtNum(getPoints(a))}</td>` : `<td></td><td></td><td></td>`;
-  const defHtml = d ? `<td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td><td>${makeEntityLink(nameUser(d.userId||d.user)||d.username||"Unknown",`https://app.warera.io/user/${d.userId||d.user}`)}</td><td>${fmtNum(getPoints(d))}</td>` : `<td></td><td></td><td></td>`;
-  return `<tr>${atkHtml}${defHtml}</tr>`;
-}).join("")}
-</tbody></table></div>`;
-  }
-
-  if (rankMu.length) {
-    const atkRankMu = rankMu.filter(r => r._side === "attacker").sort((a,b) => getValue(b) - getValue(a)).slice(0,10);
-    const defRankMu = rankMu.filter(r => r._side === "defender").sort((a,b) => getValue(b) - getValue(a)).slice(0,10);
-    const maxRowsMu = Math.max(atkRankMu.length, defRankMu.length);
-    html += `<div class="br-section"><h3 class="br-section-title">🎖 Top 10 Military Units by Damage</h3>
-    <table class="rank-table"><thead>    <tr><th colspan="3" style="color:${atkText}">ATTACKER</th><th colspan="3" style="color:${defText}">DEFENDER</th></tr>
-    <tr><th>#</th><th>Military Unit</th><th>Damage</th><th>#</th><th>Military Unit</th><th>Damage</th></tr></thead><tbody>
-${Array.from({length:maxRowsMu},(_,i)=>{
-  const a = atkRankMu[i]; const d = defRankMu[i];
-  const atkHtml = a ? `<td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td><td>${makeEntityLink(nameMu(a.muId||a.mu)||`MU ${String(a.muId||a.mu).slice(-6)}`,`https://app.warera.io/mu/${a.muId||a.mu}`)}</td><td>${fmtNum(getValue(a))}</td>` : `<td></td><td></td><td></td>`;
-  const defHtml = d ? `<td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td><td>${makeEntityLink(nameMu(d.muId||d.mu)||`MU ${String(d.muId||d.mu).slice(-6)}`,`https://app.warera.io/mu/${d.muId||d.mu}`)}</td><td>${fmtNum(getValue(d))}</td>` : `<td></td><td></td><td></td>`;
-  return `<tr>${atkHtml}${defHtml}</tr>`;
-}).join("")}
-</tbody></table></div>`;
-  }
-
-  if (gpMu.length) {
-    const atkRankMuGP = gpMu.filter(r => r._side === "attacker").sort((a,b) => getPoints(b) - getPoints(a)).slice(0,10);
-    const defRankMuGP = gpMu.filter(r => r._side === "defender").sort((a,b) => getPoints(b) - getPoints(a)).slice(0,10);
-    const maxRowsMuGP = Math.max(atkRankMuGP.length, defRankMuGP.length);
-    html += `<div class="br-section"><h3 class="br-section-title">🎖 Top 10 Military Units by Ground Points</h3>
-    <table class="rank-table"><thead>    <tr><th colspan="3" style="color:${atkText}">ATTACKER</th><th colspan="3" style="color:${defText}">DEFENDER</th></tr>
-    <tr><th>#</th><th>Military Unit</th><th>Ground Points</th><th>#</th><th>Military Unit</th><th>Ground Points</th></tr></thead><tbody>
-${Array.from({length:maxRowsMuGP},(_,i)=>{
-  const a = atkRankMuGP[i]; const d = defRankMuGP[i];
-  const atkHtml = a ? `<td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td><td>${makeEntityLink(nameMu(a.muId||a.mu)||`MU ${String(a.muId||a.mu).slice(-6)}`,`https://app.warera.io/mu/${a.muId||a.mu}`)}</td><td>${fmtNum(getPoints(a))}</td>` : `<td></td><td></td><td></td>`;
-  const defHtml = d ? `<td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td><td>${makeEntityLink(nameMu(d.muId||d.mu)||`MU ${String(d.muId||d.mu).slice(-6)}`,`https://app.warera.io/mu/${d.muId||d.mu}`)}</td><td>${fmtNum(getPoints(d))}</td>` : `<td></td><td></td><td></td>`;
-  return `<tr>${atkHtml}${defHtml}</tr>`;
-}).join("")}
-</tbody></table></div>`;
-  }
-
-  if (rankCountry.length) {
-    const atkRankCountry = rankCountry.filter(r => r._side === "attacker").sort((a,b)=>getValue(b)-getValue(a)).slice(0,10);
-    const defRankCountry = rankCountry.filter(r => r._side === "defender").sort((a,b)=>getValue(b)-getValue(a)).slice(0,10);
-    const maxRowsCountry = Math.max(atkRankCountry.length, defRankCountry.length);
-    html += `<div class="br-section"><h3 class="br-section-title">🌍 Top 10 Countries by Damage</h3>
-    <table class="rank-table"><thead>    <tr><th colspan="3" style="color:${atkText}">ATTACKER</th><th colspan="3" style="color:${defText}">DEFENDER</th></tr>
-    <tr><th>#</th><th>Country</th><th>Damage</th><th>#</th><th>Country</th><th>Damage</th></tr></thead><tbody>
-${Array.from({length:maxRowsCountry},(_,i)=>{
-  const a = atkRankCountry[i]; const d = defRankCountry[i];
-  const atkHtml = a ? `<td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td><td>${makeEntityLink(nameCountry(a.countryId||a.country)||a.countryName||a.name||"Unknown",`https://app.warera.io/country/${a.countryId||a.country}`)}</td><td>${fmtNum(getValue(a))}</td>` : `<td></td><td></td><td></td>`;
-  const defHtml = d ? `<td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td><td>${makeEntityLink(nameCountry(d.countryId||d.country)||d.countryName||d.name||"Unknown",`https://app.warera.io/country/${d.countryId||d.country}`)}</td><td>${fmtNum(getValue(d))}</td>` : `<td></td><td></td><td></td>`;
-  return `<tr>${atkHtml}${defHtml}</tr>`;
-}).join("")}
-</tbody></table></div>`;
-  }
-
-  if (gpCountry.length) {
-    const atkRankCountryGP = gpCountry.filter(r => r._side === "attacker").sort((a,b)=>getPoints(b)-getPoints(a)).slice(0,10);
-    const defRankCountryGP = gpCountry.filter(r => r._side === "defender").sort((a,b)=>getPoints(b)-getPoints(a)).slice(0,10);
-    const maxRowsCountryGP = Math.max(atkRankCountryGP.length, defRankCountryGP.length);
-    html += `<div class="br-section"><h3 class="br-section-title">🌍 Top 10 Countries by Ground Points</h3>
-    <table class="rank-table"><thead>    <tr><th colspan="3" style="color:${atkText}">ATTACKER</th><th colspan="3" style="color:${defText}">DEFENDER</th></tr>
-    <tr><th>#</th><th>Country</th><th>Ground Points</th><th>#</th><th>Country</th><th>Ground Points</th></tr></thead><tbody>
-${Array.from({length:maxRowsCountryGP},(_,i)=>{
-  const a = atkRankCountryGP[i]; const d = defRankCountryGP[i];
-  const atkHtml = a ? `<td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td><td>${makeEntityLink(nameCountry(a.countryId||a.country)||a.countryName||a.name||"Unknown",`https://app.warera.io/country/${a.countryId||a.country}`)}</td><td>${fmtNum(getPoints(a))}</td>` : `<td></td><td></td><td></td>`;
-  const defHtml = d ? `<td>${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td><td>${makeEntityLink(nameCountry(d.countryId||d.country)||d.countryName||d.name||"Unknown",`https://app.warera.io/country/${d.countryId||d.country}`)}</td><td>${fmtNum(getPoints(d))}</td>` : `<td></td><td></td><td></td>`;
-  return `<tr>${atkHtml}${defHtml}</tr>`;
-}).join("")}
-</tbody></table></div>`;
+  const anyRank = [rankUsers, gpUsers, rankMu, gpMu, rankCountry, gpCountry].some(l => l && l.length);
+  if (anyRank) {
+    html += `<div class="br-section">
+      <h3 class="br-section-title">🏆 Rankings</h3>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+        <button class="pill-btn active" data-rank-cat="damage" style="font-size:.72rem">💥 Damage</button>
+        <button class="pill-btn" data-rank-cat="points" style="font-size:.72rem">🏴 Ground Points</button>
+        <span style="width:10px"></span>
+        <button class="pill-btn active" data-rank-type="users" style="font-size:.72rem">Users</button>
+        <button class="pill-btn" data-rank-type="mus" style="font-size:.72rem">MUs</button>
+        <button class="pill-btn" data-rank-type="countries" style="font-size:.72rem">Countries</button>
+      </div>
+      <div id="brRankTable_${bid}">${rankTableHtml("damage", "users")}</div>
+    </div>`;
   }
 
   if (orders.length) {
@@ -574,6 +521,25 @@ ${Array.from({length:maxRows}).map((_,i)=>{
 
   bindBountySummaryButtons(E.battleDetailPane, b, bid, contracts);
 
+  function bindRankTabs(root) {
+    const tableEl = root?.querySelector(`#brRankTable_${bid}`);
+    if (!tableEl) return;
+    root.querySelectorAll("[data-rank-cat], [data-rank-type]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        root.querySelectorAll("[data-rank-cat], [data-rank-type]").forEach(other => {
+          if (other === btn) return;
+          const sameGroup = btn.dataset.rankCat ? other.dataset.rankCat === btn.dataset.rankCat : other.dataset.rankType === btn.dataset.rankType;
+          if (sameGroup) other.classList.remove("active");
+        });
+        btn.classList.add("active");
+        const cat = root.querySelector("[data-rank-cat].active")?.dataset.rankCat || "damage";
+        const type = root.querySelector("[data-rank-type].active")?.dataset.rankType || "users";
+        tableEl.innerHTML = rankTableHtml(cat, type);
+      });
+    });
+  }
+  bindRankTabs(E.battleDetailPane);
+
   document.getElementById("clearBattleDetailBtn")?.addEventListener("click", () => { clearBattleDetail(); });
 
   const roundTabContainer = document.getElementById(`brRoundTabs_${bid}`);
@@ -597,6 +563,7 @@ ${Array.from({length:maxRows}).map((_,i)=>{
     E.battleReportMeta.textContent = `${isLive?"Live":"Ended"} · ${started?fmtDate(started):""}${ended?" → "+fmtDate(ended):""}`;
     E.battleReportContent.innerHTML = html.replace(/<div[^>]*>\s*<button[^>]*id="openFullReportBtn"[^>]*>[\s\S]*?<\/div>/,"");
     bindBountySummaryButtons(E.battleReportContent, b, bid, contracts);
+    bindRankTabs(E.battleReportContent);
     if (E.openBattlePageBtn) {E.openBattlePageBtn.dataset.battleId = bid;}
     E.battleReportModal.classList.remove("hidden");
   });
