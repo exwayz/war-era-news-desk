@@ -417,8 +417,8 @@ function makeBattleCard(battle) {
   if (isTournament) {
     emblem.innerHTML = `<iconify-icon icon="mdi:trophy" class="lu" style="color:var(--gold);font-size:1.7rem"></iconify-icon>`;
   } else {
-    const atkIcon = kind === "resistance" ? "fluent-emoji-high-contrast:raised-fist" : kind === "revolution" ? "mdi:pitchfork" : "mdi:sword";
-    emblem.innerHTML = `<iconify-icon icon="mdi:shield" class="lu" style="color:${defColor};font-size:1.35rem"></iconify-icon><iconify-icon icon="${atkIcon}" class="lu" style="color:${atkColor};font-size:1.35rem"></iconify-icon>`;
+    const strikeIcon = kind === "resistance" ? "game-icons:fist" : kind === "revolution" ? "mdi:pitchfork" : "streamline-sharp:sword-attack-solid";
+    emblem.innerHTML = `<iconify-icon icon="streamline-sharp:shield-2-remix" class="lu bc-ico-shield" style="color:${defColor}"></iconify-icon><iconify-icon icon="${strikeIcon}" class="lu bc-ico-strike" style="color:${atkColor}"></iconify-icon>`;
   }
 
   const stats = S.battleCardStats.get(bid);

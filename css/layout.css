@@ -561,7 +561,18 @@
 .bc-flag-img--round { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; border: 1px solid var(--line); }
 .bc-score { flex: 0 0 auto; font-size: 1.02rem; font-weight: 900; font-family: var(--font-num); line-height: 1; min-width: 14px; text-align: center; }
 .bc-emblem { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 46px; }
-.bc-emblem-icons { display: flex; align-items: center; justify-content: center; gap: 3px; min-height: 22px; }
+.bc-emblem-icons { position: relative; display: flex; align-items: center; justify-content: center; height: 30px; min-height: 30px; }
+.bc-ico-shield {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.75rem; line-height: 1; z-index: 0;
+}
+.bc-ico-strike {
+  position: absolute; left: 50%; top: 55%;
+  transform: translate(-50%, -50%);
+  font-size: 1.2rem; line-height: 1; z-index: 1;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.35));
+}
 .bc-dmg { display: inline-flex; align-items: center; gap: 3px; font-size: .62rem; font-weight: 800; font-family: var(--font-num); color: var(--red); white-space: nowrap; max-width: 100%; }
 .bc-dmg .lu { color: var(--red); }
 

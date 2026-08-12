@@ -669,8 +669,8 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
       <div class="br-stat-box"><span class="br-stat-val">${sc.participantsD || "—"}</span><span class="br-stat-lbl">Defender Participants</span></div>
       <div class="br-stat-box"><span class="br-stat-val" style="color:${defText}">${sc.defDmg ? fmtNum(sc.defDmg) : "—"}</span><span class="br-stat-lbl">Defender Damage</span></div>
       <div class="br-stat-box br-stat-box--total"><span class="br-stat-val">${sc.totalDmg ? fmtNum(sc.totalDmg) : "—"}</span><span class="br-stat-lbl">Total Damage</span></div>
-      <div class="br-stat-box"><span class="br-stat-val">${sc.participantsA || "—"}</span><span class="br-stat-lbl">Attacker Participants</span></div>
       <div class="br-stat-box"><span class="br-stat-val" style="color:${atkText}">${sc.atkDmg ? fmtNum(sc.atkDmg) : "—"}</span><span class="br-stat-lbl">Attacker Damage</span></div>
+      <div class="br-stat-box"><span class="br-stat-val">${sc.participantsA || "—"}</span><span class="br-stat-lbl">Attacker Participants</span></div>
       <div class="br-stat-box"><span class="br-stat-val" style="font-size:.85rem">${atkVal}</span><span class="br-stat-lbl">Attacker</span></div>
       <div class="br-stat-box"><span class="br-stat-val" style="font-size:.82rem">${reg || "—"}</span><span class="br-stat-lbl">Region</span></div>
       <div class="br-stat-box"><span class="br-stat-val">${sc.hitCount ? fmtNum(sc.hitCount) : "—"}</span><span class="br-stat-lbl">Total Hits</span></div>
