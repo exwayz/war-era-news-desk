@@ -362,8 +362,8 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     defId = b.defender?.country||b.defenderCountry||b.defender?.countryId;
     const atkCode = (S.lookups.countriesById.get(atkId)?.code||"").toLowerCase();
     const defCode = (S.lookups.countriesById.get(defId)?.code||"").toLowerCase();
-    atkAvatar = atkCode ? `<img src="https://media.warera.io/images/flags/${atkCode.toLowerCase()}.svg" alt="" style="width:32px;display:block">` : "";
-    defAvatar = defCode ? `<img src="https://media.warera.io/images/flags/${defCode.toLowerCase()}.svg" alt="" style="width:32px;display:block">` : "";
+    atkAvatar = atkCode ? `<img src="https://media.warera.io/images/flags/${atkCode.toLowerCase()}.svg" alt="" style="width:38px;display:block">` : "";
+    defAvatar = defCode ? `<img src="https://media.warera.io/images/flags/${defCode.toLowerCase()}.svg" alt="" style="width:38px;display:block">` : "";
   }
   const { atkColor, defColor, atkText, defText, atkBarText, defBarText } = battleSideColors(b);
   const reg = nameRegion(b.defender?.region||b.defenderRegion||b.region);
@@ -460,17 +460,14 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
       const color = allianceColor(g.id) || "var(--ink-dim)";
       return `<span style="font-size:.64rem;font-weight:800;color:${color};text-align:center">${escapeHtml(allianceName(g.id))}</span>`;
     }).join("");
-    return `<div data-alliance-row="${side}" style="display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:2px">${chips}</div>`;
+    return `<div data-alliance-row="${side}" style="display:flex;flex-direction:column;align-items:center;gap:2px">${chips}</div>`;
   };
 
   const atkAllianceHtml = allianceRowHtml(sideAllianceGroups(battleSideAllianceCountries(b, orders, "attacker")), "attacker");
   const defAllianceHtml = allianceRowHtml(sideAllianceGroups(battleSideAllianceCountries(b, orders, "defender")), "defender");
   const battleScoreHtml = `
   <div style="display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;padding:12px;background:var(--surface-hi);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:12px">
-    <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
-      <div style="display:flex;align-items:center;gap:8px">${atkAvatar}${isLive ? orderBtnHtml(atkOrderCount, "attacker") : ""}</div>
-      ${atkAllianceHtml}
-    </div>
+    <div style="display:flex;align-items:center;gap:10px">${atkAvatar}${isLive ? orderBtnHtml(atkOrderCount, "attacker") : ""}${atkAllianceHtml}</div>
     <div style="display:flex;justify-content:center;align-items:center;gap:16px">
       <div style="text-align:center">
         <div style="font-size:2rem;font-weight:900;color:${atkText};line-height:1">${atkRoundsWon}</div>
@@ -485,10 +482,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
         <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;color:var(--ink-dim);margin-top:2px">${def||"Defender"}</div>
       </div>
     </div>
-    <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
-      <div style="display:flex;align-items:center;gap:8px">${isLive ? orderBtnHtml(defOrderCount, "defender") : ""}${defAvatar}</div>
-      ${defAllianceHtml}
-    </div>
+    <div style="display:flex;align-items:center;gap:10px">${defAllianceHtml}${isLive ? orderBtnHtml(defOrderCount, "defender") : ""}${defAvatar}</div>
   </div>`;
 
   const TICK_BRACKETS = [[1,1],[100,2],[200,3],[300,4],[400,5],[500,6]];
