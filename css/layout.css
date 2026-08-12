@@ -462,7 +462,7 @@
 .br-stat-val { display: block; font-size: 1rem; font-weight: 800; line-height: 1; margin-bottom: 3px; }
 .br-stat-lbl { font-size: .66rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-dim); }
 .score-bar-labels { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
-.score-bar { display: flex; width: 100%; height: 10px; overflow: hidden; }
+.score-bar { display: flex; width: 100%; height: 32px; overflow: hidden; }
 
 /* ── JOB CARD ───────────────────────────────────────── */
 .job-card { padding: 10px; border: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }

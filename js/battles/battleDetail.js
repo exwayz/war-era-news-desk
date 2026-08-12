@@ -255,7 +255,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     atkAvatar = atkCode ? `<img src="https://media.warera.io/images/flags/${atkCode.toLowerCase()}.svg" alt="" style="width:32px;display:block">` : "";
     defAvatar = defCode ? `<img src="https://media.warera.io/images/flags/${defCode.toLowerCase()}.svg" alt="" style="width:32px;display:block">` : "";
   }
-  const { atkColor, defColor, atkText, defText } = battleSideColors(b);
+  const { atkColor, defColor, atkText, defText, atkBarText, defBarText } = battleSideColors(b);
   const reg = nameRegion(b.defender?.region||b.defenderRegion||b.region);
   const isLive = !b.endedAt || b.isActive===true || b.active===true;
   const started = b.createdAt||b.startedAt||"";
@@ -410,18 +410,24 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
         <span style="color:${defText};font-weight:800">${defPct}% ${def||"Defender"}</span>
       </div>
       <div class="score-bar">
-  <div style="width:${atkPct}%; background:${atkColor}; border-right:2px solid rgba(255,255,255,0.65);"></div>
-  <div style="width:${defPct}%; background:${defColor};"></div>
+  <div style="flex:${atkPct} 0 0; background:${atkColor}; border-right:2px solid rgba(255,255,255,0.65); display:flex; align-items:center; justify-content:flex-end; padding-right:8px;">
+    <span style="font-size:30px;line-height:1;font-family:var(--font-ui);font-weight:900;color:${atkBarText}">${fmtNum(atkDmg)}</span>
+  </div>
+  <div style="flex:${defPct} 0 0; background:${defColor}; display:flex; align-items:center; justify-content:flex-start; padding-left:8px;">
+    <span style="font-size:30px;line-height:1;font-family:var(--font-ui);font-weight:900;color:${defBarText}">${fmtNum(defDmg)}</span>
+  </div>
 </div>
     </div>`;
 
   html+=`<div class="br-stats-grid">
       ${atk?`<div class="br-stat-box"><span class="br-stat-val" style="font-size:.85rem">${atk}</span><span class="br-stat-lbl">Attacker</span></div>`:""}
       <div class="br-stat-box"><span class="br-stat-val">${participantsA||"—"}</span><span class="br-stat-lbl"> Attacker Participants</span></div>
+      <div class="br-stat-box"><span class="br-stat-val" style="color:${atkText}">${atkDmg?fmtNum(atkDmg):"—"}</span><span class="br-stat-lbl">Attacker Damage</span></div>
       <div class="br-stat-box"><span class="br-stat-val">${totalDmg?fmtNum(totalDmg):"—"}</span><span class="br-stat-lbl">Total Damage</span></div>
       <div class="br-stat-box"><span class="br-stat-val">${isLive?"LIVE":"ENDED"}</span><span class="br-stat-lbl">Status</span></div>
       <div class="br-stat-box"><span class="br-stat-val">${(b.attacker?.hitCount||0)+(b.defender?.hitCount||0) ? fmtNum((b.attacker?.hitCount||0)+(b.defender?.hitCount||0)) : "—"}</span><span class="br-stat-lbl">Total Hits</span></div>
       <div class="br-stat-box"><span class="br-stat-val">${participantsD||"—"}</span><span class="br-stat-lbl">Defender Participants</span></div>
+      <div class="br-stat-box"><span class="br-stat-val" style="color:${defText}">${defDmg?fmtNum(defDmg):"—"}</span><span class="br-stat-lbl">Defender Damage</span></div>
       ${def?`<div class="br-stat-box"><span class="br-stat-val" style="font-size:.85rem">${def}</span><span class="br-stat-lbl">Defender</span></div>`:""}
       ${reg?`<div class="br-stat-box"><span class="br-stat-val" style="font-size:.82rem">${reg}</span><span class="br-stat-lbl">Region</span></div>`:""}
       ${started?`<div class="br-stat-box"><span class="br-stat-val" style="font-size:.72rem">${fmtDate(started)}</span><span class="br-stat-lbl">Started</span></div>`:""}
