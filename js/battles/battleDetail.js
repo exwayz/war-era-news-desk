@@ -395,7 +395,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     const tb = new Date(b.createdAt||b.startedAt||0).getTime();
     return ta - tb;
   });
-  const currentLiveRound = roundsData.find(rd => rd._isCurrent) || [...sortedRounds].reverse().find(rd => rd._isCurrent || !rd.endedAt) || null;
+  const currentLiveRound = isLive ? (roundsData.find(rd => rd._isCurrent) || [...sortedRounds].reverse().find(rd => rd._isCurrent || !rd.endedAt) || null) : null;
   const tickInfo = currentLiveRound?.live || b.live || null;
   const atkRoundsWon = Number(b.attacker?.wonRoundsCount ?? b.attackerRoundsWon ?? 0);
   const defRoundsWon = Number(b.defender?.wonRoundsCount ?? b.defenderRoundsWon ?? 0);

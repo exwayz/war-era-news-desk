@@ -112,6 +112,27 @@ async function fetchBattleCardStats(b) {
           }
         } catch {}
       }
+    } else if (!atkPts && !defPts) {
+      // Ended battles carry the final ground-point totals on the last round;
+      // battle-level fields are usually empty for them.
+      const ids = [data.rounds, data.roundsHistory, data.roundsAll]
+        .filter(a => Array.isArray(a))
+        .flat()
+        .map(r => (typeof r === "string" ? r : r?._id || r?.id || r?.roundId || ""))
+        .filter(Boolean);
+      const curId = typeof data.currentRound === "string"
+        ? data.currentRound
+        : data.currentRound?._id || data.currentRound?.id || "";
+      const lastId = curId || ids[ids.length - 1] || "";
+      if (lastId) {
+        try {
+          const rd = unwrap(await fetchTrpc("round.getById", { roundId: lastId }, k));
+          if (rd && typeof rd === "object") {
+            if (rd.attacker?.points != null) atkPts = Number(rd.attacker.points) || 0;
+            if (rd.defender?.points != null) defPts = Number(rd.defender.points) || 0;
+          }
+        } catch {}
+      }
     }
     const stats = { ts: Date.now(), atkDmg, defDmg, atkPts, defPts };
     S.battleCardStats.set(bid, stats);
@@ -396,8 +417,8 @@ function makeBattleCard(battle) {
   if (isTournament) {
     emblem.innerHTML = `<iconify-icon icon="mdi:trophy" class="lu" style="color:var(--gold);font-size:1.7rem"></iconify-icon>`;
   } else {
-    const atkIcon = kind === "resistance" ? "mdi:hand-pointing-up" : kind === "revolution" ? "mdi:rake" : "mdi:sword";
-    emblem.innerHTML = `<iconify-icon icon="${atkIcon}" class="lu" style="color:${atkColor};font-size:1.35rem"></iconify-icon><iconify-icon icon="mdi:shield" class="lu" style="color:${defColor};font-size:1.35rem"></iconify-icon>`;
+    const atkIcon = kind === "resistance" ? "fluent-emoji-high-contrast:raised-fist" : kind === "revolution" ? "mdi:pitchfork" : "mdi:sword";
+    emblem.innerHTML = `<iconify-icon icon="mdi:shield" class="lu" style="color:${defColor};font-size:1.35rem"></iconify-icon><iconify-icon icon="${atkIcon}" class="lu" style="color:${atkColor};font-size:1.35rem"></iconify-icon>`;
   }
 
   const stats = S.battleCardStats.get(bid);
