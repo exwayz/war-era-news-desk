@@ -91,10 +91,11 @@ export async function loadBattleDetail(battle, bid, silent=false) {
   // countdown ticking; timer teardown is owned by the card click / clearBattleDetail.
   await ensureLookups(k).catch(()=>{});
   if (!silent) {
+    const { atkColor, defColor } = battleSideColors(battle);
     if (E.battleReportTitle) E.battleReportTitle.textContent = "Battle Intelligence Report";
     if (E.battleReportMeta) E.battleReportMeta.textContent = "Loading intelligence report…";
     if (E.battleReportContent) E.battleReportContent.innerHTML = `<div style="padding:32px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--ink-dim)">
-      <iconify-icon icon="mdi:sword-cross" class="lu nd-spin" style="font-size:30px;color:var(--accent)"></iconify-icon>
+      <div class="spinner" style="--sp-c1:${atkColor};--sp-c2:${defColor}"><span class="spinnerin"></span></div>
       <span style="font-size:.82rem">Loading intelligence report…</span>
     </div>`;
     if (E.battleReportModal) E.battleReportModal.classList.remove("hidden");
