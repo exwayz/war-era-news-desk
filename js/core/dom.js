@@ -34,7 +34,6 @@ export const E = {
   copyArticleBtn: document.getElementById("copyArticleBtn"),
   battleList: document.getElementById("battleList"),
   battleListStatus: document.getElementById("battleListStatus"),
-  battleDetailPane: document.getElementById("battleDetailPane"),
   battleRefreshBtn: document.getElementById("battleRefreshBtn"),
   battleTabLive: document.getElementById("battleTabLive"),
   battleTabHistory: document.getElementById("battleTabHistory"),

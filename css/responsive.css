@@ -8,6 +8,7 @@
   .pol-grid { grid-template-columns: 1fr; }
   .analytics-cards-grid { grid-template-columns: repeat(2, 1fr); }
   .library-list { grid-template-columns: repeat(2, 1fr); }
+  #battleList { grid-template-columns: repeat(2, 1fr); }
   .topbar-right { display: none; }
 }
 
@@ -32,6 +33,7 @@
   .wall-grid { grid-template-columns: 1fr; }
   .pol-grid { grid-template-columns: 1fr; }
   .library-list { grid-template-columns: 1fr; }
+  #battleList { grid-template-columns: 1fr; }
   .analytics-cards-grid { grid-template-columns: 1fr; }
   .topbar-right { display: none; }
   .infobar { height: 24px; }

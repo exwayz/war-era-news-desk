@@ -12,7 +12,7 @@ export function highlightUserData() {
 
   if (!names.length) return;
 
-  const selector = ".rk-name, .rk-row, .ac-meta, .bc-meta, .bc-chip, .ec-summary, .rk-cell-title, .rk-val, .ec-details";
+  const selector = ".rk-name, .rk-row, .ac-meta, .bc-name, .ec-summary, .rk-cell-title, .rk-val, .ec-details";
   document.querySelectorAll(selector).forEach((el) => {
     const text = el.textContent.trim().toLowerCase();
     for (const n of names) {

@@ -3,7 +3,7 @@ import { E } from "../core/dom.js";
 import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
 import { fmtDate, fmtNum, getValue, getPoints, normalizeRankRow, escapeHtml, rankBadgeHtml } from "../core/utils.js";
 import { nameCountry, nameRegion, nameUser, nameMu, battleSideColors, ensureAlliances, allianceColor, allianceName, sideAllianceGroups, battleSideAllianceCountries } from "./companies.js";
-import { clearBattleDetail, buildAndDownloadXLS, battleId } from "./battles.js";
+import { buildAndDownloadXLS, battleId } from "./battles.js";
 import { fetchBattleContracts, fetchBattleMoney, bountySummaryHtml, bindBountySummaryButtons } from "./bounty.js";
 import { ensureLookups } from "../timeline/filters.js";
 
@@ -90,7 +90,11 @@ export async function loadBattleDetail(battle, bid, silent=false) {
   // NOTE: do not stopBattlePolling() here — silent reloads must keep the live
   // countdown ticking; timer teardown is owned by the card click / clearBattleDetail.
   await ensureLookups(k).catch(()=>{});
-  if (!silent) E.battleDetailPane.innerHTML = `<div style="padding:24px;color:var(--ink-dim)">Loading intelligence report…</div>`;
+  if (!silent) {
+    if (E.battleReportTitle) E.battleReportTitle.textContent = "Battle Intelligence Report";
+    if (E.battleReportMeta) E.battleReportMeta.textContent = "Loading intelligence report…";
+    if (E.battleReportContent) E.battleReportContent.innerHTML = `<div style="padding:24px;color:var(--ink-dim)">Loading intelligence report…</div>`;
+  }
   try {
     const [rUsrMerged, rMuMerged, rCtyMerged, rGpUsrAtk, rGpUsrDef, rGpMuAtk, rGpMuDef, rGpCtyAtk, rGpCtyDef, rOrdAtk, rOrdDef, rDetail, rContracts, rMoney] = await Promise.allSettled([
       fetchTrpc("battleRanking.getRanking",{battleId:bid,dataType:"damage",type:"user",side:"merged"},k),
@@ -332,7 +336,7 @@ export async function loadBattleDetail(battle, bid, silent=false) {
     renderBattleDetail(bdDetail, bid, allUsers, allMu, allCountry, gpUsers, gpMu, gpCountry, allOrders, atkParticipantCount, defParticipantCount, roundsData, perRoundData, contracts, money);
   } catch (err) {
     if (reqSeq === S.battleDetailSeq && S.selectedBattleId === bid && !silent) {
-      E.battleDetailPane.innerHTML = `<div class="status-msg error">${err.message||"Failed to load battle detail"}</div>`;
+      E.battleReportContent.innerHTML = `<div class="status-msg error">${err.message||"Failed to load battle detail"}</div>`;
     } else if (reqSeq === S.battleDetailSeq && S.selectedBattleId === bid && silent) {
       // Keep the live refresh loop alive after a failed reload — otherwise the
       // battle detail would silently freeze until the user reopens or reloads.
@@ -725,7 +729,6 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
   const staticTop = `<div class="br-section">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;">
     <h3 class="br-section-title" style="margin:0">Battle Overview${liveTag}</h3>
-    <button id="clearBattleDetailBtn" class="btn-secondary" style="margin-left:auto;padding:4px 10px;min-width:auto;">⌫ Clear</button>
   </div>
   ${roundTabsHtml}
   ` + battleScoreHtml + liveTickHtml + bountySummaryHtml(b, contracts, money);
@@ -733,12 +736,18 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
   const scopeBodyId = `brScopeBody_${bid}`;
 
   const staticBottom = (isLive ? `<p style="text-align:center;color:var(--ink-dim);font-size:.76rem;padding:6px 0"><iconify-icon icon="mdi:sync" class="lu nd-spin"></iconify-icon> Auto-refreshing on tick</p>` : "") + `<div style="padding:8px 0;display:flex;gap:8px;flex-wrap:wrap">
-    <button class="btn-primary" id="openFullReportBtn" style="flex:1"><iconify-icon icon="mdi:file-document-outline" class="lu"></iconify-icon> Open Full Report</button>
-    <button class="btn-secondary" id="exportBattleXlsBtn" style="flex:1"><iconify-icon icon="mdi:file-excel-outline" class="lu"></iconify-icon> Export XLS</button>
-        <button class="btn-secondary" id="captureBattlePaneBtn" style="flex:1"><iconify-icon icon="mdi:camera" class="lu"></iconify-icon> Capture Report</button>
+    <button class="btn-primary" id="exportBattleXlsBtn" style="flex:1"><iconify-icon icon="mdi:file-excel-outline" class="lu"></iconify-icon> Export XLS</button>
+    <button class="btn-secondary" id="captureBattlePaneBtn" style="flex:1"><iconify-icon icon="mdi:camera" class="lu"></iconify-icon> Capture Report</button>
   </div>`;
 
-  E.battleDetailPane.innerHTML = staticTop + `<div id="${scopeBodyId}"></div>` + staticBottom;
+  const detailHtml = staticTop + `<div id="${scopeBodyId}"></div>` + staticBottom;
+  if (E.battleReportTitle) E.battleReportTitle.textContent = `${battleTypeLabel}: ${atk||"?"} vs ${def||"?"}${reg ? " — "+reg : ""}`;
+  if (E.battleReportMeta) E.battleReportMeta.textContent = `${isLive ? "Live" : "Ended"}${started ? " · "+fmtDate(started) : ""}${ended ? " → "+fmtDate(ended) : ""}`;
+  const prevScroll = E.battleReportContent.scrollTop;
+  E.battleReportContent.innerHTML = detailHtml;
+  E.battleReportContent.scrollTop = prevScroll;
+  if (E.openBattlePageBtn) E.openBattlePageBtn.dataset.battleId = bid;
+  if (E.battleReportModal) E.battleReportModal.classList.remove("hidden");
 
   if (isLive && tickInfo?.nextTickAt) {
     const countEl = document.getElementById(`brTickCount_${bid}`);
@@ -755,9 +764,8 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     S.battleTickTimer = setInterval(updateTick, 1000);
   }
 
-  bindBountySummaryButtons(E.battleDetailPane, b, bid, contracts);
-  document.getElementById("clearBattleDetailBtn")?.addEventListener("click", () => { clearBattleDetail(); });
-  E.battleDetailPane.querySelectorAll(".order-detail-btn").forEach(btn => {
+  bindBountySummaryButtons(E.battleReportContent, b, bid, contracts);
+  E.battleReportContent.querySelectorAll(".order-detail-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       const side = btn.dataset.orderSide;
       const color = side === "attacker" ? atkColor : defColor;
@@ -827,17 +835,6 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
   allTabBtns.forEach(btn => { btn.classList.toggle("active", btn.dataset.roundIdx === String(defaultIdx)); });
   allTabBtns.forEach(btn => { btn.addEventListener("click", () => { activateRoundTab(btn.dataset.roundIdx); }); });
   renderScope(defaultIdx);
-
-  document.getElementById("openFullReportBtn")?.addEventListener("click", () => {
-    const title = `${battleTypeLabel}: ${atk||"?"} vs ${def||"?"}${reg?" — "+reg:""}`;
-    E.battleReportTitle.textContent = "Battle Report: "+title;
-    E.battleReportMeta.textContent = `${isLive?"Live":"Ended"} · ${started?fmtDate(started):""}${ended?" → "+fmtDate(ended):""}`;
-    E.battleReportContent.innerHTML = (staticTop + currentScopeHtml + staticBottom).replace(/<div[^>]*>\s*<button[^>]*id="openFullReportBtn"[^>]*>[\s\S]*?<\/div>/, "");
-    bindBountySummaryButtons(E.battleReportContent, b, bid, contracts);
-    bindRankTabs(E.battleReportContent);
-    if (E.openBattlePageBtn) { E.openBattlePageBtn.dataset.battleId = bid; }
-    E.battleReportModal.classList.remove("hidden");
-  });
 
   document.getElementById("exportBattleXlsBtn")?.addEventListener("click", () => {
     if (!currentScopeData) return;

@@ -4,7 +4,6 @@ import { populateRegionOptions } from "./core/regionClassification.js";
 import { STORE } from "./core/storage.js";
 import { apiKey, isValidApiKey, resetTxCaches } from "./core/api.js";
 import { debounce, parseLocal, fmtDate, fmtNum, escapeHtml } from "./core/utils.js";
-import { captureHTML, ts } from "./core/captureReport.js";
 import { populateEventTypes } from "./timeline/filters.js";
 import { loadEvents, startAutoRefresh, scheduleEventsRefresh, handleEventAction } from "./timeline/timeline.js";
 import { loadArticles, renderArticles, copyArticles, refreshLangDropdown } from "./timeline/articles.js";
@@ -13,7 +12,7 @@ import { toggleTheme, applyTheme, applyTexture } from "./ui/theme.js";
 import { toast, setStatus } from "./ui/toast.js";
 import { evtData, evtTime, buildTitle, buildSummary } from "./timeline/events.js";
 import { initFeatured, loadFeatured } from "./timeline/featured.js";
-import { loadBattles, stopBattlePolling, updateBattleTabPills } from "./battles/battles.js";
+import { loadBattles, stopBattlePolling, updateBattleTabPills, clearBattleDetail } from "./battles/battles.js";
 import { injectBattleSearchBar } from "./battles/companies.js";
 import { loadMarketFull, loadMarketStats, copyMarketReport, captureMarketReport, renderMarketOrders, initMarketView } from "./market/market.js";
 import { loadJobs, renderJobs, copyJobsReport, captureJobsReport, initJobViews } from "./jobs/jobs.js";
@@ -407,11 +406,10 @@ function bindAll() {
   E.battleRefreshBtn?.addEventListener("click",()=>loadBattles(true));
   E.loadMoreBattlesBtn?.addEventListener("click",()=>loadBattles(false));
   injectBattleSearchBar();
-  E.closeBattleReport?.addEventListener("click",()=>E.battleReportModal.classList.add("hidden"));
-  E.battleReportModal?.addEventListener("click",e=>{ if(e.target===E.battleReportModal) E.battleReportModal.classList.add("hidden"); });
+  E.closeBattleReport?.addEventListener("click", () => clearBattleDetail());
+  E.battleReportModal?.addEventListener("click", e => { if (e.target === E.battleReportModal) clearBattleDetail(); });
   E.copyBattleReportBtn?.addEventListener("click",()=>{ navigator.clipboard.writeText(E.battleReportContent.innerText||"").then(()=>toast("Battle report copied.")); });
   E.openBattlePageBtn?.addEventListener("click", () => { const id = E.openBattlePageBtn.dataset.battleId; if (id) window.open(`https://app.warera.io/battle/${id}`, "_blank"); });
-  document.getElementById("captureBattleReportBtn")?.addEventListener("click", () => { captureHTML(E.battleReportContent.innerHTML, "battle_report_"+ts()+".png"); });
 
   E.marketRefreshBtn?.addEventListener("click",()=>loadMarketFull(true));
   document.getElementById("marketOpenBtn")?.addEventListener("click", () => {window.open("https://app.warera.io/market", "_blank");});
@@ -513,7 +511,7 @@ function bindAll() {
   document.addEventListener("click", e => {
     const t = e.target;
     if (t.closest("#copyMarketReportBtn, #copyJobsReportBtn, #copyRankingsReportBtn, #copyArticleBtn, #copyBattleReportBtn, #copyPoliticsReportBtn, #copyJobsConcentrationBtn, #copyCommunityReportBtn, #copyAllLinksBtn, .ec-copy, .link-copy")) { playCopy(); return; }
-    if (t.closest(".ac-read, #openFullReportBtn, .wall-read-btn")) { playRead(); return; }
+    if (t.closest(".ac-read, .wall-read-btn")) { playRead(); return; }
     if (t.closest("button, a, .event-card, .battle-card, .wall-upvote-btn")) { playClick(); }
   });
 

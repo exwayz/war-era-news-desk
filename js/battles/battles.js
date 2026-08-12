@@ -1,10 +1,11 @@
 import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
 import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
-import { fmtDate, fmtNum, escapeXml } from "../core/utils.js";
+import { fmtDate, fmtNum, fmtMoney, escapeHtml, escapeXml } from "../core/utils.js";
 import { toast } from "../ui/toast.js";
 import { highlightUserData } from "../core/profileHighlighter.js";
 import { getCountriesInRegion } from "../core/regionClassification.js";
+import { ensureLookups } from "../timeline/filters.js";
 
 
 async function resolveTournamentMUs(k) {
@@ -82,6 +83,7 @@ export async function loadBattles(reset=true) {
   const mode = S.battleSearchMode;
   setBattleStatus(mode==="id" ? "Loading battle…" : (mode ? "Searching battles…" : "Loading battles…"));
   try {
+    await ensureLookups(k).catch(()=>{});
     if (mode==="id") {
       await loadBattleById(k);
     } else if (mode==="country") {
@@ -96,8 +98,8 @@ export async function loadBattles(reset=true) {
     else clearBattleStatus();
     if (S.battleMode === "history") refreshBattleDamageCache();
     if (mode==="id" && S.battles.length) {
-      const btn = E.battleList.querySelector(".battle-card .bc-select");
-      if (btn) btn.click();
+      const card = E.battleList.querySelector(".battle-card");
+      if (card) card.click();
     }
   } catch (err) {
     setBattleStatus("Could not load battles: "+(err.message||""), "error");
@@ -228,58 +230,143 @@ export function renderBattleList() {
   highlightUserData();
 }
 
-import { nameCountry, nameRegion, nameMu } from "./companies.js";
+import { nameCountry, nameRegion, nameMu, battleSideColors } from "./companies.js";
+
+function sumDmg(d) {
+  if (d == null) return 0;
+  if (typeof d === "number") return d;
+  if (typeof d === "object") return Object.values(d).reduce((s, v) => s + (Number(v) || 0), 0);
+  return Number(d) || 0;
+}
+
+function sideFlagHtml(id, isTournament) {
+  if (!id) return "";
+  if (isTournament) {
+    const mu = S.lookups.muById.get(id);
+    return mu?.avatarUrl ? `<img class="bc-flag-img bc-flag-img--round" src="${escapeHtml(mu.avatarUrl)}" alt="">` : "";
+  }
+  const code = (S.lookups.countriesById.get(id)?.code || "").toLowerCase();
+  return code ? `<img class="bc-flag-img" src="https://media.warera.io/images/flags/${code}.svg" alt="">` : "";
+}
+
+function fmtDateShort(v) {
+  if (!v) return "";
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return String(v);
+  const s = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return d.getFullYear() === new Date().getFullYear() ? s : s + " '" + String(d.getFullYear()).slice(2);
+}
 
 function makeBattleCard(battle) {
   const node = E.tplBattle.content.firstElementChild.cloneNode(true);
   const bid = battleId(battle);
   const isLive = !battle.endedAt || battle.isActive===true || battle.active===true;
-  let atk, def;
-  if (battle.type === "tournament") {
-    atk = nameMu(battle.attacker?.tournamentTeam);
-    def = nameMu(battle.defender?.tournamentTeam);
+  const isTournament = battle.type === "tournament";
+  let atk, def, atkId, defId;
+  if (isTournament) {
+    atkId = battle.attacker?.tournamentTeam;
+    defId = battle.defender?.tournamentTeam;
+    atk = nameMu(atkId);
+    def = nameMu(defId);
   } else {
-    atk = nameCountry(battle.attacker?.country||battle.attackerCountry||battle.attacker?.countryId);
-    def = nameCountry(battle.defender?.country||battle.defenderCountry||battle.defender?.countryId);
+    atkId = battle.attacker?.country||battle.attackerCountry||battle.attacker?.countryId;
+    defId = battle.defender?.country||battle.defenderCountry||battle.defender?.countryId;
+    atk = nameCountry(atkId);
+    def = nameCountry(defId);
   }
-  const reg = nameRegion(battle.defender?.region||battle.defenderRegion||battle.region);
+  const { atkColor, defColor, atkText, defText, atkBarText, defBarText } = battleSideColors(battle);
+  const fallbackName = id => id ? String(id).slice(-6) : "?";
 
-  node.querySelector(".bc-dot").classList.add(isLive?"live":"ended");
-  node.querySelector(".bc-label").textContent = isLive ? "LIVE" : "ENDED";
+  const status = node.querySelector(".bc-status");
+  status.classList.add(isLive ? "live" : "ended");
+  status.innerHTML = `<span class="bc-status-dot"></span><span class="bc-status-txt">${isLive ? "LIVE" : "ENDED"}</span>`;
+  status.title = isLive ? "Live battle" : "Battle ended";
 
-  const typePhrase = battle.type === "war" ? `Battle of ${reg}` : battle.type === "resistance" ? `Resistance for ${reg}` : battle.type === "revolution" ? `Civil war of ${def}` : battle.type === "tournament" ? `MU Tournament` : "";
-  const title = (atk&&def) ? `${atk} vs ${def}${typePhrase ? " — "+typePhrase : ""}` : (battle.title||battle.name||"Battle #"+(bid||"?").slice(-6));
-  node.querySelector(".bc-title").textContent = title;
-
-  let meta = (battle.createdAt||battle.startedAt) ? "Started: "+fmtDate(battle.createdAt||battle.startedAt) : "";
-  if (battle.endedAt) meta += " · Ended: "+fmtDate(battle.endedAt);
-  node.querySelector(".bc-meta").textContent = meta;
-
-  const chips = node.querySelector(".bc-chips");
-  const chipsData = [];
-  if (battle.participants?.length||battle.participantCount) chipsData.push(`<iconify-icon icon="mdi:account-group-outline" class="lu"></iconify-icon> ${battle.participants?.length||battle.participantCount||"?"} fighters`);
-  const cachedDmg = S.battleDamageCache.get(bid);
-  const dispDmg = cachedDmg ?? battle.totalDamage ?? battle.damage;
-  if (dispDmg) chipsData.push(`<iconify-icon icon="mdi:sword-cross" class="lu"></iconify-icon> ${fmtNum(dispDmg)} DMG`);
   const atkPerK = battle.attacker?.moneyPer1kDamages ?? battle.attackerMoneyPer1kDamages;
   const defPerK = battle.defender?.moneyPer1kDamages ?? battle.defenderMoneyPer1kDamages;
   const atkPool = battle.attacker?.moneyPool ?? battle.attackerMoneyPool;
   const defPool = battle.defender?.moneyPool ?? battle.defenderMoneyPool;
-  const hasPerK = atkPerK != null || defPerK != null;
   const poolTotal = (Number(atkPool)||0) + (Number(defPool)||0);
-  if (hasPerK || poolTotal > 0) {
-    const perK = atkPerK != null || defPerK != null ? (atkPerK ?? defPerK) : null;
-    const parts = [];
-    if (perK != null) parts.push(`<iconify-icon icon="mdi:cash" class="lu"></iconify-icon> $${Number(perK)}/1k DMG`);
-    if (poolTotal > 0) parts.push(`<iconify-icon icon="mdi:bank-outline" class="lu"></iconify-icon> $${fmtNum(poolTotal)} pooled`);
-    if (parts.length) chipsData.push(parts.join(" · "));
-  }
-  for (const txt of chipsData.slice(0,3)) {
-    const c=document.createElement("span"); c.className="bc-chip"; c.innerHTML=txt; chips.append(c);
+  const bounty = node.querySelector(".bc-bounty");
+  const bountyParts = [];
+  if (atkPerK != null || defPerK != null) bountyParts.push(`₿${fmtMoney(atkPerK ?? defPerK)}/1k`);
+  if (poolTotal > 0) bountyParts.push(`₿${fmtNum(poolTotal)} pool`);
+  if (bountyParts.length) bounty.innerHTML = `<iconify-icon icon="mdi:coin" class="lu"></iconify-icon> ${bountyParts.join(" · ")}`;
+  else bounty.classList.add("empty");
+
+  const started = battle.createdAt||battle.startedAt;
+  const ended = battle.endedAt;
+  const dates = node.querySelector(".bc-dates");
+  dates.textContent = isLive
+    ? (started ? fmtDateShort(started) : "")
+    : (started && ended ? `${fmtDateShort(started)} → ${fmtDateShort(ended)}` : "");
+  dates.title = isLive
+    ? (started ? "Started: "+fmtDate(started) : "Live battle")
+    : (started && ended ? `Started: ${fmtDate(started)} — Ended: ${fmtDate(ended)}` : "");
+
+  node.querySelector(".bc-side--atk").innerHTML = `${sideFlagHtml(atkId, isTournament)}<span class="bc-name">${escapeHtml(atk || fallbackName(atkId))}</span>`;
+  node.querySelector(".bc-side--def").innerHTML = `${sideFlagHtml(defId, isTournament)}<span class="bc-name">${escapeHtml(def || fallbackName(defId))}</span>`;
+
+  const atkRounds = Number(battle.attacker?.wonRoundsCount ?? battle.attackerRoundsWon ?? 0);
+  const defRounds = Number(battle.defender?.wonRoundsCount ?? battle.defenderRoundsWon ?? 0);
+  const atkScoreEl = node.querySelector(".bc-score--atk");
+  const defScoreEl = node.querySelector(".bc-score--def");
+  atkScoreEl.textContent = String(atkRounds || 0);
+  defScoreEl.textContent = String(defRounds || 0);
+  atkScoreEl.style.color = atkText;
+  defScoreEl.style.color = defText;
+
+  const emblem = node.querySelector(".bc-emblem-icons");
+  if (isTournament) {
+    emblem.innerHTML = `<iconify-icon icon="mdi:trophy" class="lu" style="color:var(--gold);font-size:1.7rem"></iconify-icon>`;
+  } else {
+    const atkIcon = battle.type === "resistance" ? "mdi:fist" : battle.type === "revolution" ? "mdi:rake" : "mdi:sword";
+    emblem.innerHTML = `<iconify-icon icon="${atkIcon}" class="lu" style="color:${atkColor};font-size:1.35rem"></iconify-icon><iconify-icon icon="mdi:shield" class="lu" style="color:${defColor};font-size:1.35rem"></iconify-icon>`;
   }
 
-  const btn = node.querySelector(".bc-select");
-  btn.addEventListener("click", async()=>{
+  const atkDmg = sumDmg(battle.attacker?.damages ?? battle.atkDamage ?? 0);
+  const defDmg = sumDmg(battle.defender?.damages ?? battle.defDamage ?? 0);
+  const totalDmg = (atkDmg + defDmg) || S.battleDamageCache.get(bid) || battle.totalDamage || battle.damage || 0;
+  node.querySelector(".bc-dmg-val").textContent = totalDmg ? fmtNum(totalDmg) : "";
+
+  const atkPts = Number(battle.attacker?.points ?? 0);
+  const defPts = Number(battle.defender?.points ?? 0);
+  const MAX_GP = 300;
+  const atkPtsEl = node.querySelector(".bc-points-atk");
+  const defPtsEl = node.querySelector(".bc-points-def");
+  atkPtsEl.textContent = atkPts ? fmtNum(atkPts) : "";
+  defPtsEl.textContent = defPts ? fmtNum(defPts) : "";
+  atkPtsEl.style.color = atkText;
+  defPtsEl.style.color = defText;
+  const atkPtsFill = node.querySelector(".bc-pts-atk");
+  const defPtsFill = node.querySelector(".bc-pts-def");
+  atkPtsFill.style.width = (Math.min(atkPts, MAX_GP) / MAX_GP * 100) + "%";
+  atkPtsFill.style.background = atkText;
+  defPtsFill.style.width = (Math.min(defPts, MAX_GP) / MAX_GP * 100) + "%";
+  defPtsFill.style.background = defText;
+
+  const atkPct = (atkDmg + defDmg) > 0 ? Math.round(atkDmg / (atkDmg + defDmg) * 100) : 50;
+  const defPct = 100 - atkPct;
+  const atkSeg = node.querySelector(".bc-share-atk");
+  const defSeg = node.querySelector(".bc-share-def");
+  atkSeg.style.flex = atkPct + " 0 0";
+  atkSeg.style.background = atkColor;
+  defSeg.style.flex = defPct + " 0 0";
+  defSeg.style.background = defColor;
+  const atkSegDmg = node.querySelector(".bc-share-atk .bc-share-dmg");
+  const atkSegPct = node.querySelector(".bc-share-atk .bc-share-pct");
+  const defSegDmg = node.querySelector(".bc-share-def .bc-share-dmg");
+  const defSegPct = node.querySelector(".bc-share-def .bc-share-pct");
+  atkSegDmg.textContent = atkDmg ? fmtNum(atkDmg) : "";
+  atkSegPct.textContent = (atkDmg || defDmg) ? atkPct + "%" : "";
+  defSegDmg.textContent = defDmg ? fmtNum(defDmg) : "";
+  defSegPct.textContent = (atkDmg || defDmg) ? defPct + "%" : "";
+  atkSegDmg.style.color = atkBarText;
+  atkSegPct.style.color = atkBarText;
+  defSegDmg.style.color = defBarText;
+  defSegPct.style.color = defBarText;
+
+  node.addEventListener("click", async ()=>{
     S.selectedBattleId=bid;
     document.querySelectorAll(".battle-card").forEach(c=>c.classList.remove("selected"));
     node.classList.add("selected");
@@ -294,15 +381,11 @@ function makeBattleCard(battle) {
 
 export function clearBattleDetail() {
   stopBattlePolling();
-  S.battleDetailSeq++; // invalidate any in-flight load so it cannot re-render the pane
+  S.battleDetailSeq++; // invalidate any in-flight load so it cannot re-render the modal
   S.selectedBattleId = null;
   document.querySelectorAll(".battle-card").forEach(c => c.classList.remove("selected"));
-  E.battleDetailPane.innerHTML = `
-    <div class="detail-placeholder">
-      <span class="placeholder-icon"><iconify-icon icon="mdi:sword-cross" class="lu"></iconify-icon></span>
-      <p>Select a battle to view the intelligence report</p>
-    </div>
-  `;
+  if (E.battleReportModal) E.battleReportModal.classList.add("hidden");
+  if (E.battleReportContent) E.battleReportContent.innerHTML = "";
 }
 
 export function buildAndDownloadXLS(filename, sheets) {
