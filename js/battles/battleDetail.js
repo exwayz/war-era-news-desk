@@ -205,10 +205,10 @@ export async function loadBattleDetail(battle, bid, silent=false) {
     const perRoundData = {};
     if (roundsData.length) {
       const roundKinds = {
-        damageUser:   { dataType: "damage", type: "user" },
+        damageUsers:  { dataType: "damage", type: "user" },
         damageMu:     { dataType: "damage", type: "mu" },
         damageCountry:{ dataType: "damage", type: "country" },
-        gpUser:       { dataType: "points", type: "user" },
+        gpUsers:      { dataType: "points", type: "user" },
         gpMu:         { dataType: "points", type: "mu" },
         gpCountry:    { dataType: "points", type: "country" },
       };
@@ -218,14 +218,14 @@ export async function loadBattleDetail(battle, bid, silent=false) {
         try {
           for (const [key, spec] of Object.entries(roundKinds)) {
             const [atkR, defR] = await Promise.allSettled([
-              fetchTrpc("battleRanking.getRanking", { battleId: bid, roundId, ...spec, side: "attacker" }, k),
-              fetchTrpc("battleRanking.getRanking", { battleId: bid, roundId, ...spec, side: "defender" }, k),
+              fetchTrpc("battleRanking.getRanking", { roundId, ...spec, side: "attacker" }, k),
+              fetchTrpc("battleRanking.getRanking", { roundId, ...spec, side: "defender" }, k),
             ]);
             const merged = [
               ...okArr(atkR).map(r => ({ ...r, _side: "attacker" })),
               ...okArr(defR).map(r => ({ ...r, _side: "defender" })),
             ];
-            if (key === "damageUser") {
+            if (key === "damageUsers") {
               out.atkPar = unwrap(atkR.value)?.itemCount || 0;
               out.defPar = unwrap(defR.value)?.itemCount || 0;
             }
@@ -684,7 +684,7 @@ ${Array.from({length:maxRows}).map((_,i)=>{
     allTabBtns.forEach(btn => { btn.classList.toggle("active", btn.dataset.roundIdx === String(idx)); });
     renderScope(idx);
   }
-  const defaultIdx = sortedRounds.length > 0 ? sortedRounds.length - 1 : "overall";
+  const defaultIdx = "overall";
   allTabBtns.forEach(btn => { btn.classList.toggle("active", btn.dataset.roundIdx === String(defaultIdx)); });
   allTabBtns.forEach(btn => { btn.addEventListener("click", () => { activateRoundTab(btn.dataset.roundIdx); }); });
   renderScope(defaultIdx);
