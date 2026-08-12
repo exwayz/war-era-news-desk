@@ -3,7 +3,7 @@ import { renderBattleList, battleId, loadBattles } from "./battles.js";
 import { fmtDate, fmtNum } from "../core/utils.js";
 import { playCopy } from "../audio/audio.js";
 import { getCountriesInRegion, populateRegionOptions } from "../core/regionClassification.js";
-import { apiKey } from "../core/api.js";
+import { apiKey, fetchTrpcApi2, unwrap } from "../core/api.js";
 import { offlineResolve } from "../core/resolver.js";
 import { ensureLookups } from "../timeline/filters.js";
 import { OBJECT_ID_RE } from "../core/constants.js";
@@ -95,6 +95,54 @@ export function countryColor(id) {
   const shades = SCHEME_COLORS[c.scheme];
   if (!shades) return "";
   return shades.light;
+}
+
+export async function ensureAlliances(ids, k) {
+  const missing = [...new Set(ids)].filter(id => id && !S.lookups.alliancesById.has(id));
+  if (!missing.length) return;
+  await Promise.all(missing.map(async id => {
+    try {
+      const r = await fetchTrpcApi2("alliance.getById", { allianceId: id }, k);
+      const a = unwrap(r);
+      S.lookups.alliancesById.set(id, a || null);
+    } catch { S.lookups.alliancesById.set(id, null); }
+  }));
+}
+
+export function allianceColor(id) {
+  const a = S.lookups.alliancesById.get(id);
+  const shades = a?.scheme ? SCHEME_COLORS[a.scheme] : null;
+  return shades ? shades.light : "";
+}
+
+export function allianceName(id) {
+  if (!id) return "";
+  const a = S.lookups.alliancesById.get(id);
+  return a?.name || offlineResolve("alliance", id)?.name || String(id).slice(-6);
+}
+
+export function sideAllianceGroups(countryIds) {
+  const counts = new Map();
+  for (const cid of new Set((countryIds || []).filter(Boolean))) {
+    const allianceId = S.lookups.countriesById.get(cid)?.allianceId;
+    if (!allianceId) continue;
+    counts.set(allianceId, (counts.get(allianceId) || 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([id, count]) => ({ id, count }))
+    .sort((x, y) => y.count - x.count || (x.id < y.id ? -1 : 1));
+}
+
+export function battleSideAllianceCountries(b, orders, side) {
+  const isLive = !b?.endedAt || b?.isActive === true || b?.active === true;
+  const sideObj = side === "attacker" ? (b?.attacker || {}) : (b?.defender || {});
+  if (isLive) {
+    const fromMeta = Array.isArray(sideObj.countryOrders) ? sideObj.countryOrders.filter(Boolean) : [];
+    if (fromMeta.length) return fromMeta;
+    return [...new Set((orders || []).filter(o => (o.side || o._side) === side && o.country).map(o => o.country))];
+  }
+  const sideId = sideObj.country || b?.[side === "attacker" ? "attackerCountry" : "defenderCountry"] || sideObj.countryId || "";
+  return sideId ? [sideId] : [];
 }
 
 function hexToRgb(hex) {

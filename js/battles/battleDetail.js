@@ -2,7 +2,7 @@ import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
 import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
 import { fmtDate, fmtNum, getValue, getPoints, normalizeRankRow, escapeHtml, rankBadgeHtml } from "../core/utils.js";
-import { nameCountry, nameRegion, nameUser, nameMu, battleSideColors } from "./companies.js";
+import { nameCountry, nameRegion, nameUser, nameMu, battleSideColors, ensureAlliances, allianceColor, allianceName, sideAllianceGroups, battleSideAllianceCountries } from "./companies.js";
 import { clearBattleDetail, buildAndDownloadXLS, battleId } from "./battles.js";
 import { fetchBattleContracts, fetchBattleMoney, bountySummaryHtml, bindBountySummaryButtons } from "./bounty.js";
 import { ensureLookups } from "../timeline/filters.js";
@@ -324,6 +324,11 @@ export async function loadBattleDetail(battle, bid, silent=false) {
 
     // Stale response guard: skip rendering if the battle was cleared or a newer load started.
     if (reqSeq !== S.battleDetailSeq || S.selectedBattleId !== bid) return;
+    const allianceIds = [...new Set([
+      ...battleSideAllianceCountries(bdDetail, ordersAtk, "attacker"),
+      ...battleSideAllianceCountries(bdDetail, ordersDef, "defender"),
+    ].map(cid => S.lookups.countriesById.get(cid)?.allianceId).filter(Boolean))];
+    await ensureAlliances(allianceIds, k);
     renderBattleDetail(bdDetail, bid, allUsers, allMu, allCountry, gpUsers, gpMu, gpCountry, allOrders, atkParticipantCount, defParticipantCount, roundsData, perRoundData, contracts, money);
   } catch (err) {
     if (reqSeq === S.battleDetailSeq && S.selectedBattleId === bid && !silent) {
@@ -449,9 +454,23 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     return `<span style="display:inline-flex;align-items:center;gap:5px">${side === "attacker" ? btn + cnt : cnt + btn}</span>`;
   };
 
+  const allianceRowHtml = (groups, side) => {
+    if (!groups.length) return "";
+    const chips = groups.map(g => {
+      const color = allianceColor(g.id) || "var(--ink-dim)";
+      return `<span style="font-size:.64rem;font-weight:800;color:${color}">${escapeHtml(allianceName(g.id))}</span>`;
+    }).join('<span style="font-size:.6rem;color:var(--line)">·</span>');
+    return `<div data-alliance-row="${side}" style="display:flex;flex-wrap:wrap;justify-content:center;gap:3px 5px;margin-top:2px">${chips}</div>`;
+  };
+
+  const atkAllianceHtml = allianceRowHtml(sideAllianceGroups(battleSideAllianceCountries(b, orders, "attacker")), "attacker");
+  const defAllianceHtml = allianceRowHtml(sideAllianceGroups(battleSideAllianceCountries(b, orders, "defender")), "defender");
   const battleScoreHtml = `
   <div style="display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;padding:12px;background:var(--surface-hi);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:12px">
-    <div style="display:flex;align-items:center;gap:8px">${atkAvatar}${isLive ? orderBtnHtml(atkOrderCount, "attacker") : ""}</div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px">${atkAvatar}${isLive ? orderBtnHtml(atkOrderCount, "attacker") : ""}</div>
+      ${atkAllianceHtml}
+    </div>
     <div style="display:flex;justify-content:center;align-items:center;gap:16px">
       <div style="text-align:center">
         <div style="font-size:2rem;font-weight:900;color:${atkText};line-height:1">${atkRoundsWon}</div>
@@ -466,7 +485,10 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
         <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;color:var(--ink-dim);margin-top:2px">${def||"Defender"}</div>
       </div>
     </div>
-    <div style="display:flex;align-items:center;gap:8px">${isLive ? orderBtnHtml(defOrderCount, "defender") : ""}${defAvatar}</div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px">${isLive ? orderBtnHtml(defOrderCount, "defender") : ""}${defAvatar}</div>
+      ${defAllianceHtml}
+    </div>
   </div>`;
 
   const TICK_BRACKETS = [[1,1],[100,2],[200,3],[300,4],[400,5],[500,6]];
