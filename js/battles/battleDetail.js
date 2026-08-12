@@ -3,7 +3,7 @@ import { E } from "../core/dom.js";
 import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
 import { fmtDate, fmtNum, getValue, getPoints, normalizeRankRow, escapeHtml, rankBadgeHtml } from "../core/utils.js";
 import { nameCountry, nameRegion, nameUser, nameMu, battleSideColors } from "./companies.js";
-import { clearBattleDetail, buildAndDownloadXLS, battleId, stopBattlePolling } from "./battles.js";
+import { clearBattleDetail, buildAndDownloadXLS, battleId } from "./battles.js";
 import { fetchBattleContracts, fetchBattleMoney, bountySummaryHtml, bindBountySummaryButtons } from "./bounty.js";
 import { ensureLookups } from "../timeline/filters.js";
 
@@ -87,7 +87,8 @@ document.addEventListener("click", e => {
 export async function loadBattleDetail(battle, bid, silent=false) {
   const k = apiKey(); if(!k) return;
   const reqSeq = ++S.battleDetailSeq; // newer loads / clears invalidate this one
-  stopBattlePolling();
+  // NOTE: do not stopBattlePolling() here — silent reloads must keep the live
+  // countdown ticking; timer teardown is owned by the card click / clearBattleDetail.
   await ensureLookups(k).catch(()=>{});
   if (!silent) E.battleDetailPane.innerHTML = `<div style="padding:24px;color:var(--ink-dim)">Loading intelligence report…</div>`;
   try {
@@ -325,7 +326,13 @@ export async function loadBattleDetail(battle, bid, silent=false) {
     if (reqSeq !== S.battleDetailSeq || S.selectedBattleId !== bid) return;
     renderBattleDetail(bdDetail, bid, allUsers, allMu, allCountry, gpUsers, gpMu, gpCountry, allOrders, atkParticipantCount, defParticipantCount, roundsData, perRoundData, contracts, money);
   } catch (err) {
-    if (reqSeq === S.battleDetailSeq && S.selectedBattleId === bid && !silent) E.battleDetailPane.innerHTML = `<div class="status-msg error">${err.message||"Failed to load battle detail"}</div>`;
+    if (reqSeq === S.battleDetailSeq && S.selectedBattleId === bid && !silent) {
+      E.battleDetailPane.innerHTML = `<div class="status-msg error">${err.message||"Failed to load battle detail"}</div>`;
+    } else if (reqSeq === S.battleDetailSeq && S.selectedBattleId === bid && silent) {
+      // Keep the live refresh loop alive after a failed reload — otherwise the
+      // battle detail would silently freeze until the user reopens or reloads.
+      scheduleLiveRefresh(bid, true, null);
+    }
   }
 }
 
@@ -889,7 +896,11 @@ function scheduleLiveRefresh(bid, isLive, tickInfo) {
   }
   S.liveBattleTimer = setTimeout(async () => {
     if (S.selectedBattleId !== bid) return;
-    await loadBattleDetail({ _id: bid }, bid, true);
+    try {
+      await loadBattleDetail({ _id: bid }, bid, true);
+    } catch (err) {
+      if (S.selectedBattleId === bid) scheduleLiveRefresh(bid, true, null);
+    }
   }, delay);
 }
 
