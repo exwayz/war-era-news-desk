@@ -458,9 +458,9 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     if (!groups.length) return "";
     const chips = groups.map(g => {
       const color = allianceColor(g.id) || "var(--ink-dim)";
-      return `<span style="font-size:.64rem;font-weight:800;color:${color}">${escapeHtml(allianceName(g.id))}</span>`;
-    }).join('<span style="font-size:.6rem;color:var(--line)">·</span>');
-    return `<div data-alliance-row="${side}" style="display:flex;flex-wrap:wrap;justify-content:center;gap:3px 5px;margin-top:2px">${chips}</div>`;
+      return `<span style="font-size:.64rem;font-weight:800;color:${color};text-align:center">${escapeHtml(allianceName(g.id))}</span>`;
+    }).join("");
+    return `<div data-alliance-row="${side}" style="display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:2px">${chips}</div>`;
   };
 
   const atkAllianceHtml = allianceRowHtml(sideAllianceGroups(battleSideAllianceCountries(b, orders, "attacker")), "attacker");
