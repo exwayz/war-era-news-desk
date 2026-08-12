@@ -13,6 +13,7 @@ export const S = {
   battles:[], battleCursor:null, battleMode:"history",
   selectedBattleId:null,
   liveBattleTimer:null,
+  battleView:null, battleTickTimer:null,
   battleSearch:"", battleSearchMode:"", battleSearchId:"", battleSearchCountryId:"", battleSearchRegionIds:[], battleSearchCursor:null, battleSearchRegionCursors:{}, battleSearchLabel:"",
   battleRegionFilter:"", battleSort:"ended", battleDateFrom:"", battleDateTo:"", battleDamageCache:new Map(), damageCachePending:false,
   articleSort:"date", articleTimeFrom:"", articleTimeTo:"", articleLangs:[],

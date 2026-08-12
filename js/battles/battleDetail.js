@@ -35,6 +35,55 @@ function okArr(r) {
   return [];
 }
 
+function orderSideList(orders, side) {
+  const priorityRank = { high: 3, medium: 2, low: 1 };
+  return (orders || [])
+    .filter(o => (o.side || o.attackerDefender || o._side) === side)
+    .sort((a, b) => (priorityRank[b.priority?.toLowerCase()] || 0) - (priorityRank[a.priority?.toLowerCase()] || 0));
+}
+
+function orderRowHtml(o) {
+  const issuedThrough = o.mu ? "Military Unit" : o.country ? "Country" : "Unknown";
+  const issuer = orderIssuer(o);
+  const createdBy = nameUser(o.user) || "Unknown";
+  const p = (o.priority || "").toLowerCase();
+  const priorityColor = p === "high" ? "var(--red)" : p === "medium" ? "#f5c542" : p === "low" ? "var(--green)" : "var(--ink-dim)";
+  const priority = `<span style="color:${priorityColor};font-weight:800;">${p ? p.charAt(0).toUpperCase() + p.slice(1) : "—"}</span>`;
+  return `<td>${issuedThrough}</td><td>${issuer}</td><td>${createdBy}</td><td>${priority}</td>`;
+}
+
+let _ordersModal = { side: "attacker", orders: [], title: "", byline: "", color: "var(--ink-dim)" };
+
+function renderOrdersModalBody() {
+  if (!E.battleOrdersModalBody) return;
+  const { side, orders, title, byline, color } = _ordersModal;
+  const list = orderSideList(orders, side);
+  const body = list.length
+    ? `<table class="rank-table"><thead>
+<tr><th style="color:${color}">Through</th><th style="color:${color}">Issuer</th><th style="color:${color}">Issued By</th><th style="color:${color}">Priority</th></tr>
+</thead><tbody>${list.map(o => `<tr>${orderRowHtml(o)}</tr>`).join("")}</tbody></table>`
+    : `<p style="color:var(--ink-dim);text-align:center;padding:12px 0">No orders issued for this side.</p>`;
+  E.battleOrdersModalBody.innerHTML = body;
+}
+
+export function openOrdersModal(side, orders, title, byline, color) {
+  if (!E.battleOrdersModal) return;
+  _ordersModal = { side, orders, title, byline, color };
+  if (E.battleOrdersModalTitle) E.battleOrdersModalTitle.textContent = title;
+  if (E.battleOrdersModalByline) E.battleOrdersModalByline.textContent = byline;
+  E.battleOrdersModal.classList.remove("hidden");
+  renderOrdersModalBody();
+}
+
+function closeOrdersModal() { E.battleOrdersModal?.classList.add("hidden"); }
+function copyOrdersReport() { navigator.clipboard?.writeText(E.battleOrdersModalBody?.innerText || "").then(() => {}).catch(() => {}); }
+
+document.addEventListener("click", e => {
+  if (e.target.closest("#closeBattleOrdersModal")) closeOrdersModal();
+  if (e.target.id === "battleOrdersModal") closeOrdersModal();
+  if (e.target.closest("#copyBattleOrdersBtn")) copyOrdersReport();
+});
+
 export async function loadBattleDetail(battle, bid, silent=false) {
   const k = apiKey(); if(!k) return;
   await ensureLookups(k).catch(()=>{});
@@ -277,6 +326,7 @@ export async function loadBattleDetail(battle, bid, silent=false) {
 }
 
 function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpMu, gpCountry, orders, atkPar, defPar, roundsData, perRoundData, contracts, money) {
+  clearInterval(S.battleTickTimer); S.battleTickTimer = null;
   const isTournament = b.type === "tournament";
   let atk, def, atkId, defId, atkAvatar, defAvatar;
   if (isTournament) {
@@ -320,6 +370,8 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     const tb = new Date(b.createdAt||b.startedAt||0).getTime();
     return ta - tb;
   });
+  const currentLiveRound = roundsData.find(rd => rd._isCurrent) || [...sortedRounds].reverse().find(rd => rd._isCurrent || !rd.endedAt) || null;
+  const tickInfo = currentLiveRound?.live || b.live || null;
   const atkRoundsWon = Number(b.attacker?.wonRoundsCount ?? b.attackerRoundsWon ?? 0);
   const defRoundsWon = Number(b.defender?.wonRoundsCount ?? b.defenderRoundsWon ?? 0);
   const roundsToWin  = Number(b.roundsToWin ?? 2);
@@ -376,9 +428,19 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
   </div>`;
   }
 
+  const atkOrderCount = orderSideList(orders, "attacker").length;
+  const defOrderCount = orderSideList(orders, "defender").length;
+  const orderBtnHtml = (count, side) => {
+    const color = side === "attacker" ? atkColor : defColor;
+    const text = side === "attacker" ? atkText : defText;
+    const btn = `<button class="order-detail-btn" data-order-side="${side}" data-order-bid="${bid}" title="${count} ${side} order${count === 1 ? "" : "s"} issued" style="width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;border:1px solid ${color};color:${text};background:color-mix(in srgb, ${color} 16%, transparent);cursor:pointer;padding:0"><iconify-icon icon="mdi:bullseye" class="lu" style="font-size:15px"></iconify-icon></button>`;
+    const cnt = `<span style="font-size:.74rem;font-weight:900;color:${text};min-width:1em;text-align:center;font-variant-numeric:tabular-nums" title="Orders issued">${count}</span>`;
+    return `<span style="display:inline-flex;align-items:center;gap:5px">${side === "attacker" ? btn + cnt : cnt + btn}</span>`;
+  };
+
   const battleScoreHtml = `
-  <div style="display:grid;grid-template-columns:28px 1fr 28px;align-items:center;gap:12px;padding:12px;background:var(--surface-hi);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:12px">
-    <div>${atkAvatar}</div>
+  <div style="display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;padding:12px;background:var(--surface-hi);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:8px">${atkAvatar}${isLive ? orderBtnHtml(atkOrderCount, "attacker") : ""}</div>
     <div style="display:flex;justify-content:center;align-items:center;gap:16px">
       <div style="text-align:center">
         <div style="font-size:2rem;font-weight:900;color:${atkText};line-height:1">${atkRoundsWon}</div>
@@ -393,20 +455,30 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
         <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;color:var(--ink-dim);margin-top:2px">${def||"Defender"}</div>
       </div>
     </div>
-    <div>${defAvatar}</div>
+    <div style="display:flex;align-items:center;gap:8px">${isLive ? orderBtnHtml(defOrderCount, "defender") : ""}${defAvatar}</div>
   </div>`;
 
+  const liveTickHtml = isLive && tickInfo ? `
+  <div class="br-section" style="margin-bottom:12px;padding:10px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <iconify-icon icon="mdi:timer-sand" class="lu" style="font-size:16px"></iconify-icon>
+    <span style="font-size:.78rem;font-weight:800">Tick <span id="brTickNo_${bid}">${Number(tickInfo.ticksCount) || 0}</span></span>
+    <span style="font-size:.72rem;color:var(--ink-dim)">damage leader earns <strong>${Number(tickInfo.actualTickPoints) || 1} pts</strong> per tick · first to 300 pts wins</span>
+    <span style="margin-left:auto;font-size:.72rem;color:var(--ink-dim)">next tick in <strong id="brTickCount_${bid}" style="font-variant-numeric:tabular-nums">--:--</strong></span>
+  </div>` : "";
+
   function orderSplit(list) {
-    const priorityRank = { high: 3, medium: 2, low: 1 };
-    const sortByPriority = (arr) => arr.slice().sort((a, b) => (priorityRank[b.priority?.toLowerCase()] || 0) - (priorityRank[a.priority?.toLowerCase()] || 0));
-    return {
-      atk: sortByPriority(list.filter(o => (o.side || o.attackerDefender || o._side) === "attacker")),
-      def: sortByPriority(list.filter(o => (o.side || o.attackerDefender || o._side) === "defender")),
-    };
+    return { atk: orderSideList(list, "attacker"), def: orderSideList(list, "defender") };
   }
 
   function overallScope() {
     let rawAtkDmg = b.attacker?.damages, rawDefDmg = b.defender?.damages;
+    let rawAtkHits = b.attacker?.hitCount, rawDefHits = b.defender?.hitCount;
+    if (currentLiveRound) {
+      if (currentLiveRound.attacker?.damages != null) rawAtkDmg = currentLiveRound.attacker.damages;
+      if (currentLiveRound.defender?.damages != null) rawDefDmg = currentLiveRound.defender.damages;
+      if (currentLiveRound.attacker?.hitCount != null) rawAtkHits = currentLiveRound.attacker.hitCount;
+      if (currentLiveRound.defender?.hitCount != null) rawDefHits = currentLiveRound.defender.hitCount;
+    }
     let atkDmg = rawAtkDmg != null ? sumDmg(rawAtkDmg) : rankUsers.filter(r => r._side === "attacker").reduce((s, r) => s + getValue(r), 0);
     let defDmg = rawDefDmg != null ? sumDmg(rawDefDmg) : rankUsers.filter(r => r._side === "defender").reduce((s, r) => s + getValue(r), 0);
     let totalDmg = atkDmg + defDmg || b.totalDamage || b.damage || 0;
@@ -415,13 +487,17 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
       defDmg = roundsData.reduce((s, rd) => s + (rd.defender?.damages ?? 0), 0);
       totalDmg = atkDmg + defDmg;
     }
-    const atkGp = gpUsers.filter(r => r._side === "attacker").reduce((s, r) => s + getPoints(r), 0);
-    const defGp = gpUsers.filter(r => r._side === "defender").reduce((s, r) => s + getPoints(r), 0);
+    let atkGp = gpUsers.filter(r => r._side === "attacker").reduce((s, r) => s + getPoints(r), 0);
+    let defGp = gpUsers.filter(r => r._side === "defender").reduce((s, r) => s + getPoints(r), 0);
+    if (currentLiveRound) {
+      if (currentLiveRound.attacker?.points != null) atkGp = currentLiveRound.attacker.points;
+      if (currentLiveRound.defender?.points != null) defGp = currentLiveRound.defender.points;
+    }
     const participantsA = atkPar || b.atkPar || 0;
     const participantsD = defPar || b.defPar || 0;
     const atkPct = totalDmg > 0 ? Math.round((atkDmg / totalDmg) * 100) : 50;
     const defPct = 100 - atkPct;
-    const hitCount = (b.attacker?.hitCount || 0) + (b.defender?.hitCount || 0);
+    const hitCount = (rawAtkHits || 0) + (rawDefHits || 0);
     const sides = orderSplit(orders);
     let narrative = "";
     if (isLive) {
@@ -564,7 +640,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     </thead><tbody>${rows}</tbody></table>`;
   }
 
-  function rankingsHtml(sc) {
+  function rankingsHtml(sc, cat, type) {
     const rankCatPills = [
       ["damage", `<iconify-icon icon="mdi:sword-cross" class="lu"></iconify-icon> Damage`],
       ["points", `<iconify-icon icon="mdi:flag" class="lu"></iconify-icon> Ground Points`],
@@ -577,15 +653,15 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     const rankPillHtml = (list, group, defaultVal) => list.map(([val, label]) =>
       `<button class="pill-btn${val === defaultVal ? " active" : ""}" data-rank-${group}="${val}" style="font-size:.72rem">${label}</button>`
     ).join("");
-    const rankTablesHtml = rankCatPills.map(([cat]) => rankTypePills.map(([type]) =>
-      `<div data-rank-table="${cat}-${type}" style="${cat === "damage" && type === "users" ? "" : "display:none"}">${rankTableHtml(cat, type, sc)}</div>`
+    const rankTablesHtml = rankCatPills.map(([c]) => rankTypePills.map(([t]) =>
+      `<div data-rank-table="${c}-${t}" style="${c === cat && t === type ? "" : "display:none"}">${rankTableHtml(c, t, sc)}</div>`
     ).join("")).join("");
     return `<div class="br-section">
       <h3 class="br-section-title"><iconify-icon icon="mdi:podium" class="lu"></iconify-icon> Rankings</h3>
       <div id="brRankTabs_${bid}" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
-        ${rankPillHtml(rankCatPills, "cat", "damage")}
+        ${rankPillHtml(rankCatPills, "cat", cat)}
         <span style="width:10px"></span>
-        ${rankPillHtml(rankTypePills, "type", "users")}
+        ${rankPillHtml(rankTypePills, "type", type)}
       </div>
       <div id="brRankTables_${bid}">${rankTablesHtml}</div>
     </div>`;
@@ -601,18 +677,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
 <tr><th>Through</th><th>Issuer</th><th>Issued By</th><th>Priority</th><th>Through</th><th>Issuer</th><th>Issued By</th><th>Priority</th></tr>
 </thead><tbody>
 ${Array.from({length:maxRows}).map((_,i)=>{
-  const atkO = atkOrders[i]; const defO = defOrders[i];
-  function renderOrder(o){
-    if(!o) return `<td colspan="4"></td>`;
-    const issuedThrough = o.mu ? "Military Unit" : o.country ? "Country" : "Unknown";
-    const issuer = orderIssuer(o);
-    const createdBy = nameUser(o.user) || "Unknown";
-    const p = (o.priority || "").toLowerCase();
-    const priorityColor = p === "high" ? "var(--red)" : p === "medium" ? "#f5c542" : p === "low" ? "var(--green)" : "var(--ink-dim)";
-    const priority = `<span style="color:${priorityColor};font-weight:800;">${p ? p.charAt(0).toUpperCase() + p.slice(1) : "—"}</span>`;
-    return `<td>${issuedThrough}</td><td>${issuer}</td><td>${createdBy}</td><td>${priority}</td>`;
-  }
-  return `<tr>${renderOrder(atkO)}${renderOrder(defO)}</tr>`;
+  return `<tr>${atkOrders[i] ? orderRowHtml(atkOrders[i]) : `<td colspan="4"></td>`}${defOrders[i] ? orderRowHtml(defOrders[i]) : `<td colspan="4"></td>`}</tr>`;
 }).join("")}
 </tbody></table></div>`;
   }
@@ -623,7 +688,7 @@ ${Array.from({length:maxRows}).map((_,i)=>{
     h += scoreBarHtml(sc);
     h += statsGridHtml(sc);
     const anyRank = [sc.damageUsers, sc.gpUsers, sc.damageMu, sc.gpMu, sc.damageCountry, sc.gpCountry].some(l => l && l.length);
-    if (anyRank) h += rankingsHtml(sc);
+    if (anyRank) h += rankingsHtml(sc, view.cat, view.type);
     if (sc.ordersAtk.length || sc.ordersDef.length) h += ordersHtml(sc);
     return h;
   }
@@ -634,11 +699,11 @@ ${Array.from({length:maxRows}).map((_,i)=>{
     <button id="clearBattleDetailBtn" class="btn-secondary" style="margin-left:auto;padding:4px 10px;min-width:auto;">⌫ Clear</button>
   </div>
   ${roundTabsHtml}
-  ` + battleScoreHtml + bountySummaryHtml(b, contracts, money);
+  ` + battleScoreHtml + liveTickHtml + bountySummaryHtml(b, contracts, money);
 
   const scopeBodyId = `brScopeBody_${bid}`;
 
-  const staticBottom = (isLive ? `<p style="text-align:center;color:var(--ink-dim);font-size:.76rem;padding:6px 0"><iconify-icon icon="mdi:sync" class="lu nd-spin"></iconify-icon> Auto-refreshing every 8 s</p>` : "") + `<div style="padding:8px 0;display:flex;gap:8px;flex-wrap:wrap">
+  const staticBottom = (isLive ? `<p style="text-align:center;color:var(--ink-dim);font-size:.76rem;padding:6px 0"><iconify-icon icon="mdi:sync" class="lu nd-spin"></iconify-icon> Auto-refreshing every 5 s</p>` : "") + `<div style="padding:8px 0;display:flex;gap:8px;flex-wrap:wrap">
     <button class="btn-primary" id="openFullReportBtn" style="flex:1"><iconify-icon icon="mdi:file-document-outline" class="lu"></iconify-icon> Open Full Report</button>
     <button class="btn-secondary" id="exportBattleXlsBtn" style="flex:1"><iconify-icon icon="mdi:file-excel-outline" class="lu"></iconify-icon> Export XLS</button>
         <button class="btn-secondary" id="captureBattlePaneBtn" style="flex:1"><iconify-icon icon="mdi:camera" class="lu"></iconify-icon> Capture Report</button>
@@ -646,8 +711,31 @@ ${Array.from({length:maxRows}).map((_,i)=>{
 
   E.battleDetailPane.innerHTML = staticTop + `<div id="${scopeBodyId}"></div>` + staticBottom;
 
+  if (isLive && tickInfo?.nextTickAt) {
+    const countEl = document.getElementById(`brTickCount_${bid}`);
+    const noEl = document.getElementById(`brTickNo_${bid}`);
+    const updateTick = () => {
+      const diff = new Date(tickInfo.nextTickAt).getTime() - Date.now();
+      if (countEl) {
+        if (diff <= 0) { countEl.textContent = "due…"; if (noEl) noEl.textContent = String((Number(tickInfo.ticksCount) || 0) + 1); return; }
+        const s = Math.floor(diff / 1000);
+        countEl.textContent = `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+      }
+    };
+    updateTick();
+    S.battleTickTimer = setInterval(updateTick, 1000);
+  }
+
   bindBountySummaryButtons(E.battleDetailPane, b, bid, contracts);
   document.getElementById("clearBattleDetailBtn")?.addEventListener("click", () => { clearBattleDetail(); });
+  E.battleDetailPane.querySelectorAll(".order-detail-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const side = btn.dataset.orderSide;
+      const color = side === "attacker" ? atkColor : defColor;
+      const sideName = side === "attacker" ? (atk || "Attacker") : (def || "Defender");
+      openOrdersModal(side, orders, `${sideName} Battle Orders`, `Live battle · ${orderSideList(orders, side).length} order${orderSideList(orders, side).length === 1 ? "" : "s"} issued${reg ? " · " + reg : ""}`, color);
+    });
+  });
 
   function bindRankTabs(root) {
     const tableBox = root?.querySelector(`#brRankTables_${bid}`);
@@ -664,12 +752,22 @@ ${Array.from({length:maxRows}).map((_,i)=>{
         const group = btn.hasAttribute("data-rank-cat") ? "data-rank-cat" : "data-rank-type";
         root.querySelectorAll(`[${group}]`).forEach(other => other.classList.toggle("active", other === btn));
         syncRankTables();
+        view.cat = root.querySelector("[data-rank-cat].active")?.dataset.rankCat || "damage";
+        view.type = root.querySelector("[data-rank-type].active")?.dataset.rankType || "users";
+        saveView();
       });
     });
   }
 
   let currentScopeData = null;
   let currentScopeHtml = "";
+
+  let view = (S.battleView && S.battleView.bid === bid) ? { roundIdx: S.battleView.roundIdx || "overall", cat: S.battleView.cat || "damage", type: S.battleView.type || "users" } : { roundIdx: "overall", cat: "damage", type: "users" };
+  if (view.roundIdx !== "overall") {
+    const idx = Number(view.roundIdx);
+    if (!Number.isFinite(idx) || idx < 0 || idx >= sortedRounds.length) view.roundIdx = "overall";
+  }
+  const saveView = () => { S.battleView = { bid, roundIdx: view.roundIdx, cat: view.cat, type: view.type }; };
 
   function renderScope(idx) {
     currentScopeData = scopeFor(idx);
@@ -682,9 +780,11 @@ ${Array.from({length:maxRows}).map((_,i)=>{
   const allTabBtns = roundTabContainer ? roundTabContainer.querySelectorAll("[data-round-idx]") : [];
   function activateRoundTab(idx) {
     allTabBtns.forEach(btn => { btn.classList.toggle("active", btn.dataset.roundIdx === String(idx)); });
+    view.roundIdx = String(idx);
+    saveView();
     renderScope(idx);
   }
-  const defaultIdx = "overall";
+  const defaultIdx = view.roundIdx;
   allTabBtns.forEach(btn => { btn.classList.toggle("active", btn.dataset.roundIdx === String(defaultIdx)); });
   allTabBtns.forEach(btn => { btn.addEventListener("click", () => { activateRoundTab(btn.dataset.roundIdx); }); });
   renderScope(defaultIdx);

@@ -606,6 +606,23 @@
   </div>
 </div>
 
+<!-- BATTLE ORDERS MODAL -->
+<div id="battleOrdersModal" class="overlay hidden">
+  <div class="reader-window reader-window--wide">
+    <div class="reader-head">
+      <div class="reader-head-info">
+        <h2><iconify-icon icon="mdi:bullseye-arrow" class="lu"></iconify-icon> <span id="battleOrdersModalTitle">Battle Orders</span></h2>
+        <div id="battleOrdersModalByline" class="reader-byline"></div>
+      </div>
+      <div class="reader-head-actions">
+        <button id="copyBattleOrdersBtn" class="btn-secondary" style="font-size:.78rem"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon> Copy Orders</button>
+        <button id="closeBattleOrdersModal" class="btn-icon-sm"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
+      </div>
+    </div>
+    <div id="battleOrdersModalBody" class="reader-body battle-report-body"></div>
+  </div>
+</div>
+
 
 <!-- TEMPLATES -->
 <template id="eventCardTemplate">
