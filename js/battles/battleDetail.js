@@ -411,10 +411,10 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
       </div>
       <div class="score-bar">
   <div style="flex:${atkPct} 0 0; background:${atkColor}; border-right:2px solid rgba(255,255,255,0.65); display:flex; align-items:center; justify-content:flex-end; padding-right:8px;">
-    <span style="font-size:30px;line-height:1;font-family:var(--font-ui);font-weight:900;color:${atkBarText}">${fmtNum(atkDmg)}</span>
+    <span style="font-size:26px;line-height:1;font-family:var(--font-ui);font-weight:900;color:${atkBarText}">${fmtNum(atkDmg)}</span>
   </div>
   <div style="flex:${defPct} 0 0; background:${defColor}; display:flex; align-items:center; justify-content:flex-start; padding-left:8px;">
-    <span style="font-size:30px;line-height:1;font-family:var(--font-ui);font-weight:900;color:${defBarText}">${fmtNum(defDmg)}</span>
+    <span style="font-size:26px;line-height:1;font-family:var(--font-ui);font-weight:900;color:${defBarText}">${fmtNum(defDmg)}</span>
   </div>
 </div>
     </div>`;
