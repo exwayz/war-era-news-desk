@@ -458,12 +458,30 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     <div style="display:flex;align-items:center;gap:8px">${isLive ? orderBtnHtml(defOrderCount, "defender") : ""}${defAvatar}</div>
   </div>`;
 
+  const TICK_BRACKETS = [[1,1],[100,2],[200,3],[300,4],[400,5],[500,6]];
+  const curRoundPts = (currentLiveRound
+    ? Number(currentLiveRound.attacker?.points ?? 0) + Number(currentLiveRound.defender?.points ?? 0)
+    : Number(b.attacker?.points ?? 0) + Number(b.defender?.points ?? 0));
+  const tickVal = Number(tickInfo?.actualTickPoints) || 1;
+  const curBracketVal = [...TICK_BRACKETS].reverse().find(([t]) => curRoundPts >= t)?.[1] || 1;
+  const nextBracket = TICK_BRACKETS.find(([t]) => curRoundPts < t);
+  const atkDmgNow = sumDmg(currentLiveRound?.attacker?.damages ?? b.attacker?.damages ?? 0);
+  const defDmgNow = sumDmg(currentLiveRound?.defender?.damages ?? b.defender?.damages ?? 0);
+  const dmgLeaderAtk = atkDmgNow > defDmgNow;
+  const dmgLeaderName = dmgLeaderAtk ? (atk || "Attacker") : (def || "Defender");
+  const bracketBar = TICK_BRACKETS.map(([t, v]) =>
+    `<span title="${v} pt${v === 1 ? "" : "s"}/tick at ${t}+ total" style="flex:1;text-align:center;font-size:.62rem;font-weight:800;padding:2px 0;border-radius:3px;${v === curBracketVal ? `background:${dmgLeaderAtk ? atkColor : defColor};color:#fff` : "background:var(--surface-hi);color:var(--ink-dim);border:1px solid var(--line)"}">${v}</span>`
+  ).join("");
   const liveTickHtml = isLive && tickInfo ? `
-  <div class="br-section" style="margin-bottom:12px;padding:10px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-    <iconify-icon icon="mdi:timer-sand" class="lu" style="font-size:16px"></iconify-icon>
-    <span style="font-size:.78rem;font-weight:800">Tick <span id="brTickNo_${bid}">${Number(tickInfo.ticksCount) || 0}</span></span>
-    <span style="font-size:.72rem;color:var(--ink-dim)">damage leader earns <strong>${Number(tickInfo.actualTickPoints) || 1} pts</strong> per tick · first to 300 pts wins</span>
-    <span style="margin-left:auto;font-size:.72rem;color:var(--ink-dim)">next tick in <strong id="brTickCount_${bid}" style="font-variant-numeric:tabular-nums">--:--</strong></span>
+  <div class="br-section" style="margin-bottom:12px;padding:10px 12px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <iconify-icon icon="mdi:timer-sand" class="lu" style="font-size:16px"></iconify-icon>
+      <span style="font-size:.78rem;font-weight:800">Tick cycle <span id="brTickNo_${bid}">${Number(tickInfo.ticksCount) || 0}</span></span>
+      <span style="font-size:.72rem;color:var(--ink-dim)">Total <strong>${curRoundPts}</strong> · <strong>${tickVal} pt${tickVal === 1 ? "" : "s"}</strong> per tick to damage leader${nextBracket ? ` · next <strong>${nextBracket[1]} pts</strong> at ${nextBracket[0]} total (+${nextBracket[0] - curRoundPts})` : ""}</span>
+      <span style="font-size:.72rem;font-weight:700;color:${dmgLeaderAtk ? atkText : defText}">${dmgLeaderName} leads damage</span>
+      <span style="margin-left:auto;font-size:.72rem;color:var(--ink-dim)">next tick in <strong id="brTickCount_${bid}" style="font-variant-numeric:tabular-nums">--:--</strong></span>
+    </div>
+    <div style="display:flex;gap:3px;margin-top:8px">${bracketBar}</div>
   </div>` : "";
 
   function orderSplit(list) {
