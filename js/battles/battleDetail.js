@@ -775,7 +775,17 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
   let currentScopeData = null;
   let currentScopeHtml = "";
 
-  let view = (S.battleView && S.battleView.bid === bid) ? { roundIdx: S.battleView.roundIdx || "overall", cat: S.battleView.cat || "damage", type: S.battleView.type || "users" } : { roundIdx: "overall", cat: "damage", type: "users" };
+  // Live battles default to the active round so you land on the round that is
+  // currently playing; ended battles default to Overall. A saved view for this
+  // battle (chosen via the round tabs) still wins over the default.
+  const defaultRoundIdx = () => {
+    if (isLive && currentLiveRound) {
+      const idx = sortedRounds.indexOf(currentLiveRound);
+      if (idx >= 0) return String(idx);
+    }
+    return "overall";
+  };
+  let view = (S.battleView && S.battleView.bid === bid) ? { roundIdx: S.battleView.roundIdx || "overall", cat: S.battleView.cat || "damage", type: S.battleView.type || "users" } : { roundIdx: defaultRoundIdx(), cat: "damage", type: "users" };
   if (view.roundIdx !== "overall") {
     const idx = Number(view.roundIdx);
     if (!Number.isFinite(idx) || idx < 0 || idx >= sortedRounds.length) view.roundIdx = "overall";
