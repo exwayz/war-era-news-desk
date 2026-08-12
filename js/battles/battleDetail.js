@@ -3,7 +3,7 @@ import { E } from "../core/dom.js";
 import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
 import { fmtDate, fmtNum, getValue, getPoints, normalizeRankRow, escapeHtml, rankBadgeHtml } from "../core/utils.js";
 import { nameCountry, nameRegion, nameUser, nameMu, battleSideColors } from "./companies.js";
-import { clearBattleDetail, buildAndDownloadXLS, battleId } from "./battles.js";
+import { clearBattleDetail, buildAndDownloadXLS, battleId, stopBattlePolling } from "./battles.js";
 import { fetchBattleContracts, fetchBattleMoney, bountySummaryHtml, bindBountySummaryButtons } from "./bounty.js";
 import { ensureLookups } from "../timeline/filters.js";
 
@@ -86,6 +86,8 @@ document.addEventListener("click", e => {
 
 export async function loadBattleDetail(battle, bid, silent=false) {
   const k = apiKey(); if(!k) return;
+  const reqSeq = ++S.battleDetailSeq; // newer loads / clears invalidate this one
+  stopBattlePolling();
   await ensureLookups(k).catch(()=>{});
   if (!silent) E.battleDetailPane.innerHTML = `<div style="padding:24px;color:var(--ink-dim)">Loading intelligence report…</div>`;
   try {
@@ -319,9 +321,11 @@ export async function loadBattleDetail(battle, bid, silent=false) {
     const contracts = rContracts.status === "fulfilled" ? rContracts.value : { items: [], won: [], active: [], expired: [], totalBudget: 0, totalPayout: 0, side: { attacker: { count: 0, budget: 0, payout: 0 }, defender: { count: 0, budget: 0, payout: 0 } } };
     const money = rMoney.status === "fulfilled" ? rMoney.value : null;
 
+    // Stale response guard: skip rendering if the battle was cleared or a newer load started.
+    if (reqSeq !== S.battleDetailSeq || S.selectedBattleId !== bid) return;
     renderBattleDetail(bdDetail, bid, allUsers, allMu, allCountry, gpUsers, gpMu, gpCountry, allOrders, atkParticipantCount, defParticipantCount, roundsData, perRoundData, contracts, money);
   } catch (err) {
-    if (!silent) E.battleDetailPane.innerHTML = `<div class="status-msg error">${err.message||"Failed to load battle detail"}</div>`;
+    if (reqSeq === S.battleDetailSeq && S.selectedBattleId === bid && !silent) E.battleDetailPane.innerHTML = `<div class="status-msg error">${err.message||"Failed to load battle detail"}</div>`;
   }
 }
 
@@ -685,21 +689,6 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     </div>`;
   }
 
-  function ordersHtml(sc) {
-    const atkOrders = sc.ordersAtk;
-    const defOrders = sc.ordersDef;
-    const maxRows = Math.max(atkOrders.length, defOrders.length);
-    return `<div class="br-section"><h3 class="br-section-title"><iconify-icon icon="mdi:bullseye-arrow" class="lu"></iconify-icon> Battle Orders</h3>
-    <table class="rank-table"><thead>
-<tr><th colspan="4" style="color:${atkText}">ATTACKER</th><th colspan="4" style="color:${defText}">DEFENDER</th></tr>
-<tr><th>Through</th><th>Issuer</th><th>Issued By</th><th>Priority</th><th>Through</th><th>Issuer</th><th>Issued By</th><th>Priority</th></tr>
-</thead><tbody>
-${Array.from({length:maxRows}).map((_,i)=>{
-  return `<tr>${atkOrders[i] ? orderRowHtml(atkOrders[i]) : `<td colspan="4"></td>`}${defOrders[i] ? orderRowHtml(defOrders[i]) : `<td colspan="4"></td>`}</tr>`;
-}).join("")}
-</tbody></table></div>`;
-  }
-
   function buildScopeHtml(sc) {
     let h = `<div class="br-narrative">${sc.narrative}</div>`;
     if (sc.round) h += buildRoundGpBar(sc.round, sc.roundIdx);
@@ -707,7 +696,6 @@ ${Array.from({length:maxRows}).map((_,i)=>{
     h += statsGridHtml(sc);
     const anyRank = [sc.damageUsers, sc.gpUsers, sc.damageMu, sc.gpMu, sc.damageCountry, sc.gpCountry].some(l => l && l.length);
     if (anyRank) h += rankingsHtml(sc, view.cat, view.type);
-    if (sc.ordersAtk.length || sc.ordersDef.length) h += ordersHtml(sc);
     return h;
   }
 
@@ -721,7 +709,7 @@ ${Array.from({length:maxRows}).map((_,i)=>{
 
   const scopeBodyId = `brScopeBody_${bid}`;
 
-  const staticBottom = (isLive ? `<p style="text-align:center;color:var(--ink-dim);font-size:.76rem;padding:6px 0"><iconify-icon icon="mdi:sync" class="lu nd-spin"></iconify-icon> Auto-refreshing every 5 s</p>` : "") + `<div style="padding:8px 0;display:flex;gap:8px;flex-wrap:wrap">
+  const staticBottom = (isLive ? `<p style="text-align:center;color:var(--ink-dim);font-size:.76rem;padding:6px 0"><iconify-icon icon="mdi:sync" class="lu nd-spin"></iconify-icon> Auto-refreshing on tick</p>` : "") + `<div style="padding:8px 0;display:flex;gap:8px;flex-wrap:wrap">
     <button class="btn-primary" id="openFullReportBtn" style="flex:1"><iconify-icon icon="mdi:file-document-outline" class="lu"></iconify-icon> Open Full Report</button>
     <button class="btn-secondary" id="exportBattleXlsBtn" style="flex:1"><iconify-icon icon="mdi:file-excel-outline" class="lu"></iconify-icon> Export XLS</button>
         <button class="btn-secondary" id="captureBattlePaneBtn" style="flex:1"><iconify-icon icon="mdi:camera" class="lu"></iconify-icon> Capture Report</button>
@@ -881,6 +869,28 @@ ${Array.from({length:maxRows}).map((_,i)=>{
       await ch.captureHTML(html, `battle_${slug}_countries_${ch.ts()}.png`);
     }
   });
+
+  scheduleLiveRefresh(bid, isLive, tickInfo);
+}
+
+// Schedule the next data refresh from the live tick timer instead of a fixed poll:
+// refresh once after the next tick processes (~7s after nextTickAt), re-check every
+// 4s while the tick is "due" (processing), and back off to 15s when the tick info is
+// stale or missing.
+function scheduleLiveRefresh(bid, isLive, tickInfo) {
+  clearTimeout(S.liveBattleTimer); S.liveBattleTimer = null;
+  if (!isLive) return;
+  const next = tickInfo?.nextTickAt ? new Date(tickInfo.nextTickAt).getTime() : 0;
+  let delay = 15000;
+  if (next > 0) {
+    const diff = next - Date.now();
+    if (diff > 0) delay = Math.min(diff + 7000, 120000);
+    else if (diff > -15000) delay = 4000;
+  }
+  S.liveBattleTimer = setTimeout(async () => {
+    if (S.selectedBattleId !== bid) return;
+    await loadBattleDetail({ _id: bid }, bid, true);
+  }, delay);
 }
 
 function rowsSideBySide(atkArr, defArr, nameFn, valFn) {

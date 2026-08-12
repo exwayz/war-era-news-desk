@@ -27,7 +27,8 @@ async function resolveTournamentMUs(k) {
 }
 
 export function stopBattlePolling() {
-  clearInterval(S.liveBattleTimer); S.liveBattleTimer=null;
+  clearInterval(S.liveBattleTimer); clearTimeout(S.liveBattleTimer); S.liveBattleTimer=null;
+  clearInterval(S.battleTickTimer); S.battleTickTimer=null;
 }
 
 export function updateBattleTabPills() {
@@ -285,11 +286,7 @@ function makeBattleCard(battle) {
     stopBattlePolling();
     const { loadBattleDetail } = await import("./battleDetail.js");
     await loadBattleDetail(battle, bid, false);
-    if (isLive) {
-      S.liveBattleTimer = setInterval(async()=>{
-        if (S.selectedBattleId===bid) { await loadBattleDetail(battle,bid,true); }
-      }, 5000);
-    }
+    // Subsequent refreshes are scheduled by battleDetail.js from the live tick timer.
   });
 
   return node;
@@ -297,6 +294,7 @@ function makeBattleCard(battle) {
 
 export function clearBattleDetail() {
   stopBattlePolling();
+  S.battleDetailSeq++; // invalidate any in-flight load so it cannot re-render the pane
   S.selectedBattleId = null;
   document.querySelectorAll(".battle-card").forEach(c => c.classList.remove("selected"));
   E.battleDetailPane.innerHTML = `
