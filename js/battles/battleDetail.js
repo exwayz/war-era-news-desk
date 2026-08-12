@@ -656,20 +656,29 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
   }
 
   function statsGridHtml(sc) {
+    const scStart = sc.started ? new Date(sc.started).getTime() : 0;
+    const scEnd = sc.ended ? new Date(sc.ended).getTime() : 0;
+    const durationMs = (scStart && scEnd && scEnd > scStart) ? (scEnd - scStart) : 0;
+    const endedVal = sc.ended ? fmtDate(sc.ended) : (isLive ? "On going" : "—");
+    const durationVal = durationMs > 0 ? formatDuration(durationMs) : (isLive ? "On going" : "—");
+    const winnerVal = sc.winner ? sc.winner : "—";
+    const defVal = def || "Defender";
+    const atkVal = atk || "Attacker";
     return `<div class="br-stats-grid">
-      ${def?`<div class="br-stat-box"><span class="br-stat-val" style="font-size:.85rem">${def}</span><span class="br-stat-lbl">Defender</span></div>`:""}
-      <div class="br-stat-box"><span class="br-stat-val">${sc.participantsD||"—"}</span><span class="br-stat-lbl"> Defender Participants</span></div>
-      <div class="br-stat-box"><span class="br-stat-val" style="color:${defText}">${sc.defDmg?fmtNum(sc.defDmg):"—"}</span><span class="br-stat-lbl">Defender Damage</span></div>
-      <div class="br-stat-box"><span class="br-stat-val">${sc.totalDmg?fmtNum(sc.totalDmg):"—"}</span><span class="br-stat-lbl">Total Damage</span></div>
-      <div class="br-stat-box"><span class="br-stat-val">${sc.statusLabel}</span><span class="br-stat-lbl">Status</span></div>
+      <div class="br-stat-box"><span class="br-stat-val" style="font-size:.85rem">${defVal}</span><span class="br-stat-lbl">Defender</span></div>
+      <div class="br-stat-box"><span class="br-stat-val">${sc.participantsD || "—"}</span><span class="br-stat-lbl">Defender Participants</span></div>
+      <div class="br-stat-box"><span class="br-stat-val" style="color:${defText}">${sc.defDmg ? fmtNum(sc.defDmg) : "—"}</span><span class="br-stat-lbl">Defender Damage</span></div>
+      <div class="br-stat-box br-stat-box--total"><span class="br-stat-val">${sc.totalDmg ? fmtNum(sc.totalDmg) : "—"}</span><span class="br-stat-lbl">Total Damage</span></div>
+      <div class="br-stat-box"><span class="br-stat-val">${sc.participantsA || "—"}</span><span class="br-stat-lbl">Attacker Participants</span></div>
+      <div class="br-stat-box"><span class="br-stat-val" style="color:${atkText}">${sc.atkDmg ? fmtNum(sc.atkDmg) : "—"}</span><span class="br-stat-lbl">Attacker Damage</span></div>
+      <div class="br-stat-box"><span class="br-stat-val" style="font-size:.85rem">${atkVal}</span><span class="br-stat-lbl">Attacker</span></div>
+      <div class="br-stat-box"><span class="br-stat-val" style="font-size:.82rem">${reg || "—"}</span><span class="br-stat-lbl">Region</span></div>
       <div class="br-stat-box"><span class="br-stat-val">${sc.hitCount ? fmtNum(sc.hitCount) : "—"}</span><span class="br-stat-lbl">Total Hits</span></div>
-      <div class="br-stat-box"><span class="br-stat-val">${sc.participantsA||"—"}</span><span class="br-stat-lbl">Attacker Participants</span></div>
-      <div class="br-stat-box"><span class="br-stat-val" style="color:${atkText}">${sc.atkDmg?fmtNum(sc.atkDmg):"—"}</span><span class="br-stat-lbl">Attacker Damage</span></div>
-      ${atk?`<div class="br-stat-box"><span class="br-stat-val" style="font-size:.85rem">${atk}</span><span class="br-stat-lbl">Attacker</span></div>`:""}
-      ${reg?`<div class="br-stat-box"><span class="br-stat-val" style="font-size:.82rem">${reg}</span><span class="br-stat-lbl">Region</span></div>`:""}
-      ${sc.started?`<div class="br-stat-box"><span class="br-stat-val" style="font-size:.72rem">${fmtDate(sc.started)}</span><span class="br-stat-lbl">Started</span></div>`:""}
-      ${sc.ended?`<div class="br-stat-box"><span class="br-stat-val" style="font-size:.72rem">${fmtDate(sc.ended)}</span><span class="br-stat-lbl">Ended</span></div>`:""}
-      ${sc.winner?`<div class="br-stat-box" style="border-color:var(--green)"><span class="br-stat-val"><iconify-icon icon="mdi:trophy" class="lu"></iconify-icon> ${sc.winner}</span><span class="br-stat-lbl">Winner</span></div>`:""}
+      <div class="br-stat-box"><span class="br-stat-val" style="font-size:.72rem">${sc.started ? fmtDate(sc.started) : "—"}</span><span class="br-stat-lbl">Started</span></div>
+      <div class="br-stat-box"><span class="br-stat-val" style="font-size:.72rem">${durationVal}</span><span class="br-stat-lbl">Duration</span></div>
+      <div class="br-stat-box"><span class="br-stat-val" style="font-size:.72rem">${endedVal}</span><span class="br-stat-lbl">Ended</span></div>
+      <div class="br-stat-box"><span class="br-stat-val">${sc.statusLabel}</span><span class="br-stat-lbl">Status</span></div>
+      <div class="br-stat-box" ${sc.winner ? 'style="border-color:var(--green)"' : ""}><span class="br-stat-val">${sc.winner ? `<iconify-icon icon="mdi:trophy" class="lu"></iconify-icon> ` : ""}${winnerVal}</span><span class="br-stat-lbl">Winner</span></div>
     </div>`;
   }
 
