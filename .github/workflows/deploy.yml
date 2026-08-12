@@ -17,11 +17,20 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Some hosted runners intermittently drop the git CA bundle, causing
+    # "server certificate verification failed. CAfile: none" during checkout.
+    # Pin the system CA bundle explicitly so verification keeps working.
+    env:
+      GIT_SSL_CAINFO: /etc/ssl/certs/ca-certificates.crt
+      SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+      NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        env:
+          GIT_SSL_CAINFO: /etc/ssl/certs/ca-certificates.crt
       - uses: actions/setup-node@v4
         with:
           node-version: 20
