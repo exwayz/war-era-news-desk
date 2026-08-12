@@ -202,37 +202,81 @@ export async function loadBattleDetail(battle, bid, silent=false) {
     const atkCountryId = bdDetail.attacker?.country || bdDetail.attackerCountry || "";
     const defCountryId = bdDetail.defender?.country || bdDetail.defenderCountry || "";
 
-    const roundGpData = {};
-    if (roundsData.length && (atkCountryId || defCountryId)) {
-      await Promise.all(roundsData.map(async rd => {
+    const perRoundData = {};
+    if (roundsData.length) {
+      const roundKinds = {
+        damageUser:   { dataType: "damage", type: "user" },
+        damageMu:     { dataType: "damage", type: "mu" },
+        damageCountry:{ dataType: "damage", type: "country" },
+        gpUser:       { dataType: "points", type: "user" },
+        gpMu:         { dataType: "points", type: "mu" },
+        gpCountry:    { dataType: "points", type: "country" },
+      };
+      await Promise.all(roundsData.map(async (rd, i) => {
         const roundId = rd._id;
+        const out = { _idx: i, damageUsers: [], damageMu: [], damageCountry: [], gpUsers: [], gpMu: [], gpCountry: [], ordersAtk: [], ordersDef: [], atkPar: 0, defPar: 0, atkGp: 0, defGp: 0 };
         try {
-          const [rGpAtkR, rGpDefR] = await Promise.allSettled([
-            fetchTrpc("battleRanking.getRanking", { battleId: bid, roundId, dataType: "points", type: "country", side: "attacker" }, k),
-            fetchTrpc("battleRanking.getRanking", { battleId: bid, roundId, dataType: "points", type: "country", side: "defender" }, k),
+          for (const [key, spec] of Object.entries(roundKinds)) {
+            const [atkR, defR] = await Promise.allSettled([
+              fetchTrpc("battleRanking.getRanking", { battleId: bid, roundId, ...spec, side: "attacker" }, k),
+              fetchTrpc("battleRanking.getRanking", { battleId: bid, roundId, ...spec, side: "defender" }, k),
+            ]);
+            const merged = [
+              ...okArr(atkR).map(r => ({ ...r, _side: "attacker" })),
+              ...okArr(defR).map(r => ({ ...r, _side: "defender" })),
+            ];
+            if (key === "damageUser") {
+              out.atkPar = unwrap(atkR.value)?.itemCount || 0;
+              out.defPar = unwrap(defR.value)?.itemCount || 0;
+            }
+            out[key] = merged;
+          }
+          const [ordAtkR, ordDefR] = await Promise.allSettled([
+            fetchTrpc("battleOrder.getByBattle", { battleId: bid, roundId, side: "attacker" }, k),
+            fetchTrpc("battleOrder.getByBattle", { battleId: bid, roundId, side: "defender" }, k),
           ]);
-          const atkCountries = okArr(rGpAtkR);
-          const defCountries = okArr(rGpDefR);
-          const atkEntry = atkCountries.find(r => (r.countryId||r.country) === atkCountryId) || atkCountries[0];
-          const defEntry = defCountries.find(r => (r.countryId||r.country) === defCountryId) || defCountries[0];
-          roundGpData[roundId] = {
-            atkGp: atkEntry ? getPoints(atkEntry) : 0,
-            defGp: defEntry ? getPoints(defEntry) : 0,
-          };
-        } catch { roundGpData[rd._id] = { atkGp: 0, defGp: 0 }; }
+          out.ordersAtk = okArr(ordAtkR).map(o => ({ ...o, _side: "attacker" }));
+          out.ordersDef = okArr(ordDefR).map(o => ({ ...o, _side: "defender" }));
+          if (!out.ordersAtk.length && !out.ordersDef.length && (ordersAtk.length || ordersDef.length)) {
+            out.ordersAtk = ordersAtk;
+            out.ordersDef = ordersDef;
+          }
+          const atkCountryEntry = out.gpCountry.find(r => r._side === "attacker" && (r.countryId || r.country) === atkCountryId) || out.gpCountry.find(r => r._side === "attacker");
+          const defCountryEntry = out.gpCountry.find(r => r._side === "defender" && (r.countryId || r.country) === defCountryId) || out.gpCountry.find(r => r._side === "defender");
+          out.atkGp = atkCountryEntry ? getPoints(atkCountryEntry) : 0;
+          out.defGp = defCountryEntry ? getPoints(defCountryEntry) : 0;
+        } catch {}
+        perRoundData[roundId] = out;
       }));
     }
+
+    const roundUsers = Object.values(perRoundData).flatMap(p => p.damageUsers.concat(p.gpUsers));
+    const roundMus = Object.values(perRoundData).flatMap(p => p.damageMu.concat(p.gpMu));
+    const roundUnknownUsers = [...new Set(roundUsers.map(r => r.userId || r.user).filter(id => id && !S.lookups.usersById.has(id)))];
+    if (roundUnknownUsers.length) await Promise.all(roundUnknownUsers.map(async uid => {
+      try {
+        const r = await fetchTrpc("user.getUserLite", { userId: uid }, k);
+        const u = unwrap(r); if (u) S.lookups.usersById.set(uid, u);
+      } catch {}
+    }));
+    const roundUnknownMu = [...new Set(roundMus.map(r => r.muId || r.mu).filter(id => id && !S.lookups.muById.has(id)))];
+    if (roundUnknownMu.length) await Promise.all(roundUnknownMu.map(async mid => {
+      try {
+        const res = await fetchTrpc("mu.getById", { muId: mid }, k);
+        const mu = unwrap(res); if (mu) S.lookups.muById.set(mid, mu);
+      } catch {}
+    }));
 
     const contracts = rContracts.status === "fulfilled" ? rContracts.value : { items: [], won: [], active: [], expired: [], totalBudget: 0, totalPayout: 0, side: { attacker: { count: 0, budget: 0, payout: 0 }, defender: { count: 0, budget: 0, payout: 0 } } };
     const money = rMoney.status === "fulfilled" ? rMoney.value : null;
 
-    renderBattleDetail(bdDetail, bid, allUsers, allMu, allCountry, gpUsers, gpMu, gpCountry, allOrders, atkParticipantCount, defParticipantCount, roundsData, roundGpData, contracts, money);
+    renderBattleDetail(bdDetail, bid, allUsers, allMu, allCountry, gpUsers, gpMu, gpCountry, allOrders, atkParticipantCount, defParticipantCount, roundsData, perRoundData, contracts, money);
   } catch (err) {
     if (!silent) E.battleDetailPane.innerHTML = `<div class="status-msg error">${err.message||"Failed to load battle detail"}</div>`;
   }
 }
 
-function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpMu, gpCountry, orders, atkPar, defPar, roundsData, roundGpData, contracts, money) {
+function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpMu, gpCountry, orders, atkPar, defPar, roundsData, perRoundData, contracts, money) {
   const isTournament = b.type === "tournament";
   let atk, def, atkId, defId, atkAvatar, defAvatar;
   if (isTournament) {
@@ -268,46 +312,21 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     if (typeof d === "object") return Object.values(d).reduce((s, v) => s + (Number(v) || 0), 0);
     return Number(d) || 0;
   }
-  let rawAtkDmg = b.attacker?.damages, rawDefDmg = b.defender?.damages;
-  let atkDmg = rawAtkDmg != null ? sumDmg(rawAtkDmg) : rankUsers.filter(r => r._side === "attacker").reduce((s, r) => s + getValue(r), 0);
-  let defDmg = rawDefDmg != null ? sumDmg(rawDefDmg) : rankUsers.filter(r => r._side === "defender").reduce((s, r) => s + getValue(r), 0);
-  let totalDmg = atkDmg+defDmg||b.totalDamage||b.damage||0;
-  if (!totalDmg && roundsData && roundsData.length) {
-    atkDmg = roundsData.reduce((s, rd) => s + (rd.attacker?.damages ?? 0), 0);
-    defDmg = roundsData.reduce((s, rd) => s + (rd.defender?.damages ?? 0), 0);
-    totalDmg = atkDmg + defDmg;
-  }
-  let atkGp = gpUsers.filter(r => r._side === "attacker").reduce((s, r) => s + getPoints(r), 0);
-  let defGp = gpUsers.filter(r => r._side === "defender").reduce((s, r) => s + getPoints(r), 0);
-  let participantsA = atkPar || b.atkPar || 0;
-  let participantsD = defPar || b.defPar || 0;
-  let participantsT = participantsA+participantsD;
-
-  const atkRoundsWon = Number(b.attacker?.wonRoundsCount ?? b.attackerRoundsWon ?? 0);
-  const defRoundsWon = Number(b.defender?.wonRoundsCount ?? b.defenderRoundsWon ?? 0);
-  const roundsToWin  = Number(b.roundsToWin ?? 2);
-
-  let atkPct = totalDmg>0 ? Math.round((atkDmg/totalDmg)*100) : 50;
-  let defPct = 100-atkPct;
-
-  let narrative = "";
-  const battleTypeLabel = b.type === "resistance" ? "Resistance" : b.type === "revolution" ? "Civil War" : b.type === "war" ? "Battle" : b.type === "tournament" ? "MU Tournament" : "Combat";
-  if (isLive) {
-    narrative = `${battleTypeLabel} ongoing: <strong>${atk||"Attacker"}</strong> vs <strong>${def||"Defender"}</strong>${reg?" in "+reg:""}. Damage split: ${atkPct}% vs ${defPct}%.`;
-  } else {
-    narrative = winner
-      ? `<strong>${winner}</strong> secured victory${reg?" at "+reg:""}. Total damage: ${fmtNum(totalDmg)}. ${participantsT} fighters participated.`
-      : `Battle concluded${reg?" at "+reg:""}. Total damage: ${fmtNum(totalDmg)}.`;
-  }
-
   const liveTag = isLive ? ` <span style="color:var(--red);font-size:.68rem;animation:livePulse 1.5s infinite;display:inline-block">● LIVE</span>` : "";
-
+  const battleTypeLabel = b.type === "resistance" ? "Resistance" : b.type === "revolution" ? "Civil War" : b.type === "war" ? "Battle" : b.type === "tournament" ? "MU Tournament" : "Combat";
   const rounds = roundsData || [];
   const sortedRounds = [...rounds].sort((a,b) => {
     const ta = new Date(a.createdAt||a.startedAt||0).getTime();
     const tb = new Date(b.createdAt||b.startedAt||0).getTime();
     return ta - tb;
   });
+  const atkRoundsWon = Number(b.attacker?.wonRoundsCount ?? b.attackerRoundsWon ?? 0);
+  const defRoundsWon = Number(b.defender?.wonRoundsCount ?? b.defenderRoundsWon ?? 0);
+  const roundsToWin  = Number(b.roundsToWin ?? 2);
+  const startedDate = new Date(started);
+  const endedDate = ended ? new Date(ended) : new Date();
+  const durationMs = endedDate - startedDate;
+  const durationStr = durationMs > 0 ? formatDuration(durationMs) : "";
 
   const roundTabsHtml = sortedRounds.length > 0 ? `
   <div class="br-round-tabs" id="brRoundTabs_${bid}" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px;">
@@ -315,14 +334,10 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
       const rdWinner = rd.wonBy === "attacker" ? (atk||"ATK") : rd.wonBy === "defender" ? (def||"DEF") : null;
       const isActive = (rd.isActive===true || rd._isCurrent===true || !rd.endedAt) && !rdWinner;
       const badge = rdWinner ? `<iconify-icon icon="mdi:trophy" class="lu" style="font-size:.6rem;margin-left:3px"></iconify-icon>` : isActive ? `<span style="color:var(--red);font-size:.6rem;margin-left:3px">●</span>` : "";
-      return `<button class="pill-btn${i===sortedRounds.length-1?" active":""}" data-round-idx="${i}" data-round-tab-bid="${bid}" style="font-size:.72rem">Round ${i+1}${badge}</button>`;
+      return `<button class="pill-btn" data-round-idx="${i}" data-round-tab-bid="${bid}" style="font-size:.72rem">Round ${i+1}${badge}</button>`;
     }).join("")}
-    <button class="pill-btn active" data-round-idx="overall" data-round-tab-bid="${bid}" style="font-size:.72rem">Overall</button>
+    <button class="pill-btn" data-round-idx="overall" data-round-tab-bid="${bid}" style="font-size:.72rem">Overall</button>
   </div>` : "";
-
-  const roundsByNumber = Object.fromEntries(roundsData.map(r => [Number(r.number), r]));
-  const round1 = roundsByNumber?.[1];
-  const round2 = roundsByNumber?.[2];
 
   function buildRoundGpBar(rd, roundIdx) {
     if (!rd) return "";
@@ -381,74 +396,155 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     <div>${defAvatar}</div>
   </div>`;
 
-  let html = `<div class="br-section">
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;">
-    <h3 class="br-section-title" style="margin:0">Battle Overview${liveTag}</h3>
-    <button id="clearBattleDetailBtn" class="btn-secondary" style="margin-left:auto;padding:4px 10px;min-width:auto;">⌫ Clear</button>
-  </div>
-  ${roundTabsHtml}
-  <div class="br-narrative">${narrative}</div>`;
-
-  html += battleScoreHtml;
-
-  html += bountySummaryHtml(b, contracts, money);
-
-  if (sortedRounds.length > 0) {
-    html += `<div id="brRoundGpBars_${bid}">`;
-    sortedRounds.forEach((rd, i) => {
-      const defaultShow = i === sortedRounds.length - 1;
-      html += `<div class="br-round-section" data-round-section="${i}" data-round-bid="${bid}" style="display:${defaultShow?"block":"none"}">${buildRoundGpBar(rd, i)}</div>`;
-    });
-    html += `<div class="br-round-section" data-round-section="overall" data-round-bid="${bid}" style="display:none"></div>`;
-    html += `</div>`;
+  function orderSplit(list) {
+    const priorityRank = { high: 3, medium: 2, low: 1 };
+    const sortByPriority = (arr) => arr.slice().sort((a, b) => (priorityRank[b.priority?.toLowerCase()] || 0) - (priorityRank[a.priority?.toLowerCase()] || 0));
+    return {
+      atk: sortByPriority(list.filter(o => (o.side || o.attackerDefender || o._side) === "attacker")),
+      def: sortByPriority(list.filter(o => (o.side || o.attackerDefender || o._side) === "defender")),
+    };
   }
 
-  html += `<div class="score-bar-wrap" style="margin-top:8px">
-      <div class="score-bar-labels">
-        <span style="color:${atkText};font-weight:800">${atk||"Attacker"} ${atkPct}%</span>
-        <span style="color:var(--ink-dim);font-size:.72rem">DAMAGE SHARE</span>
-        <span style="color:${defText};font-weight:800">${defPct}% ${def||"Defender"}</span>
-      </div>
-      <div class="score-bar">
-  <div style="flex:${atkPct} 0 0; background:${atkColor}; border-right:2px solid rgba(255,255,255,0.65); display:flex; align-items:center; justify-content:flex-end; padding-right:8px;">
-    <span style="font-size:26px;line-height:1;font-family:var(--font-ui);font-weight:900;color:${atkBarText}">${fmtNum(atkDmg)}</span>
-  </div>
-  <div style="flex:${defPct} 0 0; background:${defColor}; display:flex; align-items:center; justify-content:flex-start; padding-left:8px;">
-    <span style="font-size:26px;line-height:1;font-family:var(--font-ui);font-weight:900;color:${defBarText}">${fmtNum(defDmg)}</span>
-  </div>
-</div>
-    </div>`;
+  function overallScope() {
+    let rawAtkDmg = b.attacker?.damages, rawDefDmg = b.defender?.damages;
+    let atkDmg = rawAtkDmg != null ? sumDmg(rawAtkDmg) : rankUsers.filter(r => r._side === "attacker").reduce((s, r) => s + getValue(r), 0);
+    let defDmg = rawDefDmg != null ? sumDmg(rawDefDmg) : rankUsers.filter(r => r._side === "defender").reduce((s, r) => s + getValue(r), 0);
+    let totalDmg = atkDmg + defDmg || b.totalDamage || b.damage || 0;
+    if (!totalDmg && roundsData && roundsData.length) {
+      atkDmg = roundsData.reduce((s, rd) => s + (rd.attacker?.damages ?? 0), 0);
+      defDmg = roundsData.reduce((s, rd) => s + (rd.defender?.damages ?? 0), 0);
+      totalDmg = atkDmg + defDmg;
+    }
+    const atkGp = gpUsers.filter(r => r._side === "attacker").reduce((s, r) => s + getPoints(r), 0);
+    const defGp = gpUsers.filter(r => r._side === "defender").reduce((s, r) => s + getPoints(r), 0);
+    const participantsA = atkPar || b.atkPar || 0;
+    const participantsD = defPar || b.defPar || 0;
+    const atkPct = totalDmg > 0 ? Math.round((atkDmg / totalDmg) * 100) : 50;
+    const defPct = 100 - atkPct;
+    const hitCount = (b.attacker?.hitCount || 0) + (b.defender?.hitCount || 0);
+    const sides = orderSplit(orders);
+    let narrative = "";
+    if (isLive) {
+      narrative = `${battleTypeLabel} ongoing: <strong>${atk||"Attacker"}</strong> vs <strong>${def||"Defender"}</strong>${reg?" in "+reg:""}. Damage split: ${atkPct}% vs ${defPct}%.`;
+    } else {
+      narrative = winner
+        ? `<strong>${winner}</strong> secured victory${reg?" at "+reg:""}. Total damage: ${fmtNum(totalDmg)}. ${participantsA + participantsD} fighters participated.`
+        : `Battle concluded${reg?" at "+reg:""}. Total damage: ${fmtNum(totalDmg)}.`;
+    }
+    return {
+      scopeKey: "overall",
+      label: "Overall",
+      atkDmg, defDmg, totalDmg, atkGp, defGp, atkPct, defPct,
+      participantsA, participantsD, participantsT: participantsA + participantsD,
+      hitCount,
+      statusLabel: isLive ? "LIVE" : "ENDED",
+      winner, started, ended,
+      narrative,
+      damageUsers: rankUsers, damageMu: rankMu, damageCountry: rankCountry,
+      gpUsers, gpMu, gpCountry,
+      ordersAtk: sides.atk, ordersDef: sides.def,
+    };
+  }
 
-  html+=`<div class="br-stats-grid">
-      ${atk?`<div class="br-stat-box"><span class="br-stat-val" style="font-size:.85rem">${atk}</span><span class="br-stat-lbl">Attacker</span></div>`:""}
-      <div class="br-stat-box"><span class="br-stat-val">${participantsA||"—"}</span><span class="br-stat-lbl"> Attacker Participants</span></div>
-      <div class="br-stat-box"><span class="br-stat-val" style="color:${atkText}">${atkDmg?fmtNum(atkDmg):"—"}</span><span class="br-stat-lbl">Attacker Damage</span></div>
-      <div class="br-stat-box"><span class="br-stat-val">${totalDmg?fmtNum(totalDmg):"—"}</span><span class="br-stat-lbl">Total Damage</span></div>
-      <div class="br-stat-box"><span class="br-stat-val">${isLive?"LIVE":"ENDED"}</span><span class="br-stat-lbl">Status</span></div>
-      <div class="br-stat-box"><span class="br-stat-val">${(b.attacker?.hitCount||0)+(b.defender?.hitCount||0) ? fmtNum((b.attacker?.hitCount||0)+(b.defender?.hitCount||0)) : "—"}</span><span class="br-stat-lbl">Total Hits</span></div>
-      <div class="br-stat-box"><span class="br-stat-val">${participantsD||"—"}</span><span class="br-stat-lbl">Defender Participants</span></div>
-      <div class="br-stat-box"><span class="br-stat-val" style="color:${defText}">${defDmg?fmtNum(defDmg):"—"}</span><span class="br-stat-lbl">Defender Damage</span></div>
-      ${def?`<div class="br-stat-box"><span class="br-stat-val" style="font-size:.85rem">${def}</span><span class="br-stat-lbl">Defender</span></div>`:""}
-      ${reg?`<div class="br-stat-box"><span class="br-stat-val" style="font-size:.82rem">${reg}</span><span class="br-stat-lbl">Region</span></div>`:""}
-      ${started?`<div class="br-stat-box"><span class="br-stat-val" style="font-size:.72rem">${fmtDate(started)}</span><span class="br-stat-lbl">Started</span></div>`:""}
-      ${ended?`<div class="br-stat-box"><span class="br-stat-val" style="font-size:.72rem">${fmtDate(ended)}</span><span class="br-stat-lbl">Ended</span></div>`:""}
-      ${winner?`<div class="br-stat-box" style="border-color:var(--green)"><span class="br-stat-val"><iconify-icon icon="mdi:trophy" class="lu"></iconify-icon> ${winner}</span><span class="br-stat-lbl">Winner</span></div>`:""}
-    </div></div>`;
+  function roundScope(rd, idx) {
+    const pr = perRoundData?.[rd._id] || {};
+    const dUsers = pr.damageUsers || [];
+    const rawAtkDmg = rd.attacker?.damages, rawDefDmg = rd.defender?.damages;
+    const atkDmg = rawAtkDmg != null ? sumDmg(rawAtkDmg) : dUsers.filter(r => r._side === "attacker").reduce((s, r) => s + getValue(r), 0);
+    const defDmg = rawDefDmg != null ? sumDmg(rawDefDmg) : dUsers.filter(r => r._side === "defender").reduce((s, r) => s + getValue(r), 0);
+    const totalDmg = atkDmg + defDmg;
+    const atkPct = totalDmg > 0 ? Math.round((atkDmg / totalDmg) * 100) : 50;
+    const defPct = 100 - atkPct;
+    const atkGp = pr.atkGp || rd.pointsAttacker || rd.attacker?.points || 0;
+    const defGp = pr.defGp || rd.pointsDefender || rd.defender?.points || 0;
+    const participantsA = pr.atkPar || 0;
+    const participantsD = pr.defPar || 0;
+    const hitCount = (rd.attacker?.hitCount || 0) + (rd.defender?.hitCount || 0);
+    const rWinner = rd.wonBy === "attacker" ? atk : rd.wonBy === "defender" ? def : null;
+    const rActive = (rd.isActive === true || rd._isCurrent === true || !rd.endedAt) && !rWinner;
+    const statusLabel = rWinner ? "WON" : rActive ? "ACTIVE" : "ENDED";
+    const narrative = `Round ${idx + 1} ${rWinner ? `won by <strong>${rWinner}</strong>` : rActive ? "ongoing" : "concluded"}${totalDmg ? `: ${fmtNum(totalDmg)} total damage, ${atkPct}% vs ${defPct}% split` : ""}.`;
+    const rSides = orderSplit([...(pr.ordersAtk || []), ...(pr.ordersDef || [])]);
+    return {
+      scopeKey: String(idx),
+      label: `Round ${idx + 1}`,
+      atkDmg, defDmg, totalDmg, atkGp, defGp, atkPct, defPct,
+      participantsA, participantsD, participantsT: participantsA + participantsD,
+      hitCount,
+      statusLabel,
+      winner: rWinner,
+      started: rd.createdAt || rd.startedAt || "",
+      ended: rd.endedAt || "",
+      narrative,
+      damageUsers: dUsers,
+      damageMu: pr.damageMu || [],
+      damageCountry: pr.damageCountry || [],
+      gpUsers: pr.gpUsers || [],
+      gpMu: pr.gpMu || [],
+      gpCountry: pr.gpCountry || [],
+      ordersAtk: rSides.atk,
+      ordersDef: rSides.def,
+      round: rd,
+      roundIdx: idx,
+    };
+  }
+
+  function scopeFor(key) {
+    if (key === "overall") return overallScope();
+    const idx = Number(key);
+    return roundScope(sortedRounds[idx], idx);
+  }
 
   const rankRowNum = i => rankBadgeHtml(i + 1);
 
-  const rankConfig = {
-    damage: { value: getValue, label: "Damage", sources: { users: rankUsers, mus: rankMu, countries: rankCountry } },
-    points: { value: getPoints, label: "Ground Points", sources: { users: gpUsers, mus: gpMu, countries: gpCountry } },
-  };
+  const rankConfigFor = (sc) => ({
+    damage: { value: getValue, label: "Damage", sources: { users: sc.damageUsers, mus: sc.damageMu, countries: sc.damageCountry } },
+    points: { value: getPoints, label: "Ground Points", sources: { users: sc.gpUsers, mus: sc.gpMu, countries: sc.gpCountry } },
+  });
   const rankEntity = {
     users: { label: "Fighter", name: r => nameUser(r.userId || r.user) || r.username, link: r => `https://app.warera.io/user/${r.userId || r.user}` },
     mus: { label: "Military Unit", name: r => nameMu(r.muId || r.mu) || `MU ${String(r.muId || r.mu).slice(-6)}`, link: r => `https://app.warera.io/mu/${r.muId || r.mu}` },
     countries: { label: "Country", name: r => nameCountry(r.countryId || r.country) || r.countryName || r.name, link: r => `https://app.warera.io/country/${r.countryId || r.country}` },
   };
 
-  function rankTableHtml(cat, type) {
-    const cfg = rankConfig[cat];
+  function scoreBarHtml(sc) {
+    return `<div class="score-bar-wrap" style="margin-top:8px">
+      <div class="score-bar-labels">
+        <span style="color:${atkText};font-weight:800">${atk||"Attacker"} ${sc.atkPct}%</span>
+        <span style="color:var(--ink-dim);font-size:.72rem">DAMAGE SHARE</span>
+        <span style="color:${defText};font-weight:800">${sc.defPct}% ${def||"Defender"}</span>
+      </div>
+      <div class="score-bar">
+  <div style="flex:${sc.atkPct} 0 0; background:${atkColor}; border-right:2px solid rgba(255,255,255,0.65); display:flex; align-items:center; justify-content:flex-end; padding-right:8px;">
+    <span style="font-size:26px;line-height:1;font-family:var(--font-ui);font-weight:900;color:${atkBarText}">${fmtNum(sc.atkDmg)}</span>
+  </div>
+  <div style="flex:${sc.defPct} 0 0; background:${defColor}; display:flex; align-items:center; justify-content:flex-start; padding-left:8px;">
+    <span style="font-size:26px;line-height:1;font-family:var(--font-ui);font-weight:900;color:${defBarText}">${fmtNum(sc.defDmg)}</span>
+  </div>
+</div>
+    </div>`;
+  }
+
+  function statsGridHtml(sc) {
+    return `<div class="br-stats-grid">
+      ${atk?`<div class="br-stat-box"><span class="br-stat-val" style="font-size:.85rem">${atk}</span><span class="br-stat-lbl">Attacker</span></div>`:""}
+      <div class="br-stat-box"><span class="br-stat-val">${sc.participantsA||"—"}</span><span class="br-stat-lbl"> Attacker Participants</span></div>
+      <div class="br-stat-box"><span class="br-stat-val" style="color:${atkText}">${sc.atkDmg?fmtNum(sc.atkDmg):"—"}</span><span class="br-stat-lbl">Attacker Damage</span></div>
+      <div class="br-stat-box"><span class="br-stat-val">${sc.totalDmg?fmtNum(sc.totalDmg):"—"}</span><span class="br-stat-lbl">Total Damage</span></div>
+      <div class="br-stat-box"><span class="br-stat-val">${sc.statusLabel}</span><span class="br-stat-lbl">Status</span></div>
+      <div class="br-stat-box"><span class="br-stat-val">${sc.hitCount ? fmtNum(sc.hitCount) : "—"}</span><span class="br-stat-lbl">Total Hits</span></div>
+      <div class="br-stat-box"><span class="br-stat-val">${sc.participantsD||"—"}</span><span class="br-stat-lbl">Defender Participants</span></div>
+      <div class="br-stat-box"><span class="br-stat-val" style="color:${defText}">${sc.defDmg?fmtNum(sc.defDmg):"—"}</span><span class="br-stat-lbl">Defender Damage</span></div>
+      ${def?`<div class="br-stat-box"><span class="br-stat-val" style="font-size:.85rem">${def}</span><span class="br-stat-lbl">Defender</span></div>`:""}
+      ${reg?`<div class="br-stat-box"><span class="br-stat-val" style="font-size:.82rem">${reg}</span><span class="br-stat-lbl">Region</span></div>`:""}
+      ${sc.started?`<div class="br-stat-box"><span class="br-stat-val" style="font-size:.72rem">${fmtDate(sc.started)}</span><span class="br-stat-lbl">Started</span></div>`:""}
+      ${sc.ended?`<div class="br-stat-box"><span class="br-stat-val" style="font-size:.72rem">${fmtDate(sc.ended)}</span><span class="br-stat-lbl">Ended</span></div>`:""}
+      ${sc.winner?`<div class="br-stat-box" style="border-color:var(--green)"><span class="br-stat-val"><iconify-icon icon="mdi:trophy" class="lu"></iconify-icon> ${sc.winner}</span><span class="br-stat-lbl">Winner</span></div>`:""}
+    </div>`;
+  }
+
+  function rankTableHtml(cat, type, sc) {
+    const cfg = rankConfigFor(sc)[cat];
     const ent = rankEntity[type];
     const list = cfg.sources[type];
     if (!list || !list.length) return `<p style="color:var(--ink-dim);text-align:center;padding:12px 0">No ranking data available.</p>`;
@@ -468,8 +564,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     </thead><tbody>${rows}</tbody></table>`;
   }
 
-  const anyRank = [rankUsers, gpUsers, rankMu, gpMu, rankCountry, gpCountry].some(l => l && l.length);
-  if (anyRank) {
+  function rankingsHtml(sc) {
     const rankCatPills = [
       ["damage", `<iconify-icon icon="mdi:sword-cross" class="lu"></iconify-icon> Damage`],
       ["points", `<iconify-icon icon="mdi:flag" class="lu"></iconify-icon> Ground Points`],
@@ -483,9 +578,9 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
       `<button class="pill-btn${val === defaultVal ? " active" : ""}" data-rank-${group}="${val}" style="font-size:.72rem">${label}</button>`
     ).join("");
     const rankTablesHtml = rankCatPills.map(([cat]) => rankTypePills.map(([type]) =>
-      `<div data-rank-table="${cat}-${type}" style="${cat === "damage" && type === "users" ? "" : "display:none"}">${rankTableHtml(cat, type)}</div>`
+      `<div data-rank-table="${cat}-${type}" style="${cat === "damage" && type === "users" ? "" : "display:none"}">${rankTableHtml(cat, type, sc)}</div>`
     ).join("")).join("");
-    html += `<div class="br-section">
+    return `<div class="br-section">
       <h3 class="br-section-title"><iconify-icon icon="mdi:podium" class="lu"></iconify-icon> Rankings</h3>
       <div id="brRankTabs_${bid}" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
         ${rankPillHtml(rankCatPills, "cat", "damage")}
@@ -496,18 +591,17 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     </div>`;
   }
 
-  if (orders.length) {
-    const priorityRank = { high: 3, medium: 2, low: 1 };
-    const atkOrders = orders.filter(o => (o.side || o.attackerDefender || o._side) === "attacker").sort((a, b) => (priorityRank[b.priority?.toLowerCase()] || 0) - (priorityRank[a.priority?.toLowerCase()] || 0));
-    const defOrders = orders.filter(o => (o.side || o.attackerDefender || o._side) === "defender").sort((a, b) => (priorityRank[b.priority?.toLowerCase()] || 0) - (priorityRank[a.priority?.toLowerCase()] || 0));
+  function ordersHtml(sc) {
+    const atkOrders = sc.ordersAtk;
+    const defOrders = sc.ordersDef;
     const maxRows = Math.max(atkOrders.length, defOrders.length);
-    html+=`<div class="br-section"><h3 class="br-section-title"><iconify-icon icon="mdi:bullseye-arrow" class="lu"></iconify-icon> Battle Orders</h3>
+    return `<div class="br-section"><h3 class="br-section-title"><iconify-icon icon="mdi:bullseye-arrow" class="lu"></iconify-icon> Battle Orders</h3>
     <table class="rank-table"><thead>
 <tr><th colspan="4" style="color:${atkText}">ATTACKER</th><th colspan="4" style="color:${defText}">DEFENDER</th></tr>
 <tr><th>Through</th><th>Issuer</th><th>Issued By</th><th>Priority</th><th>Through</th><th>Issuer</th><th>Issued By</th><th>Priority</th></tr>
 </thead><tbody>
 ${Array.from({length:maxRows}).map((_,i)=>{
-  const atk = atkOrders[i]; const def = defOrders[i];
+  const atkO = atkOrders[i]; const defO = defOrders[i];
   function renderOrder(o){
     if(!o) return `<td colspan="4"></td>`;
     const issuedThrough = o.mu ? "Military Unit" : o.country ? "Country" : "Unknown";
@@ -518,26 +612,42 @@ ${Array.from({length:maxRows}).map((_,i)=>{
     const priority = `<span style="color:${priorityColor};font-weight:800;">${p ? p.charAt(0).toUpperCase() + p.slice(1) : "—"}</span>`;
     return `<td>${issuedThrough}</td><td>${issuer}</td><td>${createdBy}</td><td>${priority}</td>`;
   }
-  return `<tr>${renderOrder(atk)}${renderOrder(def)}</tr>`;
+  return `<tr>${renderOrder(atkO)}${renderOrder(defO)}</tr>`;
 }).join("")}
 </tbody></table></div>`;
   }
 
-  if (isLive) html+=`<p style="text-align:center;color:var(--ink-dim);font-size:.76rem;padding:6px 0"><iconify-icon icon="mdi:sync" class="lu nd-spin"></iconify-icon> Auto-refreshing every 8 s</p>`;
+  function buildScopeHtml(sc) {
+    let h = `<div class="br-narrative">${sc.narrative}</div>`;
+    if (sc.round) h += buildRoundGpBar(sc.round, sc.roundIdx);
+    h += scoreBarHtml(sc);
+    h += statsGridHtml(sc);
+    const anyRank = [sc.damageUsers, sc.gpUsers, sc.damageMu, sc.gpMu, sc.damageCountry, sc.gpCountry].some(l => l && l.length);
+    if (anyRank) h += rankingsHtml(sc);
+    if (sc.ordersAtk.length || sc.ordersDef.length) h += ordersHtml(sc);
+    return h;
+  }
 
-  const startedDate = new Date(started);
-  const endedDate = ended ? new Date(ended) : new Date();
-  const durationMs = endedDate - startedDate;
-  const durationStr = durationMs > 0 ? formatDuration(durationMs) : "";
-  html+=`<div style="padding:8px 0;display:flex;gap:8px;flex-wrap:wrap">
+  const staticTop = `<div class="br-section">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;">
+    <h3 class="br-section-title" style="margin:0">Battle Overview${liveTag}</h3>
+    <button id="clearBattleDetailBtn" class="btn-secondary" style="margin-left:auto;padding:4px 10px;min-width:auto;">⌫ Clear</button>
+  </div>
+  ${roundTabsHtml}
+  ` + battleScoreHtml + bountySummaryHtml(b, contracts, money);
+
+  const scopeBodyId = `brScopeBody_${bid}`;
+
+  const staticBottom = (isLive ? `<p style="text-align:center;color:var(--ink-dim);font-size:.76rem;padding:6px 0"><iconify-icon icon="mdi:sync" class="lu nd-spin"></iconify-icon> Auto-refreshing every 8 s</p>` : "") + `<div style="padding:8px 0;display:flex;gap:8px;flex-wrap:wrap">
     <button class="btn-primary" id="openFullReportBtn" style="flex:1"><iconify-icon icon="mdi:file-document-outline" class="lu"></iconify-icon> Open Full Report</button>
     <button class="btn-secondary" id="exportBattleXlsBtn" style="flex:1"><iconify-icon icon="mdi:file-excel-outline" class="lu"></iconify-icon> Export XLS</button>
         <button class="btn-secondary" id="captureBattlePaneBtn" style="flex:1"><iconify-icon icon="mdi:camera" class="lu"></iconify-icon> Capture Report</button>
   </div>`;
 
-  E.battleDetailPane.innerHTML = html;
+  E.battleDetailPane.innerHTML = staticTop + `<div id="${scopeBodyId}"></div>` + staticBottom;
 
   bindBountySummaryButtons(E.battleDetailPane, b, bid, contracts);
+  document.getElementById("clearBattleDetailBtn")?.addEventListener("click", () => { clearBattleDetail(); });
 
   function bindRankTabs(root) {
     const tableBox = root?.querySelector(`#brRankTables_${bid}`);
@@ -557,59 +667,64 @@ ${Array.from({length:maxRows}).map((_,i)=>{
       });
     });
   }
-  bindRankTabs(E.battleDetailPane);
 
-  document.getElementById("clearBattleDetailBtn")?.addEventListener("click", () => { clearBattleDetail(); });
+  let currentScopeData = null;
+  let currentScopeHtml = "";
 
-  const roundTabContainer = document.getElementById(`brRoundTabs_${bid}`);
-  if (roundTabContainer) {
-    const allTabBtns = roundTabContainer.querySelectorAll("[data-round-idx]");
-    const allSections = E.battleDetailPane.querySelectorAll(`[data-round-section][data-round-bid="${bid}"]`);
-
-    function activateRoundTab(idx) {
-      allTabBtns.forEach(btn => { btn.classList.toggle("active", btn.dataset.roundIdx === String(idx)); });
-      allSections.forEach(sec => { sec.style.display = sec.dataset.roundSection === String(idx) ? "block" : "none"; });
-    }
-
-    const defaultIdx = sortedRounds.length > 0 ? sortedRounds.length - 1 : "overall";
-    allTabBtns.forEach(btn => { btn.classList.toggle("active", btn.dataset.roundIdx === String(defaultIdx)); });
-    allTabBtns.forEach(btn => { btn.addEventListener("click", () => { activateRoundTab(btn.dataset.roundIdx); }); });
+  function renderScope(idx) {
+    currentScopeData = scopeFor(idx);
+    currentScopeHtml = buildScopeHtml(currentScopeData);
+    const bodyEl = document.getElementById(scopeBodyId);
+    if (bodyEl) { bodyEl.innerHTML = currentScopeHtml; bindRankTabs(bodyEl); }
   }
 
-  document.getElementById("openFullReportBtn")?.addEventListener("click",()=>{
-    const title=`${battleTypeLabel}: ${atk||"?"} vs ${def||"?"}${reg?" — "+reg:""}`;
+  const roundTabContainer = document.getElementById(`brRoundTabs_${bid}`);
+  const allTabBtns = roundTabContainer ? roundTabContainer.querySelectorAll("[data-round-idx]") : [];
+  function activateRoundTab(idx) {
+    allTabBtns.forEach(btn => { btn.classList.toggle("active", btn.dataset.roundIdx === String(idx)); });
+    renderScope(idx);
+  }
+  const defaultIdx = sortedRounds.length > 0 ? sortedRounds.length - 1 : "overall";
+  allTabBtns.forEach(btn => { btn.classList.toggle("active", btn.dataset.roundIdx === String(defaultIdx)); });
+  allTabBtns.forEach(btn => { btn.addEventListener("click", () => { activateRoundTab(btn.dataset.roundIdx); }); });
+  renderScope(defaultIdx);
+
+  document.getElementById("openFullReportBtn")?.addEventListener("click", () => {
+    const title = `${battleTypeLabel}: ${atk||"?"} vs ${def||"?"}${reg?" — "+reg:""}`;
     E.battleReportTitle.textContent = "Battle Report: "+title;
     E.battleReportMeta.textContent = `${isLive?"Live":"Ended"} · ${started?fmtDate(started):""}${ended?" → "+fmtDate(ended):""}`;
-    E.battleReportContent.innerHTML = html.replace(/<div[^>]*>\s*<button[^>]*id="openFullReportBtn"[^>]*>[\s\S]*?<\/div>/,"");
+    E.battleReportContent.innerHTML = (staticTop + currentScopeHtml + staticBottom).replace(/<div[^>]*>\s*<button[^>]*id="openFullReportBtn"[^>]*>[\s\S]*?<\/div>/, "");
     bindBountySummaryButtons(E.battleReportContent, b, bid, contracts);
     bindRankTabs(E.battleReportContent);
-    if (E.openBattlePageBtn) {E.openBattlePageBtn.dataset.battleId = bid;}
+    if (E.openBattlePageBtn) { E.openBattlePageBtn.dataset.battleId = bid; }
     E.battleReportModal.classList.remove("hidden");
   });
 
-  document.getElementById("exportBattleXlsBtn")?.addEventListener("click",()=>{
-    exportBattleXLS(b, bid, rankUsers, gpUsers, rankMu, gpMu, rankCountry, gpCountry);
+  document.getElementById("exportBattleXlsBtn")?.addEventListener("click", () => {
+    if (!currentScopeData) return;
+    exportBattleXLS(b, bid, currentScopeData.damageUsers, currentScopeData.gpUsers, currentScopeData.damageMu, currentScopeData.gpMu, currentScopeData.damageCountry, currentScopeData.gpCountry);
   });
 
-  document.getElementById("captureBattlePaneBtn")?.addEventListener("click", async ()=>{
+  document.getElementById("captureBattlePaneBtn")?.addEventListener("click", async () => {
     const ch = await import("../core/captureReport.js");
-    const title2 = `${battleTypeLabel}: ${atk||"Attacker"} vs ${def||"Defender"}${reg?" — "+reg:""}`;
-    const slug = (atk||"Attacker")+"_vs_"+(def||"Defender")+(reg?"_"+reg.replace(/[\s-]+/g,"_"):"");
-    const ptotalDmg = totalDmg || rankUsers.reduce((s, r) => s + getValue(r), 0);
-    const ptotalGp = (atkGp + defGp) || gpUsers.reduce((s, r) => s + getPoints(r), 0);
-    const parts = (atkPar||0)+(defPar||0);
+    const sc = currentScopeData || overallScope();
+    const title2 = `${battleTypeLabel}: ${atk||"Attacker"} vs ${def||"Defender"}${reg?" — "+reg:""}${sc.scopeKey === "overall" ? "" : " · "+sc.label}`;
+    const slug = (atk||"Attacker")+"_vs_"+(def||"Defender")+(reg?"_"+reg.replace(/[\s-]+/g,"_"):"")+(sc.scopeKey === "overall" ? "" : "_round_"+(sc.roundIdx+1));
+    const ptotalDmg = sc.totalDmg || sc.damageUsers.reduce((s, r) => s + getValue(r), 0);
+    const ptotalGp = (sc.atkGp + sc.defGp) || sc.gpUsers.reduce((s, r) => s + getPoints(r), 0);
+    const parts = (sc.participantsA||0)+(sc.participantsD||0);
     const score = `${atkRoundsWon}—${defRoundsWon}`;
     const meta = [
-      `Attacker: ${atk||"—"} | Defender: ${def||"—"}${reg?" · Region: "+reg:""} | Winner: ${winner||"—"} | Score: ${score}`,
-      `Damage: ${fmtNum(ptotalDmg)} | Total Hits: ${(b.attacker?.hitCount||0)+(b.defender?.hitCount||0)} | Participants: ${fmtNum(parts)}`,
-      `${started ? "Started: "+fmtDate(started) : ""}${ended ? "  ·  Ended: "+fmtDate(ended) : ""}${durationStr ? "  ·  "+durationStr : ""}`,
+      `Attacker: ${atk||"—"} | Defender: ${def||"—"}${reg?" · Region: "+reg:""} | Winner: ${sc.winner||winner||"—"} | Score: ${score}`,
+      `Damage: ${fmtNum(ptotalDmg)} | Total Hits: ${sc.hitCount} | Participants: ${fmtNum(parts)}`,
+      `${sc.started ? "Started: "+fmtDate(sc.started) : ""}${sc.ended ? "  ·  Ended: "+fmtDate(sc.ended) : ""}${durationStr ? "  ·  "+durationStr : ""}`,
       `Generated: ${new Date().toUTCString()}`,
     ];
-    if (rankUsers.length) {
-      const atkD = rankUsers.filter(r => r._side === "attacker").sort((a,b) => getValue(b) - getValue(a)).slice(0,10);
-      const defD = rankUsers.filter(r => r._side === "defender").sort((a,b) => getValue(b) - getValue(a)).slice(0,10);
-      const atkG = gpUsers.filter(r => r._side === "attacker").sort((a,b) => getPoints(b) - getPoints(a)).slice(0,10);
-      const defG = gpUsers.filter(r => r._side === "defender").sort((a,b) => getPoints(b) - getPoints(a)).slice(0,10);
+    if (sc.damageUsers.length) {
+      const atkD = sc.damageUsers.filter(r => r._side === "attacker").sort((a,b) => getValue(b) - getValue(a)).slice(0,10);
+      const defD = sc.damageUsers.filter(r => r._side === "defender").sort((a,b) => getValue(b) - getValue(a)).slice(0,10);
+      const atkG = sc.gpUsers.filter(r => r._side === "attacker").sort((a,b) => getPoints(b) - getPoints(a)).slice(0,10);
+      const defG = sc.gpUsers.filter(r => r._side === "defender").sort((a,b) => getPoints(b) - getPoints(a)).slice(0,10);
       const dm = rowsSideBySide(atkD, defD, r => nameUser(r.userId||r.user)||r.username||"Unknown", getValue);
       const gp = rowsSideBySide(atkG, defG, r => nameUser(r.userId||r.user)||r.username||"Unknown", getPoints);
       const subH = `<th colspan="3" style="${ch.STYLE.th};text-align:center">ATTACKER</th><th colspan="3" style="${ch.STYLE.th};text-align:center">DEFENDER</th>`;
@@ -619,11 +734,11 @@ ${Array.from({length:maxRows}).map((_,i)=>{
         ch.pageClose();
       await ch.captureHTML(html, `battle_${slug}_fighters_${ch.ts()}.png`);
     }
-    if (rankMu.length) {
-      const atkD = rankMu.filter(r => r._side === "attacker").sort((a,b) => getValue(b) - getValue(a)).slice(0,10);
-      const defD = rankMu.filter(r => r._side === "defender").sort((a,b) => getValue(b) - getValue(a)).slice(0,10);
-      const atkG = gpMu.filter(r => r._side === "attacker").sort((a,b) => getPoints(b) - getPoints(a)).slice(0,10);
-      const defG = gpMu.filter(r => r._side === "defender").sort((a,b) => getPoints(b) - getPoints(a)).slice(0,10);
+    if (sc.damageMu.length) {
+      const atkD = sc.damageMu.filter(r => r._side === "attacker").sort((a,b) => getValue(b) - getValue(a)).slice(0,10);
+      const defD = sc.damageMu.filter(r => r._side === "defender").sort((a,b) => getValue(b) - getValue(a)).slice(0,10);
+      const atkG = sc.gpMu.filter(r => r._side === "attacker").sort((a,b) => getPoints(b) - getPoints(a)).slice(0,10);
+      const defG = sc.gpMu.filter(r => r._side === "defender").sort((a,b) => getPoints(b) - getPoints(a)).slice(0,10);
       const dm = rowsSideBySide(atkD, defD, r => nameMu(r.muId||r.mu)||`MU ${String(r.muId||r.mu).slice(-6)}`, getValue);
       const gp = rowsSideBySide(atkG, defG, r => nameMu(r.muId||r.mu)||`MU ${String(r.muId||r.mu).slice(-6)}`, getPoints);
       const subH = `<th colspan="3" style="${ch.STYLE.th};text-align:center">ATTACKER</th><th colspan="3" style="${ch.STYLE.th};text-align:center">DEFENDER</th>`;
@@ -633,11 +748,11 @@ ${Array.from({length:maxRows}).map((_,i)=>{
         ch.pageClose();
       await ch.captureHTML(html, `battle_${slug}_mu_${ch.ts()}.png`);
     }
-    if (rankCountry.length) {
-      const atkD = rankCountry.filter(r => r._side === "attacker").sort((a,b) => getValue(b) - getValue(a)).slice(0,10);
-      const defD = rankCountry.filter(r => r._side === "defender").sort((a,b) => getValue(b) - getValue(a)).slice(0,10);
-      const atkG = gpCountry.filter(r => r._side === "attacker").sort((a,b) => getPoints(b) - getPoints(a)).slice(0,10);
-      const defG = gpCountry.filter(r => r._side === "defender").sort((a,b) => getPoints(b) - getPoints(a)).slice(0,10);
+    if (sc.damageCountry.length) {
+      const atkD = sc.damageCountry.filter(r => r._side === "attacker").sort((a,b) => getValue(b) - getValue(a)).slice(0,10);
+      const defD = sc.damageCountry.filter(r => r._side === "defender").sort((a,b) => getValue(b) - getValue(a)).slice(0,10);
+      const atkG = sc.gpCountry.filter(r => r._side === "attacker").sort((a,b) => getPoints(b) - getPoints(a)).slice(0,10);
+      const defG = sc.gpCountry.filter(r => r._side === "defender").sort((a,b) => getPoints(b) - getPoints(a)).slice(0,10);
       const dm = rowsSideBySide(atkD, defD, r => nameCountry(r.countryId||r.country)||r.countryName||r.name||"Unknown", getValue);
       const gp = rowsSideBySide(atkG, defG, r => nameCountry(r.countryId||r.country)||r.countryName||r.name||"Unknown", getPoints);
       const subH = `<th colspan="3" style="${ch.STYLE.th};text-align:center">ATTACKER</th><th colspan="3" style="${ch.STYLE.th};text-align:center">DEFENDER</th>`;
