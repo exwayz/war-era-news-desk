@@ -228,7 +228,6 @@
             </div>
             <div id="battleListStatus" class="status-msg" hidden></div>
             <div id="battleList" class="card-list battle-grid"></div>
-            <button id="loadMoreBattlesButton" class="btn-load" hidden>Load More</button>
           </div>
         </div>
       </div>
@@ -658,26 +657,27 @@
       <span class="bc-dates"></span>
     </div>
     <div class="bc-body">
-      <div class="bc-side bc-side--atk"></div>
-      <div class="bc-score bc-score--atk"></div>
+      <div class="bc-side bc-side--def"></div>
+      <div class="bc-score bc-score--def"></div>
       <div class="bc-emblem">
         <div class="bc-emblem-icons"></div>
         <div class="bc-dmg"><iconify-icon icon="mdi:fire" class="lu"></iconify-icon><span class="bc-dmg-val"></span></div>
       </div>
-      <div class="bc-score bc-score--def"></div>
-      <div class="bc-side bc-side--def"></div>
+      <div class="bc-score bc-score--atk"></div>
+      <div class="bc-side bc-side--atk"></div>
     </div>
     <div class="bc-points">
       <div class="bc-points-labels">
-        <span class="bc-points-atk"></span>
         <span class="bc-points-def"></span>
+        <span class="bc-points-atk"></span>
       </div>
-      <div class="bc-points-bar"><span class="bc-pts-atk"></span><span class="bc-pts-def"></span></div>
+      <div class="bc-points-bar"><span class="bc-pts-def"></span><span class="bc-pts-atk"></span></div>
     </div>
     <div class="bc-share">
-      <div class="bc-share-atk"><span class="bc-share-dmg"></span><span class="bc-share-pct"></span></div>
       <div class="bc-share-def"><span class="bc-share-dmg"></span><span class="bc-share-pct"></span></div>
+      <div class="bc-share-atk"><span class="bc-share-dmg"></span><span class="bc-share-pct"></span></div>
     </div>
+    <div class="bc-name-row"></div>
   </article>
 </template>
 

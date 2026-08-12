@@ -1,5 +1,5 @@
 import { S } from "../core/state.js";
-import { renderBattleList, battleId, loadBattles } from "./battles.js";
+import { renderBattleList, battleId, loadBattles, battleTitlePhrase } from "./battles.js";
 import { fmtDate, fmtNum } from "../core/utils.js";
 import { playCopy } from "../audio/audio.js";
 import { getCountriesInRegion, populateRegionOptions } from "../core/regionClassification.js";
@@ -183,41 +183,31 @@ export function injectBattleSearchBar() {
   const panelHead = col.querySelector(".panel-head");
   if (!panelHead) return;
   const wrap = document.createElement("div");
-  wrap.className = "sticky-toolbar";
+  wrap.className = "sticky-toolbar battle-toolbar";
   wrap.innerHTML = `
 <div class="input-wrap search-bar">
   <input id="battleSearch" type="text" placeholder="Search by battle ID, URL, or name…">
   <button class="clear-btn" id="clearBattleSearch" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
 </div>
-<button id="battleLoadMini" class="btn-load-mini">More</button>
+<button id="battleLoadMini" class="btn-load-mini" title="Load more battles">More</button>
 <button id="copyBattleListBtn" class="btn-icon-sm" title="Copy all listed"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon></button>
+<div class="tab-pill-group">
+  <button class="pill-btn active" data-sort="ended">Date</button>
+  <button class="pill-btn" data-sort="damage">DMG</button>
+</div>
+<div class="input-wrap">
+  <iconify-icon icon="mdi:earth" class="lu" style="position:absolute;left:5px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--ink-dim);z-index:1;font-size:12px"></iconify-icon>
+  <input id="battlesRegionFilter" type="text" list="battlesRegionOptions" placeholder="Region…" style="padding-left:20px">
+  <button class="clear-btn" data-clears="battlesRegionFilter" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
+</div>
+<input type="date" id="battleDateFrom" title="Ended from">
+<input type="date" id="battleDateTo" title="Ended to">
+<datalist id="battlesRegionOptions"></datalist>
 `;
   panelHead.insertAdjacentElement("afterend", wrap);
   document.getElementById("battleLoadMini")?.addEventListener("click", () => {
-    document.getElementById("loadMoreBattlesButton")?.click();
+    loadBattles(false);
   });
-
-  const fr = document.createElement("div");
-  fr.className = "battle-filter-row";
-  fr.innerHTML = `
-<div class="battle-filter-row-top">
-  <div class="tab-pill-group">
-    <button class="pill-btn active" data-sort="ended">Date</button>
-    <button class="pill-btn" data-sort="damage">DMG</button>
-  </div>
-  <div class="input-wrap" style="flex:0 0 auto;max-width:130px">
-    <iconify-icon icon="mdi:earth" class="lu" style="position:absolute;left:5px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--ink-dim);z-index:1;font-size:12px"></iconify-icon>
-    <input id="battlesRegionFilter" type="text" list="battlesRegionOptions" placeholder="Region…" style="padding-left:20px">
-    <button class="clear-btn" data-clears="battlesRegionFilter" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
-  </div>
-</div>
-<div class="battle-filter-row-bottom">
-  <input type="date" id="battleDateFrom" title="Ended from">
-  <input type="date" id="battleDateTo" title="Ended to">
-</div>
-<datalist id="battlesRegionOptions"></datalist>
-`;
-  wrap.insertAdjacentElement("afterend", fr);
 
   const inp = document.getElementById("battleSearch");
   const clr = document.getElementById("clearBattleSearch");
@@ -249,7 +239,7 @@ export function injectBattleSearchBar() {
     if (regionInp) { regionInp.value = ""; S.battleRegionFilter = ""; renderBattleList(); regionInp.focus(); }
   });
 
-  const sortBtns = fr.querySelectorAll("[data-sort]");
+  const sortBtns = wrap.querySelectorAll("[data-sort]");
   for (const btn of sortBtns) {
     btn.addEventListener("click", () => {
       sortBtns.forEach(b => b.classList.remove("active"));
@@ -316,11 +306,11 @@ export function injectBattleSearchBar() {
       const atk = nameCountry(b.attacker?.country||b.attackerCountry||b.attacker?.countryId);
       const def = nameCountry(b.defender?.country||b.defenderCountry||b.defender?.countryId);
       const reg = nameRegion(b.defender?.region||b.defenderRegion||b.region);
-      const typePhrase = b.type === "war" ? `Battle of ${reg}` : b.type === "resistance" ? `Resistance for ${reg}` : b.type === "revolution" ? `Civil war of ${def}` : b.type === "tournament" ? `MU Tournament` : `Battle`;
+      const typePhrase = battleTitlePhrase(b);
       const started = fmtDate(b.createdAt||b.startedAt);
       const ended = fmtDate(b.endedAt);
       const dmg = S.battleDamageCache.get(battleId(b)) ?? b.totalDamage ?? b.damage ?? 0;
-      return `[${started} — ${ended}] ${typePhrase}: ${atk} vs ${def}${reg?" in "+reg:""}, ${fmtNum(dmg)} total damage`;
+      return `[${started} — ${ended}] ${typePhrase}: ${def} vs ${atk}${reg?" in "+reg:""}, ${fmtNum(dmg)} total damage`;
     });
     navigator.clipboard.writeText(lines.join("\n")).then(()=>toast("Battle list copied."));
   });

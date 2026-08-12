@@ -200,9 +200,9 @@ export function bountySummaryHtml(b, contracts, money) {
       <button class="btn-secondary" data-open-bounty style="padding:3px 10px;min-width:auto;font-size:.72rem">Open Report</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center">
-      ${sideBoxHtml("Attacker", atkName, spend.atkSpent, spend.atkCount, spend.atkPerK, spend.atkPool, atkText)}
-      <div style="font-size:.66rem;font-weight:800;color:var(--ink-dim);text-align:center">VS</div>
       ${sideBoxHtml("Defender", defName, spend.defSpent, spend.defCount, spend.defPerK, spend.defPool, defText)}
+      <div style="font-size:.66rem;font-weight:800;color:var(--ink-dim);text-align:center">VS</div>
+      ${sideBoxHtml("Attacker", atkName, spend.atkSpent, spend.atkCount, spend.atkPerK, spend.atkPool, atkText)}
     </div>
   </div>`;
 }
@@ -326,10 +326,10 @@ function moneyRankingSectionHtml(money, moneyType, atkColor, defColor) {
       <div style="display:flex;gap:6px">${tabs}</div>
     </div>
     <table class="rank-table"><thead>
-      <tr><th colspan="3" style="color:${atkColor}">ATTACKER · ${fmtMoney(atk.total)} BTC</th><th colspan="3" style="color:${defColor}">DEFENDER · ${fmtMoney(def.total)} BTC</th></tr>
+      <tr><th colspan="3" style="color:${defColor}">DEFENDER · ${fmtMoney(def.total)} BTC</th><th colspan="3" style="color:${atkColor}">ATTACKER · ${fmtMoney(atk.total)} BTC</th></tr>
       <tr><th>#</th><th>${typeLabel}</th><th>Earned</th><th>#</th><th>${typeLabel}</th><th>Earned</th></tr>
     </thead><tbody>
-      ${moneySideBySide(atk[typeKey], def[typeKey], typeKey)}
+      ${moneySideBySide(def[typeKey], atk[typeKey], typeKey)}
     </tbody></table>
     <p style="font-size:.7rem;color:var(--ink-dim);margin:6px 0 0">Money earned by participants from public bounty pools and mercenary contract payouts.</p>
   </div>`;
@@ -406,7 +406,7 @@ export function openBountyModal(b, bid, contracts) {
   const reg = nameRegion(b?.defender?.region || b.defenderRegion || b.region);
   E.bountyModal.classList.remove("hidden");
   if (E.bountyModalTitle) E.bountyModalTitle.textContent = "Bounty & Mercenary Contracts";
-  if (E.bountyModalByline) E.bountyModalByline.textContent = `${atkName} vs ${defName}${reg ? " — " + reg : ""}`;
+  if (E.bountyModalByline) E.bountyModalByline.textContent = `${defName} vs ${atkName}${reg ? " — " + reg : ""}`;
   _bountyFilter = "all";
   _moneyType = "users";
   if (E.bountyModalBody) {

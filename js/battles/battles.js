@@ -7,6 +7,28 @@ import { highlightUserData } from "../core/profileHighlighter.js";
 import { getCountriesInRegion } from "../core/regionClassification.js";
 import { ensureLookups } from "../timeline/filters.js";
 
+// Normalise the many possible battle type strings to a small set of kinds so
+// icon/emblem choices keep working regardless of how the API spells them.
+export function battleTypeKind(t) {
+  const s = String(t || "").toLowerCase().replace(/[\s_-]+/g, "");
+  if (s === "tournament") return "tournament";
+  if (s === "resistance" || s === "rebellion" || s === "uprising" || s === "revolt" || s === "insurgency") return "resistance";
+  if (s === "revolution" || s === "civil" || s === "civilwar") return "revolution";
+  return "war";
+}
+
+// Display name for a battle, e.g. "Battle of Eropa", "Resistance for Lorzen",
+// "Civil war of Aetern", "MU Tournament".
+export function battleTitlePhrase(b) {
+  const kind = battleTypeKind(b?.type);
+  if (kind === "tournament") return "MU Tournament";
+  const reg = nameRegion(b?.defender?.region || b.defenderRegion || b.region);
+  const def = nameCountry(b?.defender?.country || b.defenderCountry || b.defender?.countryId);
+  if (kind === "resistance") return reg ? `Resistance for ${reg}` : "Resistance";
+  if (kind === "revolution") return def ? `Civil war of ${def}` : "Civil War";
+  return reg ? `Battle of ${reg}` : "Battle";
+}
+
 
 async function resolveTournamentMUs(k) {
   const muIds = new Set();
@@ -30,6 +52,7 @@ async function resolveTournamentMUs(k) {
 export function stopBattlePolling() {
   clearInterval(S.liveBattleTimer); clearTimeout(S.liveBattleTimer); S.liveBattleTimer=null;
   clearInterval(S.battleTickTimer); S.battleTickTimer=null;
+  clearInterval(S.liveListTimer); clearTimeout(S.liveListTimer); S.liveListTimer=null;
 }
 
 export function updateBattleTabPills() {
@@ -48,12 +71,6 @@ export async function fetchBattleDamage(battleId) {
     const result = await fetchTrpc("battle.getById", { battleId }, k);
     const data = unwrap(result);
     if (!data) return 0;
-    function sumDmg(d) {
-      if (d == null) return 0;
-      if (typeof d === "number") return d;
-      if (typeof d === "object") return Object.values(d).reduce((s, v) => s + (Number(v) || 0), 0);
-      return Number(d) || 0;
-    }
     const atkDmg = sumDmg(data.attacker?.damages);
     const defDmg = sumDmg(data.defender?.damages);
     const total = atkDmg + defDmg;
@@ -62,17 +79,64 @@ export async function fetchBattleDamage(battleId) {
   } catch { return 0; }
 }
 
-export async function refreshBattleDamageCache() {
-  if (S.damageCachePending) return;
-  S.damageCachePending = true;
-  const ids = S.battles.filter(b => !b.isActive && !b.active && b.endedAt && !S.battleDamageCache.has(battleId(b))).map(battleId);
-  if (!ids.length) { S.damageCachePending = false; return; }
+// Enrich a single battle card with per-side damage + ground points pulled from
+// battle.getById and, for live battles, the current round via round.getById —
+// the same sources the battle detail modal uses. For live battles the numbers
+// live on the current round; for ended battles the battle-level
+// attacker/defender object carries them.
+async function fetchBattleCardStats(b) {
+  const bid = battleId(b);
+  const k = apiKey(); if (!k || !bid) return null;
+  try {
+    const result = await fetchTrpc("battle.getById", { battleId: bid }, k);
+    const data = unwrap(result);
+    if (!data) return null;
+    const isLive = !data.endedAt || data.isActive === true || data.active === true;
+    const cur = (data.currentRound && typeof data.currentRound === "object") ? data.currentRound : null;
+    let atkDmg = sumDmg(data.attacker?.damages ?? cur?.attacker?.damages ?? 0);
+    let defDmg = sumDmg(data.defender?.damages ?? cur?.defender?.damages ?? 0);
+    let atkPts = Number(data.attacker?.points ?? cur?.attacker?.points ?? 0) || 0;
+    let defPts = Number(data.defender?.points ?? cur?.defender?.points ?? 0) || 0;
+    if (isLive) {
+      const curId = typeof data.currentRound === "string"
+        ? data.currentRound
+        : data.currentRound?._id || data.currentRound?.id || "";
+      if (curId) {
+        try {
+          const rd = unwrap(await fetchTrpc("round.getById", { roundId: curId }, k));
+          if (rd && typeof rd === "object") {
+            if (rd.attacker?.damages != null) atkDmg = sumDmg(rd.attacker.damages);
+            if (rd.defender?.damages != null) defDmg = sumDmg(rd.defender.damages);
+            if (rd.attacker?.points != null) atkPts = Number(rd.attacker.points) || 0;
+            if (rd.defender?.points != null) defPts = Number(rd.defender.points) || 0;
+          }
+        } catch {}
+      }
+    }
+    const stats = { ts: Date.now(), atkDmg, defDmg, atkPts, defPts };
+    S.battleCardStats.set(bid, stats);
+    if (stats.atkDmg + stats.defDmg > 0) S.battleDamageCache.set(bid, stats.atkDmg + stats.defDmg);
+    return stats;
+  } catch { return null; }
+}
+
+export async function refreshBattleCardStats() {
+  if (S.cardStatsPending) return;
+  S.cardStatsPending = true;
+  const now = Date.now();
+  const needs = S.battles.filter(b => {
+    const st = S.battleCardStats.get(battleId(b));
+    if (!st) return true;
+    const isLive = !b.endedAt || b.isActive === true || b.active === true;
+    return isLive && now - (st.ts || 0) > 10000;
+  });
+  if (!needs.length) { S.cardStatsPending = false; return; }
   const chunkSize = 10;
-  for (let i = 0; i < ids.length; i += chunkSize) {
-    await Promise.allSettled(ids.slice(i, i + chunkSize).map(fetchBattleDamage));
+  for (let i = 0; i < needs.length; i += chunkSize) {
+    await Promise.allSettled(needs.slice(i, i + chunkSize).map(fetchBattleCardStats));
   }
-  S.damageCachePending = false;
-  if (S.battleSort === "damage") renderBattleList();
+  S.cardStatsPending = false;
+  renderBattleList();
 }
 
 export async function loadBattles(reset=true) {
@@ -96,7 +160,7 @@ export async function loadBattles(reset=true) {
     renderBattleList();
     if (mode && S.battleSearchLabel) setBattleStatus(mode==="id" ? "Showing "+S.battleSearchLabel+"." : "Showing "+S.battleSearchLabel+" battles.");
     else clearBattleStatus();
-    if (S.battleMode === "history") refreshBattleDamageCache();
+    refreshBattleCardStats();
     if (mode==="id" && S.battles.length) {
       const card = E.battleList.querySelector(".battle-card");
       if (card) card.click();
@@ -104,7 +168,12 @@ export async function loadBattles(reset=true) {
   } catch (err) {
     setBattleStatus("Could not load battles: "+(err.message||""), "error");
   }
-  E.loadMoreBattlesBtn.hidden = !battleSearchHasMore();
+  const mini = document.getElementById("battleLoadMini");
+  if (mini) mini.hidden = !battleSearchHasMore();
+  if (S.battleMode === "live") {
+    clearInterval(S.liveListTimer); S.liveListTimer = null;
+    S.liveListTimer = setInterval(() => refreshBattleCardStats(), 15000);
+  }
 }
 
 function battleSearchHasMore() {
@@ -227,6 +296,10 @@ export function renderBattleList() {
   const frag=document.createDocumentFragment();
   for (const b of list) frag.append(makeBattleCard(b));
   E.battleList.append(frag);
+  if (S.selectedBattleId) {
+    const sel = E.battleList.querySelector(`.battle-card[data-bid="${S.selectedBattleId}"]`);
+    if (sel) sel.classList.add("selected");
+  }
   highlightUserData();
 }
 
@@ -260,8 +333,10 @@ function fmtDateShort(v) {
 function makeBattleCard(battle) {
   const node = E.tplBattle.content.firstElementChild.cloneNode(true);
   const bid = battleId(battle);
+  node.dataset.bid = bid;
   const isLive = !battle.endedAt || battle.isActive===true || battle.active===true;
-  const isTournament = battle.type === "tournament";
+  const kind = battleTypeKind(battle.type);
+  const isTournament = kind === "tournament";
   let atk, def, atkId, defId;
   if (isTournament) {
     atkId = battle.attacker?.tournamentTeam;
@@ -275,6 +350,7 @@ function makeBattleCard(battle) {
     def = nameCountry(defId);
   }
   const { atkColor, defColor, atkText, defText, atkBarText, defBarText } = battleSideColors(battle);
+  const regName = nameRegion(battle.defender?.region || battle.defenderRegion || battle.region);
   const fallbackName = id => id ? String(id).slice(-6) : "?";
 
   const status = node.querySelector(".bc-status");
@@ -320,17 +396,18 @@ function makeBattleCard(battle) {
   if (isTournament) {
     emblem.innerHTML = `<iconify-icon icon="mdi:trophy" class="lu" style="color:var(--gold);font-size:1.7rem"></iconify-icon>`;
   } else {
-    const atkIcon = battle.type === "resistance" ? "mdi:fist" : battle.type === "revolution" ? "mdi:rake" : "mdi:sword";
+    const atkIcon = kind === "resistance" ? "mdi:hand-pointing-up" : kind === "revolution" ? "mdi:rake" : "mdi:sword";
     emblem.innerHTML = `<iconify-icon icon="${atkIcon}" class="lu" style="color:${atkColor};font-size:1.35rem"></iconify-icon><iconify-icon icon="mdi:shield" class="lu" style="color:${defColor};font-size:1.35rem"></iconify-icon>`;
   }
 
-  const atkDmg = sumDmg(battle.attacker?.damages ?? battle.atkDamage ?? 0);
-  const defDmg = sumDmg(battle.defender?.damages ?? battle.defDamage ?? 0);
+  const stats = S.battleCardStats.get(bid);
+  const atkDmg = stats ? stats.atkDmg : sumDmg(battle.attacker?.damages ?? battle.atkDamage ?? 0);
+  const defDmg = stats ? stats.defDmg : sumDmg(battle.defender?.damages ?? battle.defDamage ?? 0);
   const totalDmg = (atkDmg + defDmg) || S.battleDamageCache.get(bid) || battle.totalDamage || battle.damage || 0;
   node.querySelector(".bc-dmg-val").textContent = totalDmg ? fmtNum(totalDmg) : "";
 
-  const atkPts = Number(battle.attacker?.points ?? 0);
-  const defPts = Number(battle.defender?.points ?? 0);
+  const atkPts = stats ? stats.atkPts : Number(battle.attacker?.points ?? battle.attackerPoints ?? battle.currentRound?.attacker?.points ?? 0);
+  const defPts = stats ? stats.defPts : Number(battle.defender?.points ?? battle.defenderPoints ?? battle.currentRound?.defender?.points ?? 0);
   const MAX_GP = 300;
   const atkPtsEl = node.querySelector(".bc-points-atk");
   const defPtsEl = node.querySelector(".bc-points-def");
@@ -361,10 +438,15 @@ function makeBattleCard(battle) {
   atkSegPct.textContent = (atkDmg || defDmg) ? atkPct + "%" : "";
   defSegDmg.textContent = defDmg ? fmtNum(defDmg) : "";
   defSegPct.textContent = (atkDmg || defDmg) ? defPct + "%" : "";
-  atkSegDmg.style.color = atkBarText;
   atkSegPct.style.color = atkBarText;
-  defSegDmg.style.color = defBarText;
   defSegPct.style.color = defBarText;
+
+  const nameRow = node.querySelector(".bc-name-row");
+  if (nameRow) {
+    const phrase = battleTitlePhrase(battle);
+    nameRow.textContent = phrase;
+    nameRow.title = `${phrase} — ${def ? def + " vs " : ""}${atk ? atk : ""}${regName ? " in " + regName : ""}`;
+  }
 
   node.addEventListener("click", async ()=>{
     S.selectedBattleId=bid;

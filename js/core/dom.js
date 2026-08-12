@@ -37,7 +37,6 @@ export const E = {
   battleRefreshBtn: document.getElementById("battleRefreshBtn"),
   battleTabLive: document.getElementById("battleTabLive"),
   battleTabHistory: document.getElementById("battleTabHistory"),
-  loadMoreBattlesBtn: document.getElementById("loadMoreBattlesButton"),
   battleReportModal: document.getElementById("battleReportModal"),
   battleReportTitle: document.getElementById("battleReportTitle"),
   battleReportMeta: document.getElementById("battleReportMeta"),

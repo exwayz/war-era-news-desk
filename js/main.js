@@ -404,7 +404,6 @@ function bindAll() {
   E.battleTabLive?.addEventListener("click",()=>{ S.battleMode="live"; stopBattlePolling(); loadBattles(true); updateBattleTabPills(); });
   E.battleTabHistory?.addEventListener("click",()=>{ S.battleMode="history"; stopBattlePolling(); loadBattles(true); updateBattleTabPills(); });
   E.battleRefreshBtn?.addEventListener("click",()=>loadBattles(true));
-  E.loadMoreBattlesBtn?.addEventListener("click",()=>loadBattles(false));
   injectBattleSearchBar();
   E.closeBattleReport?.addEventListener("click", () => clearBattleDetail());
   E.battleReportModal?.addEventListener("click", e => { if (e.target === E.battleReportModal) clearBattleDetail(); });
