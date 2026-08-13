@@ -1,5 +1,5 @@
 import { S } from "../core/state.js";
-import { renderBattleList, battleId, loadBattles, battleTitlePhrase } from "./battles.js";
+import { renderBattleList, battleId, loadBattles, battleTitlePhrase, battleTypeKind, battleTypeKeyword, updateBattleTabPills } from "./battles.js";
 import { fmtDate, fmtNum } from "../core/utils.js";
 import { playCopy } from "../audio/audio.js";
 import { getCountriesInRegion, populateRegionOptions } from "../core/regionClassification.js";
@@ -13,6 +13,13 @@ const BATTLE_URL_RE = /battle\/([a-f0-9]{24})/i;
 export function resetBattleSearchState() {
   S.battleSearchMode=""; S.battleSearchId=""; S.battleSearchCountryId="";
   S.battleSearchRegionIds=[]; S.battleSearchCursor=null; S.battleSearchRegionCursors={}; S.battleSearchLabel="";
+  S.battleDateCapped=false;
+}
+
+function shortDate(v) {
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return String(v);
+  return new Intl.DateTimeFormat(undefined, { year: "numeric", month: "short", day: "numeric" }).format(d);
 }
 
 async function applyBattleSearch(raw) {
@@ -31,6 +38,15 @@ async function applyBattleSearch(raw) {
   const k = apiKey();
   if (q) {
     if (k && S.lookupsKey!==k) await ensureLookups(k).catch(()=>{});
+    const kwKind = battleTypeKeyword(q);
+    if (kwKind) {
+      resetBattleSearchState();
+      S.battleSearchMode = "keyword";
+      S.battleSearch = q;
+      S.battleSearchLabel = "keyword “"+raw.trim()+"”";
+      await loadBattles(true);
+      return;
+    }
     const cid = S.lookups.countryIdsByName.get(q);
     if (cid) {
       resetBattleSearchState();
@@ -192,8 +208,8 @@ export function injectBattleSearchBar() {
 <button id="battleLoadMini" class="btn-load-mini" title="Load more battles">More</button>
 <button id="copyBattleListBtn" class="btn-icon-sm" title="Copy all listed"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon></button>
 <div class="tab-pill-group">
-  <button class="pill-btn active" data-sort="ended">Date</button>
-  <button class="pill-btn" data-sort="damage">DMG</button>
+  <button class="pill-btn active" data-sort="ended">Date <span class="sort-arrow">▼</span></button>
+  <button class="pill-btn" data-sort="damage">DMG <span class="sort-arrow">▼</span></button>
 </div>
 <div class="input-wrap">
   <iconify-icon icon="mdi:earth" class="lu" style="position:absolute;left:5px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--ink-dim);z-index:1;font-size:12px"></iconify-icon>
@@ -240,37 +256,75 @@ export function injectBattleSearchBar() {
   });
 
   const sortBtns = wrap.querySelectorAll("[data-sort]");
+  function updateSortArrows() {
+    for (const btn of sortBtns) {
+      const arr = btn.querySelector(".sort-arrow");
+      if (!arr) continue;
+      const on = btn.classList.contains("active");
+      arr.textContent = on && S.battleSortDir === "asc" ? "▲" : "▼";
+      arr.classList.toggle("off", !on);
+    }
+  }
   for (const btn of sortBtns) {
     btn.addEventListener("click", () => {
+      const wasActive = btn.classList.contains("active");
       sortBtns.forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
-      S.battleSort = btn.dataset.sort;
+      if (wasActive) {
+        S.battleSortDir = S.battleSortDir === "desc" ? "asc" : "desc";
+      } else {
+        S.battleSort = btn.dataset.sort;
+        S.battleSortDir = "desc";
+      }
+      updateSortArrows();
       renderBattleList();
     });
   }
+  updateSortArrows();
 
   const dFrom = document.getElementById("battleDateFrom");
   const dTo = document.getElementById("battleDateTo");
-  dFrom.addEventListener("change", () => {
+  function battleDateRangeLabel() {
+    const f = S.battleDateFrom, t = S.battleDateTo;
+    const fm = f ? shortDate(f + "T00:00:00") : "";
+    const tm = t ? shortDate(t + "T23:59:59") : "";
+    if (f && t) return `${fm} → ${tm}`;
+    if (f) return "from " + fm;
+    return "until " + tm;
+  }
+  function applyBattleDate() {
     S.battleDateFrom = dFrom.value;
-    renderBattleList();
-  });
-  dTo.addEventListener("change", () => {
     S.battleDateTo = dTo.value;
-    renderBattleList();
-  });
+    if (!S.battleDateFrom && !S.battleDateTo) {
+      if (S.battleSearchMode === "date") resetBattleSearchState();
+      loadBattles(true);
+      return;
+    }
+    resetBattleSearchState();
+    S.battleMode = "history";
+    updateBattleTabPills();
+    S.battleSearchMode = "date";
+    S.battleSearchLabel = "Battles ended " + battleDateRangeLabel();
+    loadBattles(true);
+  }
+  dFrom.addEventListener("change", applyBattleDate);
+  dTo.addEventListener("change", applyBattleDate);
 
   document.getElementById("copyBattleListBtn")?.addEventListener("click", () => {
     playCopy();
-    const kw = S.battleSearchMode ? "" : (S.battleSearch||"");
+    const kw = S.battleSearchMode === "id" ? "" : (S.battleSearch||"");
     let list = [...S.battles];
     if (kw) {
+      const kwKind = battleTypeKeyword(kw);
       list = list.filter(b => {
         const atk = nameCountry(b.attacker?.country||b.attackerCountry||b.attacker?.countryId).toLowerCase();
         const def = nameCountry(b.defender?.country||b.defenderCountry||b.defender?.countryId).toLowerCase();
+        if (kwKind && battleTypeKind(b.type) === kwKind) return true;
         const reg = nameRegion(b.defender?.region||b.defenderRegion||b.region).toLowerCase();
         const title = (b.title||b.name||"").toLowerCase();
-        return atk.includes(kw)||def.includes(kw)||reg.includes(kw)||title.includes(kw);
+        const phrase = battleTitlePhrase(b).toLowerCase();
+        const type = String(b.type||"").toLowerCase();
+        return atk.includes(kw)||def.includes(kw)||reg.includes(kw)||title.includes(kw)||phrase.includes(kw)||type.includes(kw);
       });
     }
     const df = S.battleDateFrom, dt = S.battleDateTo;
@@ -286,6 +340,7 @@ export function injectBattleSearchBar() {
       });
     }
     const sortBy = S.battleSort||"ended";
+    const sortDir = S.battleSortDir === "asc" ? 1 : -1;
     list.sort((a, b) => {
       if (sortBy === "damage") {
         const aid = battleId(a), bid2 = battleId(b);
@@ -294,13 +349,13 @@ export function injectBattleSearchBar() {
         if (!isFinite(da) && !isFinite(db)) return 0;
         if (!isFinite(da)) return 1;
         if (!isFinite(db)) return -1;
-        return db - da;
+        return (db - da) * sortDir;
       }
       const ae = a.endedAt, be = b.endedAt;
       if (!ae && !be) return 0;
       if (!ae) return 1;
       if (!be) return -1;
-      return new Date(be).getTime() - new Date(ae).getTime();
+      return (new Date(be).getTime() - new Date(ae).getTime()) * sortDir;
     });
     const lines = list.map(b => {
       const atk = nameCountry(b.attacker?.country||b.attackerCountry||b.attacker?.countryId);

@@ -661,6 +661,8 @@
 .battle-toolbar .input-wrap { flex: 0 1 130px; min-width: 0; }
 .battle-toolbar .input-wrap.search-bar { flex: 1 1 180px; }
 .battle-toolbar .pill-btn { font-size: .68rem; padding: 2px 8px; }
+.battle-toolbar .sort-arrow { margin-left: 3px; font-size: .58rem; line-height: 1; opacity: .9; }
+.battle-toolbar .sort-arrow.off { opacity: .35; }
 .battle-toolbar input[type="date"] { flex: 0 1 120px; max-width: 150px; font-size: .72rem; padding: 2px 4px; height: 24px; }
 .battle-toolbar .btn-icon-sm { height: 24px; min-height: 24px; min-width: 24px; }
 .battle-toolbar .btn-load-mini {

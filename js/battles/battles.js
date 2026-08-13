@@ -17,6 +17,21 @@ export function battleTypeKind(t) {
   return "war";
 }
 
+// Map a search-bar keyword to the battle kind it stands for, e.g. "civil war"
+// -> revolution, "tournament" -> tournament. Unknown words return null so the
+// caller falls back to a plain text search instead of matching every war.
+export function battleTypeKeyword(kw) {
+  const s = String(kw || "").toLowerCase().trim().replace(/[\s_-]+/g, "");
+  const map = {
+    resistance: "resistance", rebellion: "resistance", uprising: "resistance",
+    revolt: "resistance", insurgency: "resistance", insurgencies: "resistance",
+    revolution: "revolution", civil: "revolution", civilwar: "revolution",
+    tournament: "tournament", mutournament: "tournament", mutournaments: "tournament",
+    battle: "war", war: "war",
+  };
+  return map[s] || null;
+}
+
 // Display name for a battle, e.g. "Battle of Eropa", "Resistance for Lorzen",
 // "Civil war of Aetern", "MU Tournament".
 export function battleTitlePhrase(b) {
@@ -175,13 +190,19 @@ export async function loadBattles(reset=true) {
       await loadBattleCountryPage(reset, k);
     } else if (mode==="region") {
       await loadBattleRegionPages(reset, k);
+    } else if (mode==="keyword") {
+      await loadBattleKeywordPages(reset, k);
+    } else if (mode==="date") {
+      await loadBattleDateRange(reset, k);
     } else {
       await loadBattleFeed(reset, k);
     }
     renderBattleList();
-    if (mode && S.battleSearchLabel) setBattleStatus(mode==="id" ? "Showing "+S.battleSearchLabel+"." : "Showing "+S.battleSearchLabel+" battles.");
+    if (mode==="date") {
+      if (S.battleSearchLabel) setBattleStatus(S.battleSearchLabel + (S.battleDateCapped ? ` — first ${S.battles.length} battles.` : "."));
+    } else if (mode && S.battleSearchLabel) setBattleStatus(mode==="id" ? "Showing "+S.battleSearchLabel+"." : "Showing "+S.battleSearchLabel+" battles.");
     else clearBattleStatus();
-    refreshBattleCardStats();
+    if (S.battles.length <= 60) refreshBattleCardStats();
     if (mode==="id" && S.battles.length) {
       const card = E.battleList.querySelector(".battle-card");
       if (card) card.click();
@@ -201,6 +222,8 @@ function battleSearchHasMore() {
   if (S.battleSearchMode==="id") return false;
   if (S.battleSearchMode==="country") return !!S.battleSearchCursor;
   if (S.battleSearchMode==="region") return Object.values(S.battleSearchRegionCursors||{}).some(Boolean);
+  if (S.battleSearchMode==="keyword") return !!S.battleSearchCursor;
+  if (S.battleSearchMode==="date") return !!S.battleDateCapped;
   return !!S.battleCursor;
 }
 
@@ -252,14 +275,109 @@ async function loadBattleRegionPages(reset, k) {
   await resolveTournamentMUs(k);
 }
 
+// Keyword search (resistance / battle / civil war / tournament…): the API has
+// no text search, so we dig the same feed the country search uses and keep
+// only battles whose kind/title/name match the word. The "More" button pages
+// through additional feed pages.
+function battleMatchesKeyword(b, kw) {
+  if (!kw) return true;
+  const k = battleTypeKeyword(kw);
+  if (k && battleTypeKind(b?.type) === k) return true;
+  const title = (b.title || b.name || "").toLowerCase();
+  const phrase = battleTitlePhrase(b).toLowerCase();
+  const type = String(b.type || "").toLowerCase();
+  return title.includes(kw) || phrase.includes(kw) || type.includes(kw);
+}
+
+async function loadBattleKeywordPages(reset, k) {
+  if (reset) S.battleSearchCursor = null;
+  const kw = (S.battleSearch || "").toLowerCase();
+  const payload = { limit:100, isActive: S.battleMode==="live", cursor:reset?undefined:S.battleSearchCursor };
+  const result = await fetchTrpc("battle.getBattles", payload, k).catch(()=>null);
+  const data = result ? unwrap(result) : null;
+  S.battleSearchCursor = data?.nextCursor || null;
+  const battles = result && data ? (Array.isArray(data)?data:(data?.items||data?.battles||[])) : [];
+  const matches = battles.filter(b => battleMatchesKeyword(b, kw));
+  for (const b of matches) { const id=battleId(b); if(id) S.lookups.battlesById.set(id,b); }
+  S.battles = reset ? matches : [...S.battles, ...matches];
+  await resolveTournamentMUs(k);
+}
+
+// Date range search: the battle feed can only be paged by createdAt (the
+// cursor embeds a timestamp), so we walk it backwards from the range end and
+// keep every concluded battle whose endedAt lands inside [from, to]. A battle
+// lasts well under 24h, so anything created more than 3 days before "from"
+// cannot have ended inside the range — that gives a safe early exit.
+const BATTLE_DATE_MARGIN_MS = 3 * 24 * 3600 * 1000;
+const BATTLE_DATE_MAX_PAGES = 30;
+const TIME_CURSOR_DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const TIME_CURSOR_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function makeTimeCursor(ms) {
+  const d = new Date(ms);
+  const p = n => String(n).padStart(2, "0");
+  const s = `${TIME_CURSOR_DAYS[d.getUTCDay()]} ${TIME_CURSOR_MONTHS[d.getUTCMonth()]} ${p(d.getUTCDate())} ${d.getUTCFullYear()} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())} GMT+0000 (Coordinated Universal Time)`;
+  return `${s}|${"0".repeat(24)}`;
+}
+
+async function loadBattleDateRange(reset, k) {
+  const df = S.battleDateFrom, dt = S.battleDateTo;
+  const fromMs = df ? new Date(df + "T00:00:00").getTime() : 0;
+  const toMs = dt ? new Date(dt + "T23:59:59").getTime() : Infinity;
+  const now = Date.now();
+  const fetchFrom = fromMs > 0 ? fromMs - BATTLE_DATE_MARGIN_MS : 0;
+  const fetchTo = Number.isFinite(toMs) ? Math.min(toMs, now) : now;
+  if (reset) { S.battleDateCapped = false; S.battleSearchCursor = null; }
+  const seen = new Set(reset ? [] : S.battles.map(battleId));
+  let collected = [];
+  let cursor = S.battleSearchCursor || (fetchTo < now - 60000 ? makeTimeCursor(fetchTo) : undefined);
+  let pages = 0;
+  let capped = false;
+  while (pages < BATTLE_DATE_MAX_PAGES) {
+    const payload = { limit:100, isActive:false, ...(cursor ? { cursor } : {}) };
+    const result = await fetchTrpc("battle.getBattles", payload, k).catch(()=>null);
+    const data = result ? unwrap(result) : null;
+    if (!data) break;
+    const battles = Array.isArray(data) ? data : (data?.items || data?.battles || []);
+    if (!battles.length) break;
+    for (const b of battles) {
+      const id = battleId(b);
+      if (seen.has(id)) continue;
+      const e = b.endedAt;
+      if (!e) continue;
+      const ms = new Date(e).getTime();
+      if (isNaN(ms)) continue;
+      if (ms >= fromMs && ms <= toMs) {
+        seen.add(id);
+        collected.push(b);
+        S.lookups.battlesById.set(id, b);
+      }
+    }
+    pages++;
+    cursor = data?.nextCursor || null;
+    if (!cursor) break;
+    const oldest = new Date(battles[battles.length - 1].createdAt || 0).getTime();
+    const newest = new Date(battles[0].createdAt || 0).getTime();
+    if (!Number.isFinite(oldest) || !Number.isFinite(newest)) continue;
+    if (newest < fetchFrom) break;  // whole page already older than the fetch window
+    if (oldest < fetchFrom) break;  // fetch window fully covered
+  }
+  capped = pages >= BATTLE_DATE_MAX_PAGES;
+  S.battleDateCapped = capped;
+  S.battleSearchCursor = capped ? cursor : null;
+  S.battles = reset ? collected : [...S.battles, ...collected];
+  await resolveTournamentMUs(k);
+}
+
 export function renderBattleList() {
   E.battleList.innerHTML="";
-  const kw = S.battleSearchMode ? "" : (S.battleSearch||"");
+  const kw = S.battleSearchMode === "id" ? "" : (S.battleSearch||"");
   const regionK = (S.battleRegionFilter||"").toLowerCase();
   const regionCountryNames = regionK ? getCountriesInRegion(regionK) : [];
   const regionSet = regionCountryNames.length ? new Set(regionCountryNames.map(n => n.toLowerCase())) : null;
   let list = S.battles;
   if (kw) {
+    const kwKind = battleTypeKeyword(kw);
     list = list.filter(b => {
       let atk, def;
       if (b.type === "tournament") {
@@ -269,9 +387,12 @@ export function renderBattleList() {
         atk = nameCountry(b.attacker?.country||b.attackerCountry||b.attacker?.countryId).toLowerCase();
         def = nameCountry(b.defender?.country||b.defenderCountry||b.defender?.countryId).toLowerCase();
       }
+      if (kwKind && battleTypeKind(b.type) === kwKind) return true;
       const reg = nameRegion(b.defender?.region||b.defenderRegion||b.region).toLowerCase();
       const title = (b.title||b.name||"").toLowerCase();
-      return atk.includes(kw)||def.includes(kw)||reg.includes(kw)||title.includes(kw);
+      const phrase = battleTitlePhrase(b).toLowerCase();
+      const type = String(b.type||"").toLowerCase();
+      return atk.includes(kw)||def.includes(kw)||reg.includes(kw)||title.includes(kw)||phrase.includes(kw)||type.includes(kw);
     });
   }
   if (regionSet) {
@@ -294,6 +415,7 @@ export function renderBattleList() {
     });
   }
   const sortBy = S.battleSort||"ended";
+  const sortDir = S.battleSortDir === "asc" ? 1 : -1;
   list = [...list].sort((a, b) => {
     if (sortBy === "damage") {
       const aid = battleId(a), bid2 = battleId(b);
@@ -302,13 +424,13 @@ export function renderBattleList() {
       if (!isFinite(da) && !isFinite(db)) return 0;
       if (!isFinite(da)) return 1;
       if (!isFinite(db)) return -1;
-      return db - da;
+      return (db - da) * sortDir;
     }
     const ae = a.endedAt, be = b.endedAt;
     if (!ae && !be) return 0;
     if (!ae) return 1;
     if (!be) return -1;
-    return new Date(be).getTime() - new Date(ae).getTime();
+    return (new Date(be).getTime() - new Date(ae).getTime()) * sortDir;
   });
   if (!list.length) {
     E.battleList.innerHTML=`<p style="color:var(--ink-dim);padding:20px;text-align:center">${S.battleSearchMode==="id" ? "Battle not found." : kw ? "No battles match your search." : "No battles found."}</p>`;
