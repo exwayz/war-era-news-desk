@@ -12,14 +12,8 @@ const BATTLE_URL_RE = /battle\/([a-f0-9]{24})/i;
 
 export function resetBattleSearchState() {
   S.battleSearchMode=""; S.battleSearchId=""; S.battleSearchCountryId="";
-  S.battleSearchRegionIds=[]; S.battleSearchCursor=null; S.battleSearchRegionCursors={}; S.battleSearchLabel="";
+  S.battleSearchRegionIds=[]; S.battleSearchCursor=null; S.battleSearchRegionCursors={}; S.battleSearchLabel=""; S.battleLoadPath="";
   S.battleDateCapped=false;
-}
-
-function shortDate(v) {
-  const d = new Date(v);
-  if (isNaN(d.getTime())) return String(v);
-  return new Intl.DateTimeFormat(undefined, { year: "numeric", month: "short", day: "numeric" }).format(d);
 }
 
 async function applyBattleSearch(raw) {
@@ -247,12 +241,19 @@ export function injectBattleSearchBar() {
   const regionInp = document.getElementById("battlesRegionFilter");
   const regionClr = document.querySelector("[data-clears='battlesRegionFilter']");
   populateRegionOptions(document.getElementById("battlesRegionOptions"));
+  let regionTimer = null;
   regionInp?.addEventListener("input", () => {
     S.battleRegionFilter = regionInp.value.replace(/^[^a-zA-Z0-9]*/, "").trim();
     renderBattleList();
+    clearTimeout(regionTimer);
+    regionTimer = setTimeout(() => loadBattles(true), 400);
   });
   regionClr?.addEventListener("click", () => {
-    if (regionInp) { regionInp.value = ""; S.battleRegionFilter = ""; renderBattleList(); regionInp.focus(); }
+    if (regionInp) {
+      regionInp.value = ""; S.battleRegionFilter = "";
+      clearTimeout(regionTimer);
+      renderBattleList(); loadBattles(true); regionInp.focus();
+    }
   });
 
   const sortBtns = wrap.querySelectorAll("[data-sort]");
@@ -284,27 +285,12 @@ export function injectBattleSearchBar() {
 
   const dFrom = document.getElementById("battleDateFrom");
   const dTo = document.getElementById("battleDateTo");
-  function battleDateRangeLabel() {
-    const f = S.battleDateFrom, t = S.battleDateTo;
-    const fm = f ? shortDate(f + "T00:00:00") : "";
-    const tm = t ? shortDate(t + "T23:59:59") : "";
-    if (f && t) return `${fm} → ${tm}`;
-    if (f) return "from " + fm;
-    return "until " + tm;
-  }
+  // Date range composes with the active search (country / region / keyword)
+  // instead of replacing it, so e.g. "France + date range" works together.
   function applyBattleDate() {
     S.battleDateFrom = dFrom.value;
     S.battleDateTo = dTo.value;
-    if (!S.battleDateFrom && !S.battleDateTo) {
-      if (S.battleSearchMode === "date") resetBattleSearchState();
-      loadBattles(true);
-      return;
-    }
-    resetBattleSearchState();
-    S.battleMode = "history";
-    updateBattleTabPills();
-    S.battleSearchMode = "date";
-    S.battleSearchLabel = "Battles ended " + battleDateRangeLabel();
+    if (S.battleMode !== "history") { S.battleMode = "history"; updateBattleTabPills(); }
     loadBattles(true);
   }
   dFrom.addEventListener("change", applyBattleDate);

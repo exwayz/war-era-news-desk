@@ -180,30 +180,17 @@ export async function loadBattles(reset=true) {
   stopBattlePolling();
   updateBattleTabPills();
   if (reset) { S.battles=[]; S.battleCursor=null; E.battleList.innerHTML=""; }
-  const mode = S.battleSearchMode;
-  setBattleStatus(mode==="id" ? "Loading battle…" : (mode ? "Searching battles…" : "Loading battles…"));
+  const searching = !!(S.battleSearchMode || S.battleDateFrom || S.battleDateTo || S.battleRegionFilter);
+  setBattleStatus(S.battleSearchMode==="id" ? "Loading battle…" : (searching ? "Searching battles…" : "Loading battles…"));
   try {
     await ensureLookups(k).catch(()=>{});
-    if (mode==="id") {
-      await loadBattleById(k);
-    } else if (mode==="country") {
-      await loadBattleCountryPage(reset, k);
-    } else if (mode==="region") {
-      await loadBattleRegionPages(reset, k);
-    } else if (mode==="keyword") {
-      await loadBattleKeywordPages(reset, k);
-    } else if (mode==="date") {
-      await loadBattleDateRange(reset, k);
-    } else {
-      await loadBattleFeed(reset, k);
-    }
+    await loadBattleResults(reset, k);
     renderBattleList();
-    if (mode==="date") {
-      if (S.battleSearchLabel) setBattleStatus(S.battleSearchLabel + (S.battleDateCapped ? ` — first ${S.battles.length} battles.` : "."));
-    } else if (mode && S.battleSearchLabel) setBattleStatus(mode==="id" ? "Showing "+S.battleSearchLabel+"." : "Showing "+S.battleSearchLabel+" battles.");
+    const st = battleResultStatus();
+    if (st) setBattleStatus(st + (S.battleDateCapped ? ` — first ${S.battles.length} battles.` : "."));
     else clearBattleStatus();
     if (S.battles.length <= 60) refreshBattleCardStats();
-    if (mode==="id" && S.battles.length) {
+    if (S.battleSearchMode==="id" && S.battles.length) {
       const card = E.battleList.querySelector(".battle-card");
       if (card) card.click();
     }
@@ -219,12 +206,71 @@ export async function loadBattles(reset=true) {
 }
 
 function battleSearchHasMore() {
-  if (S.battleSearchMode==="id") return false;
-  if (S.battleSearchMode==="country") return !!S.battleSearchCursor;
-  if (S.battleSearchMode==="region") return Object.values(S.battleSearchRegionCursors||{}).some(Boolean);
-  if (S.battleSearchMode==="keyword") return !!S.battleSearchCursor;
-  if (S.battleSearchMode==="date") return !!S.battleDateCapped;
+  const p = S.battleLoadPath;
+  if (p==="id") return false;
+  if (p==="date" || p==="dateMulti") return !!S.battleDateCapped;
+  if (p==="country" || p==="keyword") return !!S.battleSearchCursor;
+  if (p==="region") return Object.values(S.battleSearchRegionCursors||{}).some(Boolean);
   return !!S.battleCursor;
+}
+
+// Combine every active constraint into one list of countries to scope the
+// API query to: the search text's country/region plus the region filter bar.
+// Keyword searches carry no country of their own, so they combine purely by
+// client-side text matching in renderBattleList.
+function buildBattleCountryFilter() {
+  const cids = new Set();
+  if (S.battleSearchMode==="country" && S.battleSearchCountryId) cids.add(S.battleSearchCountryId);
+  if (S.battleSearchMode==="region") for (const cid of (S.battleSearchRegionIds||[])) cids.add(cid);
+  const regionK = (S.battleRegionFilter||"").toLowerCase();
+  if (regionK) {
+    for (const name of getCountriesInRegion(regionK)) {
+      const cid = S.lookups.countryIdsByName.get(name.toLowerCase());
+      if (cid) cids.add(cid);
+    }
+  }
+  return [...cids];
+}
+
+async function loadBattleResults(reset, k) {
+  if (S.battleSearchMode==="id") { S.battleLoadPath="id"; await loadBattleById(k); return; }
+  const cids = buildBattleCountryFilter();
+  const dateActive = !!(S.battleDateFrom || S.battleDateTo);
+  if (dateActive) {
+    if (cids.length===0) { S.battleLoadPath="date"; await loadBattleDateRange(reset, k, null); }
+    else if (cids.length===1) { S.battleLoadPath="date"; await loadBattleDateRange(reset, k, cids[0]); }
+    else { S.battleLoadPath="dateMulti"; await loadBattleMultiDateRange(reset, k, cids); }
+  } else if (cids.length===1) {
+    S.battleLoadPath="country"; await loadBattleCountryPage(reset, k, cids[0]);
+  } else if (cids.length>1) {
+    S.battleLoadPath="region"; await loadBattleRegionPages(reset, k, cids);
+  } else if (S.battleSearchMode==="keyword") {
+    S.battleLoadPath="keyword"; await loadBattleKeywordPages(reset, k);
+  } else {
+    S.battleLoadPath="feed"; await loadBattleFeed(reset, k);
+  }
+}
+
+function battleDateLabel() {
+  const f=S.battleDateFrom, t=S.battleDateTo;
+  if (f && t) return `${f} → ${t}`;
+  if (f) return "from "+f;
+  if (t) return "until "+t;
+  return "";
+}
+
+function battleResultStatus() {
+  const m=S.battleSearchMode;
+  if (m==="id") return S.battleSearchLabel ? "Showing "+S.battleSearchLabel+"." : "";
+  const parts=[];
+  if (m==="country" && S.battleSearchLabel) parts.push(S.battleSearchLabel);
+  if (m==="region" && S.battleSearchLabel) parts.push(S.battleSearchLabel);
+  if (m==="keyword" && S.battleSearchLabel) parts.push(S.battleSearchLabel);
+  if (S.battleRegionFilter) parts.push("region "+S.battleRegionFilter);
+  const dl=battleDateLabel();
+  if (dl) parts.push("ended "+dl);
+  if (!parts.length) return "";
+  return "Showing "+parts.join(" · ")+" battles.";
 }
 
 async function loadBattleFeed(reset, k) {
@@ -248,8 +294,8 @@ async function loadBattleById(k) {
   S.battles = battle ? [battle] : [];
 }
 
-async function loadBattleCountryPage(reset, k) {
-  const payload = { limit:20, isActive: S.battleMode==="live", countryId:S.battleSearchCountryId, cursor:reset?undefined:S.battleSearchCursor };
+async function loadBattleCountryPage(reset, k, countryId) {
+  const payload = { limit:20, isActive: S.battleMode==="live", countryId, cursor:reset?undefined:S.battleSearchCursor };
   const result = await fetchTrpc("battle.getBattles", payload, k);
   const data = unwrap(result);
   const battles = Array.isArray(data)?data:(data?.items||data?.battles||[]);
@@ -259,9 +305,9 @@ async function loadBattleCountryPage(reset, k) {
   await resolveTournamentMUs(k);
 }
 
-async function loadBattleRegionPages(reset, k) {
+async function loadBattleRegionPages(reset, k, cids) {
   if (reset) S.battleSearchRegionCursors = {};
-  const pages = await Promise.all((S.battleSearchRegionIds||[]).map(async cid => {
+  const pages = await Promise.all(cids.map(async cid => {
     if (!reset && !S.battleSearchRegionCursors[cid]) return [];
     const payload = { limit:20, isActive: S.battleMode==="live", countryId:cid, cursor:reset?undefined:S.battleSearchRegionCursors[cid] };
     const result = await fetchTrpc("battle.getBattles", payload, k).catch(()=>null);
@@ -307,7 +353,9 @@ async function loadBattleKeywordPages(reset, k) {
 // cursor embeds a timestamp), so we walk it backwards from the range end and
 // keep every concluded battle whose endedAt lands inside [from, to]. A battle
 // lasts well under 24h, so anything created more than 3 days before "from"
-// cannot have ended inside the range — that gives a safe early exit.
+// cannot have ended inside the range — that gives a safe early exit. An
+// optional countryId scopes the walk to a single country's battles so date
+// ranges combine with country / region searches.
 const BATTLE_DATE_MARGIN_MS = 3 * 24 * 3600 * 1000;
 const BATTLE_DATE_MAX_PAGES = 30;
 const TIME_CURSOR_DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
@@ -320,21 +368,24 @@ function makeTimeCursor(ms) {
   return `${s}|${"0".repeat(24)}`;
 }
 
-async function loadBattleDateRange(reset, k) {
+function battleDateBounds() {
   const df = S.battleDateFrom, dt = S.battleDateTo;
   const fromMs = df ? new Date(df + "T00:00:00").getTime() : 0;
   const toMs = dt ? new Date(dt + "T23:59:59").getTime() : Infinity;
   const now = Date.now();
-  const fetchFrom = fromMs > 0 ? fromMs - BATTLE_DATE_MARGIN_MS : 0;
-  const fetchTo = Number.isFinite(toMs) ? Math.min(toMs, now) : now;
-  if (reset) { S.battleDateCapped = false; S.battleSearchCursor = null; }
-  const seen = new Set(reset ? [] : S.battles.map(battleId));
+  return {
+    fromMs,
+    toMs,
+    fetchFrom: fromMs > 0 ? fromMs - BATTLE_DATE_MARGIN_MS : 0,
+    fetchTo: Number.isFinite(toMs) ? Math.min(toMs, now) : now,
+  };
+}
+
+async function walkBattleDateRange(k, bounds, cursor, seen, cid) {
   let collected = [];
-  let cursor = S.battleSearchCursor || (fetchTo < now - 60000 ? makeTimeCursor(fetchTo) : undefined);
   let pages = 0;
-  let capped = false;
   while (pages < BATTLE_DATE_MAX_PAGES) {
-    const payload = { limit:100, isActive:false, ...(cursor ? { cursor } : {}) };
+    const payload = { limit:100, isActive:false, ...(cid ? { countryId:cid } : {}), ...(cursor ? { cursor } : {}) };
     const result = await fetchTrpc("battle.getBattles", payload, k).catch(()=>null);
     const data = result ? unwrap(result) : null;
     if (!data) break;
@@ -347,7 +398,7 @@ async function loadBattleDateRange(reset, k) {
       if (!e) continue;
       const ms = new Date(e).getTime();
       if (isNaN(ms)) continue;
-      if (ms >= fromMs && ms <= toMs) {
+      if (ms >= bounds.fromMs && ms <= bounds.toMs) {
         seen.add(id);
         collected.push(b);
         S.lookups.battlesById.set(id, b);
@@ -359,13 +410,46 @@ async function loadBattleDateRange(reset, k) {
     const oldest = new Date(battles[battles.length - 1].createdAt || 0).getTime();
     const newest = new Date(battles[0].createdAt || 0).getTime();
     if (!Number.isFinite(oldest) || !Number.isFinite(newest)) continue;
-    if (newest < fetchFrom) break;  // whole page already older than the fetch window
-    if (oldest < fetchFrom) break;  // fetch window fully covered
+    if (newest < bounds.fetchFrom) break;  // whole page already older than the fetch window
+    if (oldest < bounds.fetchFrom) break;  // fetch window fully covered
   }
-  capped = pages >= BATTLE_DATE_MAX_PAGES;
-  S.battleDateCapped = capped;
-  S.battleSearchCursor = capped ? cursor : null;
-  S.battles = reset ? collected : [...S.battles, ...collected];
+  return { collected, cursor, capped: pages >= BATTLE_DATE_MAX_PAGES };
+}
+
+async function loadBattleDateRange(reset, k, countryId) {
+  const bounds = battleDateBounds();
+  const now = Date.now();
+  if (reset) { S.battleDateCapped = false; S.battleSearchCursor = null; }
+  const seen = new Set(reset ? [] : S.battles.map(battleId));
+  let cursor = S.battleSearchCursor || (bounds.fetchTo < now - 60000 ? makeTimeCursor(bounds.fetchTo) : undefined);
+  const res = await walkBattleDateRange(k, bounds, cursor, seen, countryId);
+  S.battleDateCapped = res.capped;
+  S.battleSearchCursor = res.capped ? res.cursor : null;
+  S.battles = reset ? res.collected : [...S.battles, ...res.collected];
+  await resolveTournamentMUs(k);
+}
+
+// Date range spread over multiple countries (region + date): walk each country
+// independently and merge, deduping battles that involve two countries in the set.
+async function loadBattleMultiDateRange(reset, k, cids) {
+  const bounds = battleDateBounds();
+  const now = Date.now();
+  if (reset) { S.battleDateCapped = false; S.battleSearchRegionCursors = {}; }
+  const seen = new Set(reset ? [] : S.battles.map(battleId));
+  const startCursor = bounds.fetchTo < now - 60000 ? makeTimeCursor(bounds.fetchTo) : undefined;
+  const results = await Promise.all(cids.map(async cid => {
+    if (!reset && !S.battleSearchRegionCursors[cid]) return null;
+    const res = await walkBattleDateRange(k, bounds, reset ? startCursor : S.battleSearchRegionCursors[cid], seen, cid);
+    return { cid, ...res };
+  }));
+  const all = [];
+  for (const res of results) {
+    if (!res) continue;
+    S.battleSearchRegionCursors[res.cid] = res.capped ? res.cursor : null;
+    if (res.capped) S.battleDateCapped = true;
+    all.push(...res.collected);
+  }
+  S.battles = reset ? all : [...S.battles, ...all];
   await resolveTournamentMUs(k);
 }
 

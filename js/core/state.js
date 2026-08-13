@@ -15,7 +15,7 @@ export const S = {
   liveBattleTimer:null,
   battleDetailSeq:0,
   battleView:null, battleTickTimer:null,
-  battleSearch:"", battleSearchMode:"", battleSearchId:"", battleSearchCountryId:"", battleSearchRegionIds:[], battleSearchCursor:null, battleSearchRegionCursors:{}, battleSearchLabel:"",
+  battleSearch:"", battleSearchMode:"", battleSearchId:"", battleSearchCountryId:"", battleSearchRegionIds:[], battleSearchCursor:null, battleSearchRegionCursors:{}, battleSearchLabel:"", battleLoadPath:"",
   battleRegionFilter:"", battleSort:"ended", battleSortDir:"desc", battleDateFrom:"", battleDateTo:"", battleDateCapped:false, battleDamageCache:new Map(), battleCardStats:new Map(), cardStatsPending:false, liveListTimer:null,
   articleSort:"date", articleTimeFrom:"", articleTimeTo:"", articleLangs:[],
   market:{ econ:null, prices:null, orders:null, commodityOrders:[], equipmentOrders:[], orderView:"commodity", priceHistory:[], wageHistory:[], topValuable:[], _weeklyMVI:null, _mviView:"live", tradeVolHistory:[], payrollHistory:[], ppHistory:[], hhiHistory:[], circulationHistory:[], tradeEfficiencyHistory:[], basketHistory:[],
