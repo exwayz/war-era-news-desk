@@ -567,16 +567,12 @@
         <button id="closeReader" class="btn-icon-sm"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
       </div>
     </div>
-    <div class="reader-toolbar">
-      <div class="reader-zoom">
-        <button id="readerZoomOut" class="btn-icon-sm" title="Decrease text size">A−</button>
-        <input type="range" id="readerZoomSlider" min="60" max="180" step="5" value="100" title="Text size">
-        <button id="readerZoomIn" class="btn-icon-sm" title="Increase text size">A+</button>
-        <span id="readerZoomPct" class="reader-zoom-pct">100%</span>
-        <button id="readerZoomReset" class="btn-icon-sm" title="Reset text size"><iconify-icon icon="mdi:restore" class="lu"></iconify-icon></button>
-      </div>
-    </div>
     <div id="readerContent" class="reader-body"></div>
+    <div class="reader-zoom-fab" id="readerZoomFab">
+      <button id="readerZoomIn" class="fab-btn" title="Increase text size">+</button>
+      <button id="readerZoomPct" class="fab-pct" title="Reset text size to 100%">100%</button>
+      <button id="readerZoomOut" class="fab-btn" title="Decrease text size">−</button>
+    </div>
   </div>
 </div>
 

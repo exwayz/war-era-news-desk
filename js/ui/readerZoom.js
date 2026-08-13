@@ -10,30 +10,27 @@ function clamp(v) {
   return Math.min(MAX, Math.max(MIN, v));
 }
 
-// Text-size zoom for the article reader. Adjustable via the slider, the +/−
-// buttons, or Ctrl + mouse wheel over the article body; persisted locally.
+// Text-size zoom for the article reader, shown as a floating vertical widget
+// in the bottom-right corner (map-style): + / percent (click to reset) / −.
+// Also adjustable with Ctrl + mouse wheel over the article body; persisted.
 export function initReaderZoom() {
   const content = E.readerContent;
-  const slider = document.getElementById("readerZoomSlider");
-  if (!content || !slider) return;
-  const pct = document.getElementById("readerZoomPct");
-  const outBtn = document.getElementById("readerZoomOut");
+  const pctBtn = document.getElementById("readerZoomPct");
   const inBtn = document.getElementById("readerZoomIn");
-  const resetBtn = document.getElementById("readerZoomReset");
+  const outBtn = document.getElementById("readerZoomOut");
+  if (!content) return;
 
   let zoom = clamp(Number(localStorage.getItem(STORAGE_KEY) || DEFAULT));
 
   function apply() {
     content.style.setProperty("--reader-zoom", zoom / 100);
-    slider.value = zoom;
-    if (pct) pct.textContent = `${zoom}%`;
+    if (pctBtn) pctBtn.textContent = `${zoom}%`;
     localStorage.setItem(STORAGE_KEY, String(zoom));
   }
 
-  slider.addEventListener("input", () => { zoom = clamp(Number(slider.value)); apply(); });
-  outBtn?.addEventListener("click", () => { zoom = clamp(zoom - STEP); apply(); });
   inBtn?.addEventListener("click", () => { zoom = clamp(zoom + STEP); apply(); });
-  resetBtn?.addEventListener("click", () => { zoom = DEFAULT; apply(); });
+  outBtn?.addEventListener("click", () => { zoom = clamp(zoom - STEP); apply(); });
+  pctBtn?.addEventListener("click", () => { zoom = DEFAULT; apply(); });
 
   content.addEventListener("wheel", (e) => {
     if (!e.ctrlKey) return;
