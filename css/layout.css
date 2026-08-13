@@ -176,6 +176,155 @@
 .jobs-search-bar > * { flex: 1; min-width: 0; }
 .jobs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px; padding: 8px 10px; overflow-y: auto; flex: 1; }
 
+/* ── Min wage slider (color zones) ── */
+.wage-slider-wrap {
+  --thumb-d: 1.1em;
+  --track-h: .375em;
+  --c-green: #15b190;
+  --c-mid: #f7c742;
+  --c-red: #b1154c;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  padding: 6px 0 2px;
+}
+.wage-slider-wrap .clear-btn {
+  position: absolute;
+  top: 6px;
+  right: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.wage-slider-wrap:hover .clear-btn,
+.wage-slider-wrap:focus-within .clear-btn { opacity: 1; pointer-events: auto; }
+
+.wage-slider-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.wage-slider-head label {
+  font-size: .7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--ink-dim);
+}
+.wage-slider-num {
+  font-size: .74rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.wage-slider {
+  --rng: calc(var(--max) - var(--min));
+  --pos: calc((var(--val, var(--min)) - var(--min)) / var(--rng) * 100%);
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  height: calc(var(--thumb-d) + 1.7em);
+}
+.wage-slider input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: var(--thumb-d);
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.wage-slider input[type="range"]:focus { outline: none; }
+
+.wage-slider input[type="range"]::-webkit-slider-runnable-track {
+  -webkit-appearance: none;
+  height: var(--track-h);
+  border-radius: 999px;
+  background: linear-gradient(90deg,
+    var(--c-green) 0 25%,
+    var(--c-mid) 25% 75%,
+    var(--c-red) 75% 100%);
+}
+.wage-slider input[type="range"]::-moz-range-track {
+  height: var(--track-h);
+  border-radius: 999px;
+  background: linear-gradient(90deg,
+    var(--c-green) 0 25%,
+    var(--c-mid) 25% 75%,
+    var(--c-red) 75% 100%);
+}
+.wage-slider input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: var(--thumb-d);
+  height: var(--thumb-d);
+  margin-top: calc((var(--track-h) - var(--thumb-d)) / 2);
+  background: var(--thumb-c, var(--c-mid));
+  border: none;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  cursor: ew-resize;
+  transition: background .15s ease;
+}
+.wage-slider input[type="range"]::-moz-range-thumb {
+  width: var(--thumb-d);
+  height: var(--thumb-d);
+  background: var(--thumb-c, var(--c-mid));
+  border: none;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  cursor: ew-resize;
+  transition: background .15s ease;
+}
+
+.wage-slider output {
+  --bubble-w: 3.4em;
+  position: absolute;
+  bottom: 0;
+  left: clamp(calc(var(--bubble-w) / 2),
+              calc(var(--thumb-d) / 2 + var(--pos)),
+              calc(100% - var(--bubble-w) / 2));
+  transform: translateX(-50%);
+  width: var(--bubble-w);
+  height: 1.35em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--thumb-c, var(--c-mid));
+  background: var(--bg);
+  color: var(--thumb-c, var(--c-mid));
+  font-size: .7rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+.wage-slider-ruler {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 2px;
+}
+.wage-slider-ruler span {
+  flex: 0 1 auto;
+  font-size: .58rem;
+  color: var(--ink-dim);
+  text-align: center;
+  min-width: 0;
+}
+.wage-slider-ruler span::before {
+  content: "";
+  display: block;
+  width: 1px;
+  height: 5px;
+  margin: 0 auto 2px;
+  background: var(--ink-dim);
+  opacity: .55;
+}
+
 /* ── RANKINGS TAB ──────────────────────────────────── */
 .rk-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0; flex: 1; }
 .rk-cell { overflow-y: auto; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 10px; }

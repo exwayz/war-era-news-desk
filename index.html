@@ -281,7 +281,18 @@
         </div>
         <div class="jobs-search-bar" id="jobMarketFilters">
           <div class="input-wrap"><input id="jobSearch" type="text" placeholder="Filter by company or skill…"><button class="clear-btn" data-clears="jobSearch" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button></div>
-          <div class="input-wrap"><input id="jobWageFilter" type="range" step="0.01" min="0.096" max="0.16" title="Min wage"><span id="jobWageValue" style="font-size:.7rem;color:var(--ink-dim);margin-left:4px">Min wage</span><button class="clear-btn" data-clears="jobWageFilter" type="button"><iconify-icon icon="mdi:refresh" class="lu"></iconify-icon></button></div>
+          <div class="input-wrap wage-slider-wrap">
+            <div class="wage-slider-head">
+              <label for="jobWageFilter">Min wage</label>
+              <span id="jobWageValue" class="wage-slider-num"></span>
+            </div>
+            <div class="wage-slider" style="--min:0.096;--max:0.16">
+              <input id="jobWageFilter" type="range" step="0.01" min="0.096" max="0.16" title="Min wage">
+              <output id="jobWageOutput" for="jobWageFilter"></output>
+            </div>
+            <div class="wage-slider-ruler"><span>0.096</span><span>0.112</span><span>0.128</span><span>0.144</span><span>0.160</span></div>
+            <button class="clear-btn" data-clears="jobWageFilter" type="button"><iconify-icon icon="mdi:refresh" class="lu"></iconify-icon></button>
+          </div>
         </div>
         <div id="jobsStatus" class="status-msg" hidden></div>
         <div id="jobsList" class="jobs-grid"></div>

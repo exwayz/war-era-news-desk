@@ -67,10 +67,19 @@ function injectJobsCountryFilter() {
 function updateWageSlider() {
   const slider = document.getElementById("jobWageFilter");
   const val = document.getElementById("jobWageValue");
-  if (!slider || !val) return;
-  const min = Number(slider.min), max = Number(slider.max);
+  const out = document.getElementById("jobWageOutput");
+  if (!slider) return;
   const v = Number(slider.value);
-  val.textContent = v.toFixed(3);
+  const wrap = slider.closest(".wage-slider");
+  if (wrap) {
+    wrap.style.setProperty("--val", v);
+    const min = Number(slider.min), rng = Number(slider.max) - min;
+    const zone = v < min + .25 * rng ? "--c-green" : v < min + .75 * rng ? "--c-mid" : "--c-red";
+    wrap.style.setProperty("--thumb-c", `var(${zone})`);
+  }
+  const txt = v.toFixed(3);
+  if (out) out.textContent = txt;
+  if (val) val.textContent = txt;
 }
 
 function syncEndTimeDisabled() {
