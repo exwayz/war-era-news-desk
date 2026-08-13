@@ -370,7 +370,7 @@ function makeBattleCard(battle) {
     atk = nameCountry(atkId);
     def = nameCountry(defId);
   }
-  const { atkColor, defColor, atkText, defText, atkBarText, defBarText } = battleSideColors(battle);
+  const { atkColor, defColor, atkText, defText } = battleSideColors(battle);
   const regName = nameRegion(battle.defender?.region || battle.defenderRegion || battle.region);
   const fallbackName = id => id ? String(id).slice(-6) : "?";
 
@@ -459,8 +459,6 @@ function makeBattleCard(battle) {
   atkSegPct.textContent = (atkDmg || defDmg) ? atkPct + "%" : "";
   defSegDmg.textContent = defDmg ? fmtNum(defDmg) : "";
   defSegPct.textContent = (atkDmg || defDmg) ? defPct + "%" : "";
-  atkSegPct.style.color = atkBarText;
-  defSegPct.style.color = defBarText;
 
   const nameRow = node.querySelector(".bc-name-row");
   if (nameRow) {

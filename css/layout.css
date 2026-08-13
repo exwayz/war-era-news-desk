@@ -582,19 +582,20 @@
 .bc-flag-img { width: 32px; height: 22px; object-fit: cover; border: 1px solid var(--line); box-shadow: 0 1px 3px rgba(0,0,0,.4); }
 .bc-flag-img--round { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid var(--line); box-shadow: 0 1px 3px rgba(0,0,0,.4); }
 .bc-score { flex: 0 0 auto; font-size: 1.28rem; font-weight: 900; font-family: var(--font-num); line-height: 1; min-width: 16px; text-align: center; }
-.bc-emblem { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 38px; }
+.bc-emblem { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 38px; }
 .bc-emblem-icons { position: relative; display: flex; align-items: center; justify-content: center; height: 24px; min-height: 24px; }
 .bc-ico-shield {
   font-size: 1.35rem; line-height: 1;
   position: relative; z-index: 0;
+  transform: translateX(12.5%);
 }
 .bc-ico-strike {
   font-size: 1.35rem; line-height: 1;
   position: relative; z-index: 1;
-  transform: translateX(-25%);
+  transform: translateX(-12.5%);
   filter: drop-shadow(0 1px 1px rgba(0,0,0,.35));
 }
-.bc-dmg { display: inline-flex; align-items: center; gap: 3px; font-size: .62rem; font-weight: 800; font-family: var(--font-num); color: var(--red); white-space: nowrap; max-width: 100%; }
+.bc-dmg { display: inline-flex; align-items: center; gap: 3px; font-size: .72rem; font-weight: 800; font-family: var(--font-num); color: var(--red); white-space: nowrap; max-width: 100%; }
 .bc-dmg .lu { color: var(--red); }
 
 .bc-points { display: flex; flex-direction: column; gap: 2px; }
@@ -608,7 +609,7 @@
 .bc-share-def { align-items: flex-end; border-right: 2px solid rgba(255,255,255,0.6); }
 .bc-share-atk { align-items: flex-start; }
 .bc-share-dmg { font-size: .8rem; font-weight: 900; font-family: var(--font-num); line-height: 1.1; color: #fff; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-.bc-share-pct { font-size: .56rem; font-weight: 700; font-family: var(--font-num); line-height: 1.1; opacity: .92; white-space: nowrap; }
+.bc-share-pct { font-size: .68rem; font-weight: 800; font-family: var(--font-num); line-height: 1.1; color: #fff; white-space: nowrap; }
 
 .bc-name-row {
   font-size: .62rem; font-weight: 800; text-align: center; letter-spacing: .04em;
