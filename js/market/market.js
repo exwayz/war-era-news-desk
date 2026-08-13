@@ -327,8 +327,11 @@ export async function loadMarketFull(showLoading=true) {
 }
 
 function renderMVI() {
-  let data = S.market._mviView === "weekly" && S.market._weeklyMVI ? S.market._weeklyMVI : S.market.topValuable;
-  if (S.market._prodData?.bestPerProduct?.length) {
+  const btn = document.getElementById("mviToggle");
+  const weekly = S.market._mviView === "weekly";
+  let data = weekly ? S.market._weeklyMVI : S.market.topValuable;
+
+  if (!weekly && S.market._prodData?.bestPerProduct?.length) {
     const bonusMap = {};
     for (const r of S.market._prodData.bestPerProduct) bonusMap[r.productName] = r;
     data = (data || []).map(item => {
@@ -336,14 +339,24 @@ function renderMVI() {
       return bonus ? { ...item, bonus: bonus.totalBonus, ppw: bonus.profitPerPP } : item;
     });
   }
-  E.marketValuableData.innerHTML = commodityBars(data || []);
-  const btn = document.getElementById("mviToggle");
-  if (btn) btn.textContent = S.market._mviView === "weekly" ? "Weekly" : "Live";
+
+  if (weekly && data == null) {
+    E.marketValuableData.innerHTML = '<p class="mvi-empty">Loading weekly values…</p>';
+  } else if (weekly && !data.length) {
+    E.marketValuableData.innerHTML = '<p class="mvi-empty">Weekly values not available yet — market snapshots are still being collected. Open the Market tab regularly so they can accumulate.</p>';
+  } else {
+    E.marketValuableData.innerHTML = commodityBars(data || []);
+  }
+  if (btn) btn.textContent = weekly ? "Weekly" : "Live";
 }
 
-export function toggleMVI() {
+export async function toggleMVI() {
   S.market._mviView = S.market._mviView === "live" ? "weekly" : "live";
   renderMVI();
+  if (S.market._mviView === "weekly") {
+    await loadWeeklyMVI(true);
+    renderMVI();
+  }
 }
 
 document.addEventListener("click", e => {

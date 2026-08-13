@@ -151,9 +151,9 @@ export async function loadSupabaseHistory(limit = 15) {
   } catch {}
 }
 
-export async function loadWeeklyMVI() {
+export async function loadWeeklyMVI(force = false) {
   const now = Date.now();
-  if (now - _lastMviLoad < 300000) return;
+  if (!force && now - _lastMviLoad < 300000) return;
   _lastMviLoad = now;
   const weekAgo = new Date(Date.now() - RETENTION_MS).toISOString();
   try {
@@ -175,7 +175,7 @@ export async function loadWeeklyMVI() {
         acc[entry.item] += Number(entry.value);
       }
     }
-    if (count < 10) return;
+    if (!count) return;
     const sorted = Object.entries(acc)
       .map(([item, value]) => ({ item, value }))
       .sort((a, b) => b.value - a.value)
