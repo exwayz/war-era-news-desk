@@ -261,7 +261,7 @@ function signalsHTML() {
     <span class="sig-num">Spread</span>
     <span class="sig-num">Imbal.</span>
     <span class="sig-badge">Signal</span>
-    <span class="sig-conf">Confidence</span>
+    <span class="sig-num">Confidence</span>
     <span class="sig-num">Score</span>
   </div>`;
 
