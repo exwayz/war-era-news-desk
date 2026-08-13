@@ -401,6 +401,14 @@ function showPartyDetail(party) {
   const leader = party.leader ? S.lookups.usersById.get(party.leader) : null;
   const council = party.councilMembers || [];
   const members = Array.isArray(party.members) ? party.members.length : (party.membersCount || party.memberCount || 0);
+  const ethicsStr = formatPartyEthics(party.ethics);
+
+  const cId = party.country || _selectedCountryId;
+  if (cId && !S.lookups.countriesById.has(cId)) {
+    const c = _countries.find(x => x._id === cId);
+    if (c) S.lookups.countriesById.set(cId, c);
+  }
+  const partyColor = countryColor(cId) ? brightenHex(countryColor(cId), 0.3) : "";
 
   let councilHtml = "";
   if (council.length) {
@@ -412,9 +420,12 @@ function showPartyDetail(party) {
 
   overlay.innerHTML = `
     <div class="modal-card pol-detail-modal">
-      <div style="display:flex;align-items:center;gap:10px">
-        ${party.avatarUrl ? `<img src="${party.avatarUrl}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid var(--line)">` : `<span style="width:36px;height:36px;border-radius:50%;background:var(--surface-hi);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1rem">${(party.name?.charAt(0)||'?').toUpperCase()}</span>`}
-        <h2 style="margin:0;font-size:1rem">${escHtml(party.name || 'Unnamed')}</h2>
+      <div class="pol-detail-head">
+        ${party.avatarUrl ? `<img class="pol-detail-logo" src="${party.avatarUrl}" alt="" loading="lazy">` : `<span class="pol-detail-logo pol-detail-logo-initials">${(party.name?.charAt(0)||'?').toUpperCase()}</span>`}
+        <div class="pol-detail-head-info">
+          <h2 style="color:${partyColor || 'var(--ink)'}">${escHtml(party.name || 'Unnamed')}</h2>
+          ${ethicsStr ? `<span class="pol-detail-ethics">${escHtml(ethicsStr)}</span>` : ""}
+        </div>
       </div>
       <div class="pol-detail-rows">
         <div class="pol-detail-row"><span class="pol-detail-label">Leader</span><span class="pol-detail-val">${leader ? userAvatar(leader, party.leader) + " " + escHtml(leader.username) : escHtml(party.leader?.slice(-6) || "—")}</span></div>

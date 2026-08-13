@@ -349,7 +349,13 @@
 .pol-country-name { font-size: .78rem; font-weight: 700; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 
 /* ── Party / Election detail modals ── */
-.pol-detail-modal { max-width: 380px; }
+.pol-detail-modal { max-width: 560px; }
+.pol-detail-head { display: flex; align-items: center; gap: 10px; }
+.pol-detail-logo { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1px solid var(--line); flex-shrink: 0; }
+.pol-detail-logo-initials { display: flex; align-items: center; justify-content: center; background: var(--surface-hi); color: var(--ink-dim); font-weight: 800; font-size: 1rem; }
+.pol-detail-head-info { min-width: 0; }
+.pol-detail-head-info h2 { margin: 0; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pol-detail-ethics { display: block; margin-top: 2px; font-size: .74rem; font-weight: 700; color: var(--ink-dim); letter-spacing: .02em; }
 .pol-detail-rows { display: flex; flex-direction: column; gap: 6px; }
 .pol-detail-row { display: flex; align-items: center; gap: 8px; font-size: .84rem; }
 .pol-detail-label { font-size: .72rem; font-weight: 700; color: var(--ink-dim); text-transform: uppercase; letter-spacing: .04em; min-width: 70px; flex-shrink: 0; }
@@ -359,7 +365,7 @@
 .pol-candidate-list { display: flex; flex-direction: column; gap: 4px; max-height: 360px; overflow-y: auto; }
 .pol-candidate-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--line); font-size: .8rem; }
 .pol-candidate-icon { width: 20px; text-align: center; font-size: 1rem; flex-shrink: 0; }
-.pol-candidate-name { font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pol-candidate-name { font-weight: 700; flex: 1; min-width: 0; }
 .pol-candidate-party { font-size: .74rem; color: var(--ink-dim); flex-shrink: 0; }
 .pol-candidate-votes { font-size: .72rem; color: var(--ink-dim); flex-shrink: 0; }
 
