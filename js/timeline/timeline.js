@@ -36,10 +36,20 @@ export async function loadEvents(reset) {
   try {
     await ensureLookups(k);
     if (reset) S.lastFilters = getFilters();
-    const result = await fetchEventsPaginated({...S.lastFilters, cursor:reset?undefined:S.cursor}, k);
-    const evts = normalizeEvents(result);
-    S.cursor = normalizeCursor(result);
-    S.events = reset ? evts : [...S.events, ...evts];
+    let evts;
+    const dateActive = !!(E.startTimeInput.value || E.endTimeInput.value);
+    if (dateActive) {
+      // The API ignores from/to, so a date range is fulfilled by walking the
+      // feed backwards from the range end until everything older than "from"
+      // has been covered — loading every event in range regardless of limit.
+      await loadEventRange(reset, k);
+      evts = reset ? S.events : S.events.slice();
+    } else {
+      const result = await fetchEventsPaginated({...S.lastFilters, cursor:reset?undefined:S.cursor}, k);
+      evts = normalizeEvents(result);
+      S.cursor = normalizeCursor(result);
+      S.events = reset ? evts : [...S.events, ...evts];
+    }
     renderTimeline();
     resolveBattles(evts, k).then(() => renderTimeline());
     resolveUsers(evts.map(e=>evtData(e).user).filter(Boolean), k).then(() => renderTimeline());
@@ -52,6 +62,68 @@ export async function loadEvents(reset) {
     E.applyFiltersBtn.disabled = E.loadMoreBtn.disabled = false;
     if (S.pendingReload) { S.pendingReload = false; loadEvents(true); }
   }
+}
+
+// Date-range loading for the timeline. Events are instantaneous (their time is
+// their createdAt), so no margin is needed around the window — unlike battles
+// which end hours after they start. We page the feed at limit 100 with the
+// same timestamp cursor the API returns and keep only events inside [from, to].
+const EVENT_DATE_MAX_PAGES = 60;
+const TIME_CURSOR_DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const TIME_CURSOR_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function makeTimeCursor(ms) {
+  const d = new Date(ms);
+  const p = n => String(n).padStart(2, "0");
+  const s = `${TIME_CURSOR_DAYS[d.getUTCDay()]} ${TIME_CURSOR_MONTHS[d.getUTCMonth()]} ${p(d.getUTCDate())} ${d.getUTCFullYear()} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())} GMT+0000 (Coordinated Universal Time)`;
+  return `${s}|${"0".repeat(24)}`;
+}
+
+function eventRangeBounds() {
+  const fromMs = E.startTimeInput.value ? (parseLocal(E.startTimeInput.value)?.getTime() || 0) : 0;
+  const toMs = E.endTimeInput.value ? (parseLocal(E.endTimeInput.value)?.getTime() || 0) : Infinity;
+  const now = Date.now();
+  return { fromMs, toMs, fetchTo: Number.isFinite(toMs) ? Math.min(toMs, now) : now };
+}
+
+async function loadEventRange(reset, k) {
+  const { fromMs, toMs, fetchTo } = eventRangeBounds();
+  const now = Date.now();
+  const filters = getFilters();
+  const seen = new Set(reset ? [] : S.events.map(e => e._id || e.id));
+  const collected = [];
+  let cursor = S.cursor || (fetchTo < now - 60000 ? makeTimeCursor(fetchTo) : undefined);
+  let pages = 0;
+  while (pages < EVENT_DATE_MAX_PAGES) {
+    const payload = { limit:100, ...(cursor ? { cursor } : {}) };
+    if (filters.countryId) payload.countryId = filters.countryId;
+    if (filters.eventTypes) payload.eventTypes = filters.eventTypes;
+    const result = await fetchEventsPaginated(payload, k);
+    const evts = normalizeEvents(result);
+    if (!evts.length) break;
+    for (const e of evts) {
+      const id = e._id || e.id;
+      if (seen.has(id)) continue;
+      const ts = evtTime(e);
+      if (!ts) continue;
+      const t = new Date(ts).getTime();
+      if (isNaN(t)) continue;
+      if (t >= fromMs && t <= toMs) {
+        seen.add(id);
+        collected.push(e);
+      }
+    }
+    pages++;
+    cursor = normalizeCursor(result);
+    if (!cursor) break;
+    const newest = new Date(evtTime(evts[0])).getTime();
+    const oldest = new Date(evtTime(evts[evts.length - 1])).getTime();
+    if (!Number.isFinite(newest) || !Number.isFinite(oldest)) continue;
+    if (newest < fromMs) break;  // whole page already older than "from"
+    if (oldest < fromMs) break;  // window fully covered
+  }
+  S.cursor = pages >= EVENT_DATE_MAX_PAGES ? cursor : null;
+  S.events = reset ? collected : [...S.events, ...collected];
 }
 
 export function startAutoRefresh() {
@@ -69,8 +141,18 @@ export function startAutoRefresh() {
 
 export async function silentRefreshEvents() {
   try {
+    const sVal = E.startTimeInput.value, eVal = E.endTimeInput.value;
+    const fromMs = sVal ? (parseLocal(sVal)?.getTime() || 0) : 0;
+    const toMs = eVal ? (parseLocal(eVal)?.getTime() || 0) : 0;
     const result = await fetchEventsPaginated({...S.lastFilters, limit:20}, apiKey());
-    const fresh = normalizeEvents(result).filter(e=>!S.events.some(x=>(x._id||x.id)===(e._id||e.id)));
+    const fresh = normalizeEvents(result).filter(e=>{
+      if (S.events.some(x=>(x._id||x.id)===(e._id||e.id))) return false;
+      const ts=evtTime(e); if(!ts) return false;
+      const t=new Date(ts).getTime(); if(isNaN(t)) return false;
+      if (fromMs && t < fromMs) return false;
+      if (toMs && t > toMs) return false;
+      return true;
+    });
     const hasFresh = !!fresh.length;
     if (hasFresh) {
       for(const ev of fresh) showLiveEventToast(ev);

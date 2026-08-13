@@ -71,6 +71,12 @@ function updateWageSlider() {
   val.textContent = v.toFixed(3);
 }
 
+function syncEndTimeDisabled() {
+  if (!E.startTimeInput || !E.endTimeInput) return;
+  E.endTimeInput.disabled = !E.startTimeInput.value;
+  if (!E.startTimeInput.value) E.endTimeInput.value = "";
+}
+
 function bootData() {
   E.globalEventsTitle.classList.add("live");
   loadEvents(true);
@@ -315,6 +321,7 @@ function bindAll() {
     E.countryInput.value=""; E.eventTypeSelect.value="";
     E.startTimeInput.value=""; E.endTimeInput.value="";
     if (E.eventLimitInput) E.eventLimitInput.value="50";
+    syncEndTimeDisabled();
     loadEvents(true);
   });
   E.loadMoreBtn?.addEventListener("click",()=>loadEvents(false));
@@ -351,8 +358,9 @@ function bindAll() {
     }
     navigator.clipboard.writeText(lines.join("\n\n")).then(()=>toast("Timeline copied."));
   });
-  E.startTimeInput?.addEventListener("change",()=>loadEvents(true));
+  E.startTimeInput?.addEventListener("change",()=>{ syncEndTimeDisabled(); loadEvents(true); });
   E.endTimeInput?.addEventListener("change",()=>loadEvents(true));
+  syncEndTimeDisabled();
   E.eventList?.addEventListener("click", handleEventAction);
 
   E.articleSearch?.addEventListener("input", renderArticles);
