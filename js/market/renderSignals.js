@@ -5,7 +5,8 @@
 
 import { S } from "../core/state.js";
 import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
-import { fmtMoney, marketItemName, formatShortNumber } from "../core/utils.js";
+import { fmtMoney, marketItemName, formatShortNumber, entityDisplayName, escapeHtml } from "../core/utils.js";
+import { resolveEntityByType } from "../core/resolver.js";
 import { ensureHistories, getItemHistory, fetchItemHistory } from "./itemHistory.js";
 import {
   computeMarketSignals, computeCompositeIndex, computeItemSignal,
@@ -390,6 +391,31 @@ async function loadRecentTrades(code) {
   } catch { return []; }
 }
 
+// Cache resolved trade-entity names (trade seller/buyer IDs are untyped and can
+// be a user, MU, country or alliance, so each is probed in that order).
+const _txEntityNames = new Map();
+const TX_ENTITY_TYPES = ["user", "mu", "country", "alliance"];
+
+async function resolveTxEntityName(id, k) {
+  if (!id) return "";
+  if (_txEntityNames.has(id)) return _txEntityNames.get(id);
+  for (const type of TX_ENTITY_TYPES) {
+    const ent = await resolveEntityByType(type, id, k);
+    if (ent) {
+      const name = entityDisplayName(type, id, ent);
+      _txEntityNames.set(id, name);
+      return name;
+    }
+  }
+  _txEntityNames.set(id, "");
+  return "";
+}
+
+async function resolveTradeEntityNames(trades, k) {
+  const ids = [...new Set(trades.flatMap(t => [t.sellerId, t.buyerId]).filter(Boolean))];
+  await Promise.all(ids.map(id => resolveTxEntityName(id, k)));
+}
+
 function fmtTxTime(iso) {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -422,11 +448,14 @@ async function renderCommodityModal(code, keepBody = false) {
 
   const trades = keepBody ? (S.market._recentTrades || []) : await loadRecentTrades(code);
   S.market._recentTrades = trades;
+  await resolveTradeEntityNames(trades, k);
   const tradesHTML = trades.length ? trades.map(t => {
     const price2 = Number(t.money || 0) > 0 ? Number(t.money) / Math.max(1, Number(t.quantity || 1)) : 0;
+    const seller = _txEntityNames.get(t.sellerId) || String(t.sellerId || "").slice(0, 8);
+    const buyer = _txEntityNames.get(t.buyerId) || String(t.buyerId || "").slice(0, 8);
     return `<div class="cm-tx-row">
       <span>${fmtTxTime(t.createdAt || t.offerCreatedAt)}</span>
-      <span>${String(t.sellerId || "").slice(0, 8)} → ${String(t.buyerId || "").slice(0, 8)}</span>
+      <span>${escapeHtml(seller)} → ${escapeHtml(buyer)}</span>
       <span>${formatShortNumber(Number(t.quantity || 0))}</span>
       <span>${fmtMoney(price2)} ₿</span>
     </div>`;
