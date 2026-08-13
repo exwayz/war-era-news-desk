@@ -44,6 +44,24 @@
   flex-shrink: 0;
 }
 
+.pol-back-btn {
+  margin-left: auto;
+  width: 1.7em;
+  height: 1.7em;
+  font-size: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--pol-country-color, var(--accent)) 55%, transparent);
+  border-radius: 8px;
+  color: var(--pol-country-color, var(--accent));
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .15s;
+}
+.pol-back-btn:hover { background: color-mix(in srgb, var(--pol-country-color, var(--accent)) 16%, transparent); }
+
 .pol-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

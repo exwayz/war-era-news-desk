@@ -180,6 +180,7 @@ function renderPolitics() {
   container.innerHTML = `
     <div class="pol-header">
       <h3>${flagHtml}<span>${escHtml(countryName)}</span></h3>
+      <button id="backToCountryGridBtn" class="pol-back-btn" title="Back to country selection"><iconify-icon icon="ion:return-up-back-outline" class="lu"></iconify-icon></button>
     </div>
     <div class="pol-grid">
       <div class="glass-panel pol-section pol-gov">
@@ -206,6 +207,7 @@ function renderPolitics() {
     playCopy();
     navigator.clipboard.writeText(body.innerText.trim()).then(() => toast("Political summary copied."));
   });
+  document.getElementById("backToCountryGridBtn")?.addEventListener("click", backToCountryGrid);
 }
 
 function renderGovernment() {
@@ -359,6 +361,13 @@ function renderElections() {
       </div>
     `;
   }).join('');
+}
+
+function backToCountryGrid() {
+  _selectedCountryId = "";
+  const input = document.getElementById("politicsCountryInput");
+  if (input) input.value = "";
+  if (_countries.length) renderCountryGrid();
 }
 
 function renderCountryGrid() {
@@ -1105,10 +1114,8 @@ export function initPolitics() {
   const clearBtn = document.querySelector("[data-clears='politicsCountryInput']");
   if (clearBtn) {
     clearBtn.addEventListener("click", () => {
-      input.value = "";
+      backToCountryGrid();
       input.focus();
-      _selectedCountryId = "";
-      if (_countries.length) renderCountryGrid();
     });
   }
 }
