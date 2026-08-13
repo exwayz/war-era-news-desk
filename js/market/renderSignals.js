@@ -394,7 +394,7 @@ async function loadRecentTrades(code) {
 // Cache resolved trade-entity names (trade seller/buyer IDs are untyped and can
 // be a user, MU, country or alliance, so each is probed in that order).
 const _txEntityNames = new Map();
-const TX_ENTITY_TYPES = ["user", "mu", "country", "alliance"];
+const TX_ENTITY_TYPES = ["user"];
 const TX_RESOLVE_TIMEOUT = 6000;
 
 function txResolveWithTimeout(promise, ms) {
@@ -449,6 +449,7 @@ async function renderCommodityModal(code, keepBody = false) {
   const body = document.getElementById("commodityModalBody");
   if (title) title.innerHTML = `${name} <span style="color:var(--ink-dim);font-size:.7rem;font-weight:400">intelligence dossier</span>`;
   if (!body) return;
+  const k = apiKey();
 
   const hist = await fetchItemHistory(code, !keepBody);
   if (!hist) {
