@@ -395,25 +395,44 @@ async function loadRecentTrades(code) {
 // be a user, MU, country or alliance, so each is probed in that order).
 const _txEntityNames = new Map();
 const TX_ENTITY_TYPES = ["user", "mu", "country", "alliance"];
+const TX_RESOLVE_TIMEOUT = 6000;
+
+function txResolveWithTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error("resolve timeout")), ms)),
+  ]);
+}
 
 async function resolveTxEntityName(id, k) {
   if (!id) return "";
   if (_txEntityNames.has(id)) return _txEntityNames.get(id);
-  for (const type of TX_ENTITY_TYPES) {
-    const ent = await resolveEntityByType(type, id, k);
-    if (ent) {
-      const name = entityDisplayName(type, id, ent);
-      _txEntityNames.set(id, name);
-      return name;
-    }
+  try {
+    const name = await txResolveWithTimeout((async () => {
+      for (const type of TX_ENTITY_TYPES) {
+        const ent = await resolveEntityByType(type, id, k);
+        if (ent) return entityDisplayName(type, id, ent);
+      }
+      return "";
+    })(), TX_RESOLVE_TIMEOUT);
+    _txEntityNames.set(id, name);
+    return name;
+  } catch {
+    _txEntityNames.set(id, "");
+    return "";
   }
-  _txEntityNames.set(id, "");
-  return "";
 }
 
+// Fire-and-forget: never blocks rendering. Resolves each unique trade party ID
+// (timeout-bounded) and patches the matching seller/buyer cells in place.
 async function resolveTradeEntityNames(trades, k) {
   const ids = [...new Set(trades.flatMap(t => [t.sellerId, t.buyerId]).filter(Boolean))];
-  await Promise.all(ids.map(id => resolveTxEntityName(id, k)));
+  await Promise.all(ids.map(async id => {
+    const name = await resolveTxEntityName(id, k);
+    if (!name) return;
+    document.querySelectorAll(`[data-tx-seller="${id}"]`).forEach(el => { el.textContent = name; });
+    document.querySelectorAll(`[data-tx-buyer="${id}"]`).forEach(el => { el.textContent = name; });
+  }));
 }
 
 function fmtTxTime(iso) {
@@ -448,14 +467,13 @@ async function renderCommodityModal(code, keepBody = false) {
 
   const trades = keepBody ? (S.market._recentTrades || []) : await loadRecentTrades(code);
   S.market._recentTrades = trades;
-  await resolveTradeEntityNames(trades, k);
   const tradesHTML = trades.length ? trades.map(t => {
     const price2 = Number(t.money || 0) > 0 ? Number(t.money) / Math.max(1, Number(t.quantity || 1)) : 0;
     const seller = _txEntityNames.get(t.sellerId) || String(t.sellerId || "").slice(0, 8);
     const buyer = _txEntityNames.get(t.buyerId) || String(t.buyerId || "").slice(0, 8);
     return `<div class="cm-tx-row">
       <span>${fmtTxTime(t.createdAt || t.offerCreatedAt)}</span>
-      <span>${escapeHtml(seller)} → ${escapeHtml(buyer)}</span>
+      <span><span data-tx-seller="${escapeHtml(t.sellerId || "")}">${escapeHtml(seller)}</span> → <span data-tx-buyer="${escapeHtml(t.buyerId || "")}">${escapeHtml(buyer)}</span></span>
       <span>${formatShortNumber(Number(t.quantity || 0))}</span>
       <span>${fmtMoney(price2)} ₿</span>
     </div>`;
@@ -503,6 +521,7 @@ async function renderCommodityModal(code, keepBody = false) {
         </div>
       </div>
     </div>`;
+  resolveTradeEntityNames(trades, k);
 }
 
 function clamp2(v) { return Math.max(-1, Math.min(1, v)); }
