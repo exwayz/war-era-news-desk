@@ -6,7 +6,7 @@ import { apiKey, isValidApiKey, resetTxCaches } from "./core/api.js";
 import { debounce, parseLocal, fmtDate, fmtNum, escapeHtml } from "./core/utils.js";
 import { populateEventTypes } from "./timeline/filters.js";
 import { loadEvents, startAutoRefresh, scheduleEventsRefresh, handleEventAction } from "./timeline/timeline.js";
-import { loadArticles, renderArticles, copyArticles, refreshLangDropdown } from "./timeline/articles.js";
+import { loadArticles, renderArticles, refreshLangDropdown } from "./timeline/articles.js";
 import { switchTab } from "./ui/tabs.js";
 import { toggleTheme, applyTheme, applyTexture } from "./ui/theme.js";
 import { toast, setStatus } from "./ui/toast.js";
@@ -24,7 +24,7 @@ import { loadProfile, deleteProfile, formatProfileLink, resolveProfile } from ".
 import { POLICY_TEXT } from "./community/policy.js";
 import { loadMessages, loadMoreMessages, postMessage, upvoteMessage, renderWallMessages, renderWallCount, getMessageById, hasMoreMessages, getRemainingQuota, prependWallCard, updateUpvoteDisplay, copyCommunityReport } from "./community/wall.js";
 import { loadPolitics, initPolitics, copyPoliticsReport, capturePoliticsReport } from "./politics/politics.js";
-import { initLibrary, ensureLibraryIndex } from "./library/library.js";
+import { initLibrary, ensureLibraryIndex, copyLibraryArticles } from "./library/library.js";
 import { initBookmarkButton } from "./library/bookmarks.js";
 import { initTableMaker } from "./tablemaker/tablemaker.js";
 import { highlightUserData } from "./core/profileHighlighter.js";
@@ -405,7 +405,11 @@ function bindAll() {
     if (langCont && !langCont.contains(e.target)) langMenu?.classList.add("hidden");
   });
   document.getElementById("articleCatFilter")?.addEventListener("change", renderArticles);
-  document.getElementById("copyArticlesBtn")?.addEventListener("click",async()=>{ playCopy(); await copyArticles(); toast("Articles copied."); });
+  document.getElementById("copyLibraryBtn")?.addEventListener("click", async () => {
+    playCopy();
+    await copyLibraryArticles();
+    toast("Articles copied.");
+  });
   E.closeReader?.addEventListener("click",()=>E.readerModal.classList.add("hidden"));
   E.readerModal?.addEventListener("click",e=>{ if(e.target===E.readerModal) E.readerModal.classList.add("hidden"); });
   E.copyArticleBtn?.addEventListener("click",()=>{ navigator.clipboard.writeText(E.readerContent.innerText||"").then(()=>toast("Article copied.")); });

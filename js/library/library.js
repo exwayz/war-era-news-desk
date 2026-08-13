@@ -356,6 +356,19 @@ function termLabel() {
   return `keyword: ${L.searchTerm.trim()}`;
 }
 
+// Copies the details (never the content) of the articles currently rendered in
+// the list — the visible slice of the active filters, matching what Load More
+// has expanded so far.
+export async function copyLibraryArticles() {
+  const arts = getFiltered().slice(0, L.visible);
+  const lines = arts.map(a => {
+    const cat = CATEGORY_META[a.category]?.label || a.category || "Other";
+    const author = authorName(a.author);
+    return `[${fmtDate(a.createdAt)}] ${cat} — 🌐${langName(a.language)} — 👤${author} — ☆${a.stats?.score ?? 0} — ${a.title || "Untitled"}`;
+  });
+  await navigator.clipboard.writeText(lines.join("\n"));
+}
+
 function openReader(a) {
   const stats = a.stats || {};
   setCurrentArticle(a);

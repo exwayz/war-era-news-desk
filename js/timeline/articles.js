@@ -220,24 +220,3 @@ export function renderArticles() {
   E.loadMoreArticlesBtn.hidden=!S.articleCursor;
   highlightUserData();
 }
-
-export async function copyArticles() {
-  const kw=E.articleSearch.value.trim().toLowerCase();
-  let arts=kw?S.articles.filter(a=>(a.title||"").toLowerCase().includes(kw)||(a.content||"").toLowerCase().includes(kw)):S.articles;
-  arts = filterByLang(arts);
-  const artCat = document.getElementById("articleCatFilter")?.value || "";
-  if (artCat) arts = arts.filter(a => a.category === artCat);
-  const aSort=S.articleSort||"date";
-  arts=[...arts].sort((a,b)=>{
-    if(aSort==="score"){
-      const sa=(a.stats?.score??0), sb=(b.stats?.score??0);
-      return sb-sa;
-    }
-    return new Date(b.createdAt).getTime()-new Date(a.createdAt).getTime();
-  });
-  const lines=arts.map(a=>{
-    const author=(S.lookups.usersById.get(a.author)?.username||S.lookups.usersById.get(a.author)?.name)||"Unknown";
-    return `[${fmtDate(a.createdAt)}] ${a.category||"General"} — 👤${author} — ☆${a.stats?.score??0} — ${a.title||"Untitled"}`;
-  });
-  await navigator.clipboard.writeText(lines.join("\n"));
-}
