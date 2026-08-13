@@ -29,6 +29,8 @@ import { initBookmarkButton } from "./library/bookmarks.js";
 import { initTableMaker } from "./tablemaker/tablemaker.js";
 import { highlightUserData } from "./core/profileHighlighter.js";
 import { initClock, updateInfobar } from "./visuals/clock.js";
+import { initReaderZoom } from "./ui/readerZoom.js";
+import { initImageViewer } from "./ui/imageViewer.js";
 
 function escHtml(s) {
   const d = document.createElement("div");
@@ -407,6 +409,8 @@ function bindAll() {
   E.closeReader?.addEventListener("click",()=>E.readerModal.classList.add("hidden"));
   E.readerModal?.addEventListener("click",e=>{ if(e.target===E.readerModal) E.readerModal.classList.add("hidden"); });
   E.copyArticleBtn?.addEventListener("click",()=>{ navigator.clipboard.writeText(E.readerContent.innerText||"").then(()=>toast("Article copied.")); });
+  initReaderZoom();
+  initImageViewer();
   document.getElementById("openArticleBtn")?.addEventListener("click",()=>{
     const id = document.getElementById("openArticleBtn").dataset.id;
     if (id) window.open(`https://app.warera.io/article/${id}`, "_blank", "noopener");

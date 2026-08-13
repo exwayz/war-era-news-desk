@@ -567,7 +567,36 @@
         <button id="closeReader" class="btn-icon-sm"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
       </div>
     </div>
+    <div class="reader-toolbar">
+      <div class="reader-zoom">
+        <button id="readerZoomOut" class="btn-icon-sm" title="Decrease text size">A−</button>
+        <input type="range" id="readerZoomSlider" min="60" max="180" step="5" value="100" title="Text size">
+        <button id="readerZoomIn" class="btn-icon-sm" title="Increase text size">A+</button>
+        <span id="readerZoomPct" class="reader-zoom-pct">100%</span>
+        <button id="readerZoomReset" class="btn-icon-sm" title="Reset text size"><iconify-icon icon="mdi:restore" class="lu"></iconify-icon></button>
+      </div>
+    </div>
     <div id="readerContent" class="reader-body"></div>
+  </div>
+</div>
+
+<!-- IMAGE VIEWER MODAL -->
+<div id="imageViewerModal" class="overlay image-viewer-overlay hidden">
+  <div class="image-viewer-window">
+    <div class="image-viewer-toolbar">
+      <span id="imageViewerName" class="image-viewer-name"></span>
+      <div class="image-viewer-zoom">
+        <button id="imgZoomOut" class="btn-icon-sm" title="Zoom out"><iconify-icon icon="mdi:magnify-minus-outline" class="lu"></iconify-icon></button>
+        <input type="range" id="imgZoomSlider" min="5" max="500" step="5" value="100">
+        <button id="imgZoomIn" class="btn-icon-sm" title="Zoom in"><iconify-icon icon="mdi:magnify-plus-outline" class="lu"></iconify-icon></button>
+        <span id="imgZoomPct" class="reader-zoom-pct">100%</span>
+        <button id="imgZoomReset" class="btn-icon-sm" title="Reset zoom"><iconify-icon icon="mdi:restore" class="lu"></iconify-icon></button>
+      </div>
+      <button id="imgViewerClose" class="btn-icon-sm" title="Close"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
+    </div>
+    <div id="imageViewerStage" class="image-viewer-stage">
+      <img id="imageViewerImg" alt="" draggable="false">
+    </div>
   </div>
 </div>
 
