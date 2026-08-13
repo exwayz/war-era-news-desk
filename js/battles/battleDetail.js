@@ -353,6 +353,10 @@ export async function loadBattleDetail(battle, bid, silent=false) {
 function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpMu, gpCountry, orders, atkPar, defPar, roundsData, perRoundData, contracts, money) {
   clearInterval(S.battleTickTimer); S.battleTickTimer = null;
   const isTournament = b.type === "tournament";
+  const isCivilWar = !isTournament && battleTypeKind(b.type) === "revolution";
+  const cwDef = "Government";
+  const cwAtk = "Rebels";
+  const sideLabel = (side, fallback) => isCivilWar ? (side === "attacker" ? cwAtk : cwDef) : fallback;
   let atk, def, atkId, defId, atkAvatar, defAvatar;
   if (isTournament) {
     atk = nameMu(b.attacker?.tournamentTeam);
@@ -371,15 +375,25 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     defId = b.defender?.country||b.defenderCountry||b.defender?.countryId;
     const atkCode = (S.lookups.countriesById.get(atkId)?.code||"").toLowerCase();
     const defCode = (S.lookups.countriesById.get(defId)?.code||"").toLowerCase();
-    atkAvatar = atkCode ? `<img src="https://media.warera.io/images/flags/${atkCode.toLowerCase()}.svg" alt="" style="width:38px;display:block">` : "";
-    defAvatar = defCode ? `<img src="https://media.warera.io/images/flags/${defCode.toLowerCase()}.svg" alt="" style="width:38px;display:block">` : "";
+    const atkFlag = atkCode ? `<img src="https://media.warera.io/images/flags/${atkCode.toLowerCase()}.svg" alt="" style="width:38px;display:block">` : "";
+    const defFlag = defCode ? `<img src="https://media.warera.io/images/flags/${defCode.toLowerCase()}.svg" alt="" style="width:38px;display:block">` : "";
+    atkAvatar = isCivilWar && atkFlag
+      ? `<span style="position:relative;display:inline-block;line-height:0">${atkFlag}<iconify-icon icon="mingcute:angry-fill" class="lu" style="position:absolute;top:-7px;right:-7px;color:var(--red);font-size:17px;background:#fff;border-radius:50%;padding:1px;box-shadow:0 1px 3px rgba(0,0,0,.5)"></iconify-icon></span>`
+      : atkFlag;
+    defAvatar = defFlag;
   }
   const { atkColor, defColor, atkText, defText, atkBarText, defBarText } = battleSideColors(b);
   const reg = nameRegion(b.defender?.region||b.defenderRegion||b.region);
   const isLive = !b.endedAt || b.isActive===true || b.active===true;
   const started = b.createdAt||b.startedAt||"";
   const ended = b.endedAt||"";
-  const winner = b.winner||(b.wonBy==="attacker"?atk:b.wonBy==="defender"?def:null);
+  const winner = isCivilWar
+    ? (b.wonBy === "attacker" ? cwAtk
+       : b.wonBy === "defender" ? cwDef
+       : (b.winner && String(b.winner).toLowerCase() === String(atk || "").toLowerCase()) ? cwAtk
+       : (b.winner && String(b.winner).toLowerCase() === String(def || "").toLowerCase()) ? cwDef
+       : null)
+    : (b.winner || (b.wonBy === "attacker" ? atk : b.wonBy === "defender" ? def : null));
 
   function sumDmg(d) {
     if (d == null) return 0;
@@ -409,7 +423,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
   const roundTabsHtml = sortedRounds.length > 0 ? `
   <div class="br-round-tabs" id="brRoundTabs_${bid}" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px;">
     ${sortedRounds.map((rd,i)=>{
-      const rdWinner = rd.wonBy === "attacker" ? (atk||"ATK") : rd.wonBy === "defender" ? (def||"DEF") : null;
+      const rdWinner = rd.wonBy === "attacker" ? sideLabel("attacker", atk || "ATK") : rd.wonBy === "defender" ? sideLabel("defender", def || "DEF") : null;
       const isActive = (rd.isActive===true || rd._isCurrent===true || !rd.endedAt) && !rdWinner;
       const badge = rdWinner ? `<iconify-icon icon="mdi:trophy" class="lu" style="font-size:.6rem;margin-left:3px"></iconify-icon>` : isActive ? `<span style="color:var(--red);font-size:.6rem;margin-left:3px">●</span>` : "";
       return `<button class="pill-btn" data-round-idx="${i}" data-round-tab-bid="${bid}" style="font-size:.72rem">Round ${i+1}${badge}</button>`;
@@ -426,7 +440,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     const safeDef = Math.min(defPts, MAX_GP);
     const atkBarPct = Math.round((safeAtk / MAX_GP) * 50);
     const defBarPct = Math.round((safeDef / MAX_GP) * 50);
-    const rdWinner = rd?.wonBy === "attacker" ? (atk || "Attacker") : rd?.wonBy === "defender" ? (def || "Defender") : null;
+    const rdWinner = rd?.wonBy === "attacker" ? sideLabel("attacker", atk || "Attacker") : rd?.wonBy === "defender" ? sideLabel("defender", def || "Defender") : null;
     const rdStatus = rdWinner
       ? `<span style="color:var(--green);font-size:.72rem"><iconify-icon icon="mdi:trophy" class="lu"></iconify-icon> Won by ${rdWinner}</span>`
       : (rd?.isActive === true || rd?._isCurrent === true || !rd?.endedAt)
@@ -439,9 +453,9 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
       ${rdStatus}
     </div>
     <div style="display:flex;justify-content:space-between;font-size:.76rem;margin-bottom:5px">
-      <span style="color:${defText};font-weight:800"><strong>${fmtNum(defPts)}</strong> pts ${def || "Defender"}</span>
+      <span style="color:${defText};font-weight:800"><strong>${fmtNum(defPts)}</strong> pts ${sideLabel("defender", def || "Defender")}</span>
       <span style="color:var(--ink-dim);font-size:.68rem">First to 300 wins</span>
-      <span style="color:${atkText};font-weight:800">${atk || "Attacker"} <strong>${fmtNum(atkPts)}</strong> pts</span>
+      <span style="color:${atkText};font-weight:800">${sideLabel("attacker", atk || "Attacker")} <strong>${fmtNum(atkPts)}</strong> pts</span>
     </div>
     <div style="position:relative;height:16px;background:var(--line);overflow:hidden;display:flex;align-items:center;">
       <div style="position:absolute;left:0;top:0;bottom:0;width:${defBarPct}%;background:${defColor};transition:width .5s ease;"></div>
@@ -481,7 +495,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     <div style="display:flex;justify-content:center;align-items:center;gap:16px">
       <div style="text-align:center">
         <div style="font-size:2rem;font-weight:900;color:${defText};line-height:1">${defRoundsWon}</div>
-        <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;color:var(--ink-dim);margin-top:2px">${def||"Defender"}</div>
+        <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;color:var(--ink-dim);margin-top:2px">${sideLabel("defender", def||"Defender")}</div>
       </div>
       <div style="text-align:center;color:var(--ink-dim)">
         <div style="font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em">Battle Score</div>
@@ -489,7 +503,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
       </div>
       <div style="text-align:center">
         <div style="font-size:2rem;font-weight:900;color:${atkText};line-height:1">${atkRoundsWon}</div>
-        <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;color:var(--ink-dim);margin-top:2px">${atk||"Attacker"}</div>
+        <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;color:var(--ink-dim);margin-top:2px">${sideLabel("attacker", atk||"Attacker")}</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:10px;justify-self:end">${atkAllianceHtml}${isLive ? orderBtnHtml(atkOrderCount, "attacker") : ""}${atkAvatar}</div>
@@ -505,7 +519,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
   const atkDmgNow = sumDmg(currentLiveRound?.attacker?.damages ?? b.attacker?.damages ?? 0);
   const defDmgNow = sumDmg(currentLiveRound?.defender?.damages ?? b.defender?.damages ?? 0);
   const dmgLeaderAtk = atkDmgNow > defDmgNow;
-  const dmgLeaderName = dmgLeaderAtk ? (atk || "Attacker") : (def || "Defender");
+  const dmgLeaderName = dmgLeaderAtk ? sideLabel("attacker", atk || "Attacker") : sideLabel("defender", def || "Defender");
   const bracketBar = TICK_BRACKETS.map(([t, v]) =>
     `<span title="${v} pt${v === 1 ? "" : "s"}/tick at ${t}+ total" style="flex:1;text-align:center;font-size:.62rem;font-weight:800;padding:2px 0;border-radius:3px;${v === curBracketVal ? `background:${dmgLeaderAtk ? atkColor : defColor};color:#fff` : "background:var(--surface-hi);color:var(--ink-dim);border:1px solid var(--line)"}">${v}</span>`
   ).join("");
@@ -556,10 +570,16 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     const sides = orderSplit(orders);
     let narrative = "";
     if (isLive) {
-      narrative = `${battleTypeLabel} ongoing: <strong>${def||"Defender"}</strong> vs <strong>${atk||"Attacker"}</strong>${reg?" in "+reg:""}. Damage split: ${atkPct}% vs ${defPct}%.`;
+      narrative = isCivilWar
+        ? `${battleTypeLabel} ongoing${reg ? " in " + reg : ""}. Damage split: ${atkPct}% vs ${defPct}%.`
+        : `${battleTypeLabel} ongoing: <strong>${def||"Defender"}</strong> vs <strong>${atk||"Attacker"}</strong>${reg?" in "+reg:""}. Damage split: ${atkPct}% vs ${defPct}%.`;
     } else {
       narrative = winner
-        ? `<strong>${winner}</strong> secured victory${reg?" at "+reg:""}. Total damage: ${fmtNum(totalDmg)}. ${participantsA + participantsD} fighters participated.`
+        ? (isCivilWar
+          ? (winner === cwAtk
+            ? `Rebel forces successfully overthrew the government. Total damage: ${fmtNum(totalDmg)}. ${participantsA + participantsD} fighters participated.`
+            : `Government forces successfully suppressed the rebellion. Total damage: ${fmtNum(totalDmg)}. ${participantsA + participantsD} fighters participated.`)
+          : `<strong>${winner}</strong> secured victory${reg?" at "+reg:""}. Total damage: ${fmtNum(totalDmg)}. ${participantsA + participantsD} fighters participated.`)
         : `Battle concluded${reg?" at "+reg:""}. Total damage: ${fmtNum(totalDmg)}.`;
     }
     return {
@@ -591,7 +611,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     const participantsA = pr.atkPar || 0;
     const participantsD = pr.defPar || 0;
     const hitCount = (rd.attacker?.hitCount || 0) + (rd.defender?.hitCount || 0);
-    const rWinner = rd.wonBy === "attacker" ? atk : rd.wonBy === "defender" ? def : null;
+    const rWinner = rd.wonBy === "attacker" ? sideLabel("attacker", atk) : rd.wonBy === "defender" ? sideLabel("defender", def) : null;
     const rActive = (rd.isActive === true || rd._isCurrent === true || !rd.endedAt) && !rWinner;
     const statusLabel = rWinner ? "WON" : rActive ? "ACTIVE" : "ENDED";
     const narrative = `Round ${idx + 1} ${rWinner ? `won by <strong>${rWinner}</strong>` : rActive ? "ongoing" : "concluded"}${totalDmg ? `: ${fmtNum(totalDmg)} total damage, ${atkPct}% vs ${defPct}% split` : ""}.`;
@@ -663,8 +683,8 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     const endedVal = sc.ended ? fmtDate(sc.ended) : (isLive ? "On going" : "—");
     const durationVal = durationMs > 0 ? formatDuration(durationMs) : (isLive ? "On going" : "—");
     const winnerVal = sc.winner ? sc.winner : "—";
-    const defVal = def || "Defender";
-    const atkVal = atk || "Attacker";
+    const defVal = sideLabel("defender", def || "Defender");
+    const atkVal = sideLabel("attacker", atk || "Attacker");
     return `<div class="br-stats-grid">
       <div class="br-stat-box"><span class="br-stat-val" style="font-size:.85rem">${defVal}</span><span class="br-stat-lbl">Defender</span></div>
       <div class="br-stat-box"><span class="br-stat-val">${sc.participantsD || "—"}</span><span class="br-stat-lbl">Defender Participants</span></div>
@@ -756,7 +776,9 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
   </div>`;
 
   const detailHtml = staticTop + `<div id="${scopeBodyId}"></div>` + staticBottom;
-  if (E.battleReportTitle) E.battleReportTitle.textContent = `${battleTypeLabel}: ${def||"?"} vs ${atk||"?"}${reg ? " — "+reg : ""}`;
+  if (E.battleReportTitle) E.battleReportTitle.textContent = isCivilWar
+    ? `${battleTypeLabel}: ${cwDef} vs ${cwAtk}${reg ? " — "+reg : ""}`
+    : `${battleTypeLabel}: ${def||"?"} vs ${atk||"?"}${reg ? " — "+reg : ""}`;
   if (E.battleReportMeta) E.battleReportMeta.textContent = `${isLive ? "Live" : "Ended"}${started ? " · "+fmtDate(started) : ""}${ended ? " → "+fmtDate(ended) : ""}`;
   const prevScroll = E.battleReportContent.scrollTop;
   E.battleReportContent.innerHTML = detailHtml;
@@ -784,7 +806,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     btn.addEventListener("click", () => {
       const side = btn.dataset.orderSide;
       const color = side === "attacker" ? atkColor : defColor;
-      const sideName = side === "attacker" ? (atk || "Attacker") : (def || "Defender");
+      const sideName = side === "attacker" ? sideLabel("attacker", atk || "Attacker") : sideLabel("defender", def || "Defender");
       openOrdersModal(side, orders, `${sideName} Battle Orders`, `Live battle · ${orderSideList(orders, side).length} order${orderSideList(orders, side).length === 1 ? "" : "s"} issued${reg ? " · " + reg : ""}`, color);
     });
   });
@@ -859,14 +881,14 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
   document.getElementById("captureBattlePaneBtn")?.addEventListener("click", async () => {
     const ch = await import("../core/captureReport.js");
     const sc = currentScopeData || overallScope();
-    const title2 = `${battleTypeLabel}: ${def||"Defender"} vs ${atk||"Attacker"}${reg?" — "+reg:""}${sc.scopeKey === "overall" ? "" : " · "+sc.label}`;
-    const slug = (def||"Defender")+"_vs_"+(atk||"Attacker")+(reg?"_"+reg.replace(/[\s-]+/g,"_"):"")+(sc.scopeKey === "overall" ? "" : "_round_"+(sc.roundIdx+1));
+    const title2 = `${battleTypeLabel}: ${sideLabel("defender", def||"Defender")} vs ${sideLabel("attacker", atk||"Attacker")}${reg?" — "+reg:""}${sc.scopeKey === "overall" ? "" : " · "+sc.label}`;
+    const slug = (sideLabel("defender", def||"Defender"))+"_vs_"+(sideLabel("attacker", atk||"Attacker"))+(reg?"_"+reg.replace(/[\s-]+/g,"_"):"")+(sc.scopeKey === "overall" ? "" : "_round_"+(sc.roundIdx+1));
     const ptotalDmg = sc.totalDmg || sc.damageUsers.reduce((s, r) => s + getValue(r), 0);
     const ptotalGp = (sc.atkGp + sc.defGp) || sc.gpUsers.reduce((s, r) => s + getPoints(r), 0);
     const parts = (sc.participantsA||0)+(sc.participantsD||0);
     const score = `${defRoundsWon}—${atkRoundsWon}`;
     const meta = [
-      `Defender: ${def||"—"} | Attacker: ${atk||"—"}${reg?" · Region: "+reg:""} | Winner: ${sc.winner||winner||"—"} | Score: ${score}`,
+      `Defender: ${sideLabel("defender", def||"—")} | Attacker: ${sideLabel("attacker", atk||"—")}${reg?" · Region: "+reg:""} | Winner: ${sc.winner||winner||"—"} | Score: ${score}`,
       `Damage: ${fmtNum(ptotalDmg)} | Total Hits: ${sc.hitCount} | Participants: ${fmtNum(parts)}`,
       `${sc.started ? "Started: "+fmtDate(sc.started) : ""}${sc.ended ? "  ·  Ended: "+fmtDate(sc.ended) : ""}${durationStr ? "  ·  "+durationStr : ""}`,
       `Generated: ${new Date().toUTCString()}`,
@@ -972,8 +994,9 @@ function formatDuration(ms) {
 
 
 function exportBattleXLS(b, bid, rankUsers, gpUsers, rankMu, gpMu, rankCountry, gpCountry) {
-  const atk = nameCountry(b.attacker?.country||b.attackerCountry||b.attacker?.countryId)||"Attacker";
-  const def = nameCountry(b.defender?.country||b.defenderCountry||b.defender?.countryId)||"Defender";
+  const isCivilWar = battleTypeKind(b.type) === "revolution" && b.type !== "tournament";
+  const atk = isCivilWar ? "Rebels" : (nameCountry(b.attacker?.country||b.attackerCountry||b.attacker?.countryId)||"Attacker");
+  const def = isCivilWar ? "Government" : (nameCountry(b.defender?.country||b.defenderCountry||b.defender?.countryId)||"Defender");
   const reg = nameRegion(b.defender?.region||b.defenderRegion||b.region)||"";
   const title = `${def} vs ${atk}${reg ? " - " + reg : ""}`;
 

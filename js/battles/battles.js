@@ -564,6 +564,7 @@ function makeBattleCard(battle) {
   const isLive = !battle.endedAt || battle.isActive===true || battle.active===true;
   const kind = battleTypeKind(battle.type);
   const isTournament = kind === "tournament";
+  const isCivilWar = kind === "revolution" && !isTournament;
   let atk, def, atkId, defId;
   if (isTournament) {
     atkId = battle.attacker?.tournamentTeam;
@@ -576,6 +577,7 @@ function makeBattleCard(battle) {
     atk = nameCountry(atkId);
     def = nameCountry(defId);
   }
+  if (isCivilWar) { atk = "Rebels"; def = "Government"; }
   const { atkColor, defColor, atkText, defText } = battleSideColors(battle);
   const regName = nameRegion(battle.defender?.region || battle.defenderRegion || battle.region);
   const fallbackName = id => id ? String(id).slice(-6) : "?";
@@ -607,7 +609,11 @@ function makeBattleCard(battle) {
     ? (started ? "Started: "+fmtDate(started) : "Live battle")
     : (started && ended ? `Started: ${fmtDate(started)} — Ended: ${fmtDate(ended)}` : "");
 
-  node.querySelector(".bc-side--atk").innerHTML = `${sideFlagHtml(atkId, isTournament)}<span class="bc-name">${escapeHtml(atk || fallbackName(atkId))}</span>`;
+  let atkFlagHtml = sideFlagHtml(atkId, isTournament);
+  if (isCivilWar && atkFlagHtml) {
+    atkFlagHtml = `<span style="position:relative;display:inline-block;line-height:0">${atkFlagHtml}<iconify-icon icon="mingcute:angry-fill" class="lu" style="position:absolute;top:-6px;right:-6px;color:var(--red);font-size:15px;background:#fff;border-radius:50%;padding:1px;box-shadow:0 1px 3px rgba(0,0,0,.5)"></iconify-icon></span>`;
+  }
+  node.querySelector(".bc-side--atk").innerHTML = `${atkFlagHtml}<span class="bc-name">${escapeHtml(atk || fallbackName(atkId))}</span>`;
   node.querySelector(".bc-side--def").innerHTML = `${sideFlagHtml(defId, isTournament)}<span class="bc-name">${escapeHtml(def || fallbackName(defId))}</span>`;
 
   const atkRounds = Number(battle.attacker?.wonRoundsCount ?? battle.attackerRoundsWon ?? 0);
