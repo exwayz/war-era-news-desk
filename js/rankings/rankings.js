@@ -280,9 +280,16 @@ export function refreshRankings() {
   loadCategory(_currentCat);
 }
 
+function missingRankingCategories() {
+  return Object.keys(CATEGORIES).filter(k => !_loaded[k]);
+}
+
 export function copyRankingsReport() {
-  const hasData = Object.keys(CATEGORIES).some(k => _cache[k]?.length);
-  if (!hasData) { toast("Rankings not loaded yet. Please wait."); return; }
+  const missing = missingRankingCategories();
+  if (missing.length) {
+    toast(`Make sure every ranking has been rendered first. Not loaded yet: ${missing.map(k => CATEGORIES[k].label).join(", ")}.`);
+    return;
+  }
 
   let r = `# War Era Rankings Report\nGenerated: ${new Date().toUTCString()}\n`;
 
@@ -308,8 +315,11 @@ export function copyRankingsReport() {
 }
 
 export function captureRankingsReport() {
-  const hasData = Object.keys(CATEGORIES).some(k => _cache[k]?.length);
-  if (!hasData) { toast("Rankings not loaded yet. Please wait."); return; }
+  const missing = missingRankingCategories();
+  if (missing.length) {
+    toast(`Make sure every ranking has been rendered first. Not loaded yet: ${missing.map(k => CATEGORIES[k].label).join(", ")}.`);
+    return;
+  }
 
   const genTime = "Generated: "+new Date().toUTCString();
 
