@@ -211,7 +211,8 @@ export function injectBattleSearchBar() {
   <button class="clear-btn" data-clears="battlesRegionFilter" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
 </div>
 <input type="date" id="battleDateFrom" title="Ended from">
-<input type="date" id="battleDateTo" title="Ended to">
+<input type="date" id="battleDateTo" title="Ended to" disabled>
+<button id="resetBattleFiltersBtn" class="btn-icon-sm" title="Reset search, sort and filters"><iconify-icon icon="mdi:close-box" class="lu"></iconify-icon></button>
 <datalist id="battlesRegionOptions"></datalist>
 `;
   panelHead.insertAdjacentElement("afterend", wrap);
@@ -285,6 +286,12 @@ export function injectBattleSearchBar() {
 
   const dFrom = document.getElementById("battleDateFrom");
   const dTo = document.getElementById("battleDateTo");
+  // The "to" date only makes sense once "from" is set, so it starts disabled
+  // and is unlocked only after the user fills the "from" input.
+  function syncBattleDateToDisabled() {
+    dTo.disabled = !dFrom.value;
+    if (!dFrom.value) dTo.value = "";
+  }
   // Date range composes with the active search (country / region / keyword)
   // instead of replacing it, so e.g. "France + date range" works together.
   function applyBattleDate() {
@@ -293,8 +300,31 @@ export function injectBattleSearchBar() {
     if (S.battleMode !== "history") { S.battleMode = "history"; updateBattleTabPills(); }
     loadBattles(true);
   }
-  dFrom.addEventListener("change", applyBattleDate);
+  dFrom.addEventListener("change", () => { syncBattleDateToDisabled(); applyBattleDate(); });
   dTo.addEventListener("change", applyBattleDate);
+  syncBattleDateToDisabled();
+
+  // Full reset: clears the search bar, sort, region and date filters back to
+  // their default state (history feed, sort by date desc, no filters).
+  document.getElementById("resetBattleFiltersBtn")?.addEventListener("click", () => {
+    clearTimeout(searchTimer);
+    clearTimeout(regionTimer);
+    inp.value = "";
+    S.battleSearch = "";
+    resetBattleSearchState();
+    if (regionInp) { regionInp.value = ""; S.battleRegionFilter = ""; }
+    dFrom.value = ""; dTo.value = "";
+    S.battleDateFrom = ""; S.battleDateTo = "";
+    S.battleDateCapped = false;
+    syncBattleDateToDisabled();
+    S.battleSort = "ended"; S.battleSortDir = "desc";
+    sortBtns.forEach(b => b.classList.remove("active"));
+    const endedBtn = wrap.querySelector('[data-sort="ended"]');
+    if (endedBtn) endedBtn.classList.add("active");
+    updateSortArrows();
+    loadBattles(true);
+    inp.focus();
+  });
 
   document.getElementById("copyBattleListBtn")?.addEventListener("click", () => {
     playCopy();

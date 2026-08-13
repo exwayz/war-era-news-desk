@@ -664,7 +664,10 @@
 .battle-toolbar .sort-arrow { margin-left: 3px; font-size: .58rem; line-height: 1; opacity: .9; }
 .battle-toolbar .sort-arrow.off { opacity: .35; }
 .battle-toolbar input[type="date"] { flex: 0 1 120px; max-width: 150px; font-size: .72rem; padding: 2px 4px; height: 24px; }
+.battle-toolbar input[type="date"]:disabled { opacity: .4; cursor: not-allowed; }
 .battle-toolbar .btn-icon-sm { height: 24px; min-height: 24px; min-width: 24px; }
+.battle-toolbar #resetBattleFiltersBtn { color: var(--ink-dim); }
+.battle-toolbar #resetBattleFiltersBtn:hover { border-color: var(--red); color: var(--red); }
 .battle-toolbar .btn-load-mini {
   flex: 0 0 auto; height: 24px; padding: 2px 10px; font-size: .72rem; font-weight: 700;
   border: 1px solid var(--line); background: var(--surface-hi); color: var(--ink); cursor: pointer;
