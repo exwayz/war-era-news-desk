@@ -6,6 +6,8 @@ import { evtData, evtTime, buildTitle, buildSummary, fmtType } from "../timeline
 import { toast } from "../ui/toast.js";
 import * as cap from "../core/captureReport.js";
 import { getCountriesInRegion, populateRegionOptions } from "../core/regionClassification.js";
+import { playCopy } from "../audio/audio.js";
+import { countryColor, allianceColor } from "../battles/companies.js";
 
 const POLITICS_EVENT_TYPES = new Set([
   "allianceBroken","allianceFormed","allianceMemberExcluded","allianceMemberJoined","allianceMemberLeft",
@@ -169,9 +171,15 @@ function renderPolitics() {
   if (!container) return;
   const country = _countries.find(c => c._id === _selectedCountryId);
   const countryName = country?.name || _selectedCountryId.slice(-6);
+  if (country) S.lookups.countriesById.set(country._id, country);
+  const nameColor = countryColor(country?._id) ? brightenHex(countryColor(country._id), 0.3) : "";
+  container.style.setProperty("--pol-country-color", nameColor || "");
+  const flagHtml = country?.code
+    ? `<img class="pol-header-flag" src="https://media.warera.io/images/flags/${country.code.toLowerCase()}.svg" alt="" loading="lazy">`
+    : "";
   container.innerHTML = `
     <div class="pol-header">
-      <h3>${escHtml(countryName)}</h3>
+      <h3>${flagHtml}<span>${escHtml(countryName)}</span></h3>
     </div>
     <div class="pol-grid">
       <div class="glass-panel pol-section pol-gov">
@@ -179,7 +187,7 @@ function renderPolitics() {
         <div id="polGovBody">${renderGovernment()}</div>
       </div>
       <div class="glass-panel pol-section pol-summary">
-        <h4 class="pol-section-title">Political Summary</h4>
+        <h4 class="pol-section-title">Political Summary <button id="copyPolSummaryBtn" class="btn-icon-sm pol-summary-copy" title="Copy political summary"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon></button></h4>
         <div id="polSummaryBody" class="pol-scroll"></div>
       </div>
       <div class="glass-panel pol-section pol-parties">
@@ -192,17 +200,23 @@ function renderPolitics() {
       </div>
     </div>
   `;
+  document.getElementById("copyPolSummaryBtn")?.addEventListener("click", () => {
+    const body = document.querySelector("#polSummaryBody .pol-summary-body");
+    if (!body || !body.innerText.trim()) { toast("No summary available yet."); return; }
+    playCopy();
+    navigator.clipboard.writeText(body.innerText.trim()).then(() => toast("Political summary copied."));
+  });
 }
 
 function renderGovernment() {
   if (!_government) return '<p class="pol-empty">No government data</p>';
 
   const roles = [
-    { key: "president", label: "President:", icon: "👤" },
-    { key: "vicePresident", label: "Vice President:", icon: "👥" },
-    { key: "minOfDefense", label: "Minister of Defense:", icon: "⚔" },
-    { key: "minOfEconomy", label: "Minister of Economy:", icon: "💰" },
-    { key: "minOfForeignAffairs", label: "Foreign Affairs:", icon: "🌍" },
+    { key: "president", label: "President:", icon: "icon-park-twotone:five-star-badge", color: "var(--gold)" },
+    { key: "vicePresident", label: "Vice President:", icon: "icon-park-outline:five-star-badge", color: "var(--silver)" },
+    { key: "minOfDefense", label: "Minister of Defense:", icon: "stash:shield-duotone", color: "var(--red)" },
+    { key: "minOfEconomy", label: "Minister of Economy:", icon: "fa7-solid:money-bill-trend-up", color: "var(--yellow)" },
+    { key: "minOfForeignAffairs", label: "Foreign Affairs:", icon: "ion:earth", color: "var(--blue)" },
   ];
 
   const roleHtml = roles.map(r => {
@@ -212,7 +226,7 @@ function renderGovernment() {
     const partyTxt = userPartyName(userId);
     return `
       <div class="pol-role-row">
-        <span class="pol-role-icon">${r.icon}</span>
+        <span class="pol-role-icon"><iconify-icon icon="${r.icon}" style="color:${r.color}" class="lu"></iconify-icon></span>
         <span class="pol-role-label">${r.label}</span>
         <span class="pol-role-name"${partyTxt ? ` title="${escHtml(partyTxt)}"` : ""}>${userAvatar(user, userId)} ${escHtml(user?.username || '#' + userId.slice(-6))}</span>
       </div>
@@ -230,7 +244,7 @@ function renderGovernment() {
       : `<span class="pol-party-avatar-sm pol-party-initials-sm">${(party?.name?.charAt(0) || '?').toUpperCase()}</span>`;
     extraHtml += `
       <div class="pol-role-row">
-        <span class="pol-role-icon">🏛</span>
+        <span class="pol-role-icon"><iconify-icon icon="lsicon:user-crowd-filled" style="color:#ffffff;filter:drop-shadow(0 1px 2px rgba(0,0,0,.55))" class="lu"></iconify-icon></span>
         <span class="pol-role-label">Ruling Party:</span>
         <span class="pol-role-name">${pAvatar} ${escHtml(party?.name || rpId.slice(-6))}</span>
       </div>
@@ -242,9 +256,10 @@ function renderGovernment() {
     const aAvatar = _alliance.avatarUrl
       ? `<img class="pol-party-avatar-sm" src="${_alliance.avatarUrl}" alt="" loading="lazy">`
       : `<span class="pol-party-avatar-sm pol-party-initials-sm">${(_alliance.name?.charAt(0) || '?').toUpperCase()}</span>`;
+    const aColor = _countryDetail?.allianceId ? (allianceColor(_countryDetail.allianceId) || "var(--ink-dim)") : "var(--ink-dim)";
     extraHtml += `
       <div class="pol-role-row">
-        <span class="pol-role-icon">🤝</span>
+        <span class="pol-role-icon"><iconify-icon icon="material-symbols-light:handshake-sharp" style="color:${aColor}" class="lu"></iconify-icon></span>
         <span class="pol-role-label">Alliance:</span>
         <span class="pol-role-name">${aAvatar} ${escHtml(_alliance.allianceName || _alliance.name || _alliance._id?.slice(-6))}</span>
       </div>
@@ -256,7 +271,7 @@ function renderGovernment() {
   if (pacts && pacts.length > 0) {
     extraHtml += `
       <div class="pol-role-row">
-        <span class="pol-role-icon">🛡</span>
+        <span class="pol-role-icon"><iconify-icon icon="icon-park-twotone:agreement" style="color:var(--green)" class="lu"></iconify-icon></span>
         <span class="pol-role-label">Defensive Pacts:</span>
         <span class="pol-role-name">${pacts.length} pact${pacts.length > 1 ? 's' : ''}</span>
       </div>
@@ -468,6 +483,19 @@ async function showElectionDetail(electionId) {
   overlay.querySelector(".pol-detail-close").addEventListener("click", () => overlay.remove());
   document.addEventListener("keydown", function onEsc(e) { if (e.key === "Escape") { overlay.remove(); document.removeEventListener("keydown", onEsc); } });
   document.body.appendChild(overlay);
+}
+
+function hexToRgb(hex) {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || "");
+  if (!m) return null;
+  return { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) };
+}
+
+function brightenHex(hex, amt) {
+  const c = hexToRgb(hex);
+  if (!c) return "";
+  const mix = v => Math.round(v + (255 - v) * amt);
+  return `#${[mix(c.r), mix(c.g), mix(c.b)].map(v => v.toString(16).padStart(2, "0")).join("")}`;
 }
 
 function escHtml(s) {

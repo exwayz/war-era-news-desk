@@ -24,12 +24,24 @@
   padding: 0;
 }
 
-.pol-header { padding: 6px 14px 0; }
+.pol-header { padding: 6px 14px 0; display: flex; align-items: center; gap: 10px; }
 .pol-header h3 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1.5rem;
   font-weight: 800;
-  color: var(--accent);
+  color: var(--pol-country-color, var(--accent));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pol-header-flag {
+  width: 44px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .3);
+  flex-shrink: 0;
 }
 
 .pol-grid {
@@ -51,11 +63,19 @@
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: .07em;
-  color: var(--accent);
+  color: var(--pol-country-color, var(--accent));
   display: flex;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+}
+
+.pol-summary-copy {
+  margin-left: auto;
+  min-width: 26px;
+  min-height: 24px;
+  padding: 0 6px;
+  font-size: .78rem;
 }
 
 .pol-count {
@@ -93,7 +113,7 @@
 
 .pol-role-row:last-child { border-bottom: none; }
 
-.pol-role-icon { font-size: 1rem; width: 20px; text-align: center; flex-shrink: 0; }
+.pol-role-icon { font-size: 1.1rem; width: 22px; text-align: center; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 .pol-role-label { color: var(--ink-dim); font-weight: 700; font-size: .76rem; text-align: right; width: 140px; flex-shrink: 0; }
 .pol-role-name { color: var(--ink); font-weight: 600; display: flex; align-items: center; gap: 6px; min-width: 0; }
 
