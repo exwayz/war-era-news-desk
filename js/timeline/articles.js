@@ -93,7 +93,7 @@ function hasActiveFilters() {
   const langs = getActiveLangs();
   const cat = document.getElementById("articleCatFilter")?.value || "";
   const kw = E.articleSearch?.value?.trim() || "";
-  return !!(langs.length || cat || S.articleTimeFrom || S.articleTimeTo || kw);
+  return !!(langs.length || cat || kw);
 }
 
 function filterByLang(arts) {
@@ -181,16 +181,6 @@ export function renderArticles() {
   arts = filterByLang(arts);
   const artCat = document.getElementById("articleCatFilter")?.value || "";
   if (artCat) arts = arts.filter(a => a.category === artCat);
-  const af=S.articleTimeFrom, at=S.articleTimeTo;
-  if(af||at){
-    const fromMs=af?new Date(af).getTime():0;
-    const toMs=at?new Date(at).getTime():Infinity;
-    arts=arts.filter(a=>{
-      const ms=new Date(a.createdAt).getTime();
-      if(isNaN(ms)) return true;
-      return ms>=fromMs&&ms<=toMs;
-    });
-  }
   const aSort=S.articleSort||"date";
   arts=[...arts].sort((a,b)=>{
     if(aSort==="score"){
@@ -237,16 +227,6 @@ export async function copyArticles() {
   arts = filterByLang(arts);
   const artCat = document.getElementById("articleCatFilter")?.value || "";
   if (artCat) arts = arts.filter(a => a.category === artCat);
-  const af=S.articleTimeFrom, at=S.articleTimeTo;
-  if(af||at){
-    const fromMs=af?new Date(af).getTime():0;
-    const toMs=at?new Date(at).getTime():Infinity;
-    arts=arts.filter(a=>{
-      const ms=new Date(a.createdAt).getTime();
-      if(isNaN(ms)) return true;
-      return ms>=fromMs&&ms<=toMs;
-    });
-  }
   const aSort=S.articleSort||"date";
   arts=[...arts].sort((a,b)=>{
     if(aSort==="score"){

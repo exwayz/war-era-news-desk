@@ -204,8 +204,6 @@
                   <div class="lang-dropdown-menu hidden"></div>
                 </div>
                 <select id="articleCatFilter" class="filter-select"><option value="">All categories</option></select>
-                <input type="datetime-local" id="articleTimeFrom" title="From" class="art-date">
-                <input type="datetime-local" id="articleTimeTo" title="To" class="art-date">
               </div>
               <div id="articleStatusBox" class="status-msg" hidden></div>
               <div id="articleList" class="card-list"></div>
@@ -357,7 +355,12 @@
       <!-- LIBRARY -->
       <div class="tab-panel" id="tab-library">
         <div class="library-layout">
-          <div class="panel-head"><h2><iconify-icon icon="mdi:bookshelf" class="lu"></iconify-icon> Library</h2><p id="libraryMeta" class="meta-text">Ready.</p></div>
+          <div class="panel-head"><h2><iconify-icon icon="mdi:bookshelf" class="lu"></iconify-icon> Library</h2>
+            <div class="library-head-actions">
+              <button class="pill-btn" id="libraryBookmarksBtn" title="Bookmarked articles"><iconify-icon icon="mdi:bookmark-multiple-outline" class="lu"></iconify-icon><span id="libraryBookmarksCount" class="lib-book-count">0</span></button>
+              <p id="libraryMeta" class="meta-text">Ready.</p>
+            </div>
+          </div>
           <div class="library-toolbar">
             <div class="search-mode-group">
               <button class="pill-btn active" data-lib-search="keyword">Keyword</button>
@@ -368,9 +371,11 @@
               <button class="clear-btn" data-clears="librarySearch" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
             </div>
             <div class="tab-pill-group">
-              <button class="pill-btn active" data-lib-sort="date">Date</button>
-              <button class="pill-btn" data-lib-sort="score">Score</button>
+              <button class="pill-btn active" data-lib-sort="date">Date <span class="sort-arrow">▼</span></button>
+              <button class="pill-btn" data-lib-sort="score">Score <span class="sort-arrow">▼</span></button>
             </div>
+            <input type="datetime-local" id="libraryTimeFrom" title="From" class="art-date">
+            <input type="datetime-local" id="libraryTimeTo" title="To" class="art-date" disabled>
             <div class="lang-dropdown" id="libraryLangFilter">
               <button class="lang-dropdown-trigger" type="button">All Languages</button>
               <div class="lang-dropdown-menu hidden"></div>

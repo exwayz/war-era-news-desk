@@ -768,6 +768,15 @@
 .library-toolbar .library-search { flex: 1; min-width: 160px; }
 .library-toolbar .library-search input { font-size: .74rem; padding: 3px 26px 3px 6px; }
 .library-toolbar .lang-dropdown { flex: 0 1 140px; }
+.library-head-actions { display: flex; align-items: center; gap: 8px; }
+.library-head-actions .pill-btn { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; }
+.library-head-actions .pill-btn .lib-book-count { font-family: var(--font-num); font-size: .62rem; opacity: .85; }
+.library-head-actions .pill-btn.active .lib-book-count { opacity: 1; }
+.library-toolbar .pill-btn { font-size: .68rem; padding: 2px 8px; }
+.library-toolbar .sort-arrow { margin-left: 3px; font-size: .58rem; line-height: 1; opacity: .9; }
+.library-toolbar .sort-arrow.off { opacity: .35; }
+.library-toolbar input.art-date { flex: 0 1 120px; max-width: 150px; font-size: .7rem; padding: 2px 4px; height: 24px; }
+.library-toolbar input.art-date:disabled { opacity: .4; cursor: not-allowed; }
 .library-shelf {
   display: flex; align-items: center; gap: 8px;
   padding: 10px 12px; overflow-x: auto; flex-shrink: 0;

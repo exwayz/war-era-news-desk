@@ -378,8 +378,6 @@ function bindAll() {
       renderArticles();
     });
   });
-  document.getElementById("articleTimeFrom")?.addEventListener("change",()=>{ S.articleTimeFrom=document.getElementById("articleTimeFrom").value; renderArticles(); });
-  document.getElementById("articleTimeTo")?.addEventListener("change",()=>{ S.articleTimeTo=document.getElementById("articleTimeTo").value; renderArticles(); });
   const langCont = document.getElementById("articleLangFilter");
   const langTrigger = langCont?.querySelector(".lang-dropdown-trigger");
   const langMenu = langCont?.querySelector(".lang-dropdown-menu");

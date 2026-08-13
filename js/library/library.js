@@ -35,6 +35,9 @@ const L = {
   searchAuthorId: null,
   searchAuthorName: "",
   sort: "date",
+  sortDir: "desc",
+  timeFrom: "",
+  timeTo: "",
   langs: [],
   visible: VISIBLE_STEP,
 };
@@ -237,32 +240,30 @@ export function renderBookshelf() {
   const counts = categoryCounts();
   const categories = ["all", ...Object.keys(CATEGORY_META)];
   const isActive = (c) => (L.category || "all") === c;
-  const books = getBookmarkRecords();
-  const buttons = [
-    ...categories.map(c => {
-      const meta = c === "all" ? { label: "All", icon: "mdi:bookshelf" } : CATEGORY_META[c];
-      const count = counts[c] || 0;
-      const label = (c === "all" ? "All Articles" : meta.label) || c;
-      return `<button class="lib-book${isActive(c) ? " active" : ""}" data-lib-cat="${c}" title="${escapeHtml(label)} — ${count} articles">
-        <iconify-icon icon="${meta.icon}" class="lu"></iconify-icon>
-        <span class="lib-book-name">${escapeHtml(label)}</span>
-        <span class="lib-book-count">${fmtNum(count)}</span>
-      </button>`;
-    }),
-    `<button class="lib-book${isActive("bookmarks") ? " active" : ""}" data-lib-cat="bookmarks" title="${books.length} bookmarked articles">
-      <iconify-icon icon="mdi:bookmark-multiple-outline" class="lu"></iconify-icon>
-      <span class="lib-book-name">Bookmarks</span>
-      <span class="lib-book-count">${fmtNum(books.length)}</span>
-    </button>`,
-  ].join("");
-  el.innerHTML = buttons;
+  el.innerHTML = categories.map(c => {
+    const meta = c === "all" ? { label: "All", icon: "mdi:bookshelf" } : CATEGORY_META[c];
+    const count = counts[c] || 0;
+    const label = (c === "all" ? "All Articles" : meta.label) || c;
+    return `<button class="lib-book${isActive(c) ? " active" : ""}" data-lib-cat="${c}" title="${escapeHtml(label)} — ${count} articles">
+      <iconify-icon icon="${meta.icon}" class="lu"></iconify-icon>
+      <span class="lib-book-name">${escapeHtml(label)}</span>
+      <span class="lib-book-count">${fmtNum(count)}</span>
+    </button>`;
+  }).join("");
+}
+
+function renderBookmarksBtn() {
+  const btn = document.getElementById("libraryBookmarksBtn");
+  if (!btn) return;
+  btn.classList.toggle("active", L.category === "bookmarks");
+  const count = document.getElementById("libraryBookmarksCount");
+  if (count) count.textContent = fmtNum(getBookmarkRecords().length);
 }
 
 function getFiltered() {
   let arts;
   if (L.category === "bookmarks") {
     arts = [...getBookmarkRecords()];
-    arts.sort((a, b) => (b.bookmarkedAt || 0) - (a.bookmarkedAt || 0));
   } else {
     arts = L.index;
     if (L.category) arts = arts.filter(a => (a.category || "other") === L.category);
@@ -281,9 +282,19 @@ function getFiltered() {
       );
     }
   }
+  if (L.timeFrom || L.timeTo) {
+    const fromMs = L.timeFrom ? new Date(L.timeFrom).getTime() : 0;
+    const toMs = L.timeTo ? new Date(L.timeTo).getTime() : Infinity;
+    arts = arts.filter(a => {
+      const ms = new Date(a.createdAt).getTime();
+      if (isNaN(ms)) return true;
+      return ms >= fromMs && ms <= toMs;
+    });
+  }
   arts = [...arts];
-  if (L.sort === "score") arts.sort((a, b) => (b.stats?.score ?? 0) - (a.stats?.score ?? 0));
-  else arts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const dir = L.sortDir === "asc" ? 1 : -1;
+  if (L.sort === "score") arts.sort((a, b) => dir * ((a.stats?.score ?? 0) - (b.stats?.score ?? 0)));
+  else arts.sort((a, b) => dir * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()));
   return arts;
 }
 
@@ -416,14 +427,33 @@ export function initLibrary() {
   const loadMoreBtn = document.getElementById("loadMoreLibraryBtn");
   const langCont = document.getElementById("libraryLangFilter");
 
-  document.querySelectorAll("[data-lib-sort]").forEach(btn => {
+  const libSortBtns = document.querySelectorAll("[data-lib-sort]");
+  function updateLibSortArrows() {
+    for (const btn of libSortBtns) {
+      const arr = btn.querySelector(".sort-arrow");
+      if (!arr) continue;
+      const on = btn.classList.contains("active");
+      arr.textContent = on && L.sortDir === "asc" ? "▲" : "▼";
+      arr.classList.toggle("off", !on);
+    }
+  }
+  for (const btn of libSortBtns) {
     btn.addEventListener("click", () => {
-      L.sort = btn.dataset.libSort;
-      document.querySelectorAll("[data-lib-sort]").forEach(b => b.classList.toggle("active", b === btn));
+      const wasActive = btn.classList.contains("active");
+      libSortBtns.forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      if (wasActive) {
+        L.sortDir = L.sortDir === "desc" ? "asc" : "desc";
+      } else {
+        L.sort = btn.dataset.libSort;
+        L.sortDir = "desc";
+      }
+      updateLibSortArrows();
       L.visible = VISIBLE_STEP;
       renderLibrary();
     });
-  });
+  }
+  updateLibSortArrows();
 
   document.querySelectorAll("[data-lib-search]").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -463,9 +493,35 @@ export function initLibrary() {
       L.category = book.dataset.libCat === "all" ? "" : book.dataset.libCat;
       L.visible = VISIBLE_STEP;
       renderBookshelf();
+      renderBookmarksBtn();
       renderLibrary();
     });
   }
+
+  document.getElementById("libraryBookmarksBtn")?.addEventListener("click", () => {
+    L.category = L.category === "bookmarks" ? "" : "bookmarks";
+    L.visible = VISIBLE_STEP;
+    renderBookshelf();
+    renderBookmarksBtn();
+    renderLibrary();
+  });
+
+  const tFrom = document.getElementById("libraryTimeFrom");
+  const tTo = document.getElementById("libraryTimeTo");
+  function syncLibDateToDisabled() {
+    if (!tTo) return;
+    tTo.disabled = !tFrom || !tFrom.value;
+    if (tFrom && !tFrom.value) tTo.value = "";
+  }
+  function applyLibDate() {
+    L.timeFrom = tFrom?.value || "";
+    L.timeTo = tTo?.value || "";
+    L.visible = VISIBLE_STEP;
+    renderLibrary();
+  }
+  tFrom?.addEventListener("change", () => { syncLibDateToDisabled(); applyLibDate(); });
+  tTo?.addEventListener("change", applyLibDate);
+  syncLibDateToDisabled();
 
 
   if (loadMoreBtn) {
@@ -483,7 +539,13 @@ export function initLibrary() {
     L.loadedFromStore = false;
     L.persistContent = true;
     L.visible = VISIBLE_STEP;
+    L.timeFrom = ""; L.timeTo = "";
+    L.sortDir = "desc";
+    if (tFrom) tFrom.value = "";
+    if (tTo) tTo.value = "";
+    syncLibDateToDisabled();
     renderBookshelf();
+    renderBookmarksBtn();
     renderLibrary();
     populateLangDropdown();
     status("Cache cleared — re-indexing library…");
@@ -510,12 +572,14 @@ export function initLibrary() {
   }
 
   renderBookshelf();
+  renderBookmarksBtn();
   renderLibrary();
   populateLangDropdown();
   ensureLibraryIndex();
-  ensureBookmarksLoaded().then(() => { renderBookshelf(); renderLibrary(); });
+  ensureBookmarksLoaded().then(() => { renderBookshelf(); renderBookmarksBtn(); renderLibrary(); });
   document.addEventListener("nd:bookmarks-changed", () => {
     renderBookshelf();
+    renderBookmarksBtn();
     renderLibrary();
   });
 }
