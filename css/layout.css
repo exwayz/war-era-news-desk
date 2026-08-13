@@ -579,17 +579,17 @@
   font-size: .6rem; font-weight: 700; text-align: center; line-height: 1.15; color: var(--ink-dim);
   overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; max-width: 100%;
 }
-.bc-flag-img { width: 26px; height: 18px; object-fit: cover; border: 1px solid var(--line); }
-.bc-flag-img--round { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; border: 1px solid var(--line); }
-.bc-score { flex: 0 0 auto; font-size: 1.02rem; font-weight: 900; font-family: var(--font-num); line-height: 1; min-width: 14px; text-align: center; }
-.bc-emblem { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 46px; }
-.bc-emblem-icons { position: relative; display: flex; align-items: center; justify-content: center; height: 30px; min-height: 30px; }
+.bc-flag-img { width: 32px; height: 22px; object-fit: cover; border: 1px solid var(--line); box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+.bc-flag-img--round { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid var(--line); box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+.bc-score { flex: 0 0 auto; font-size: 1.28rem; font-weight: 900; font-family: var(--font-num); line-height: 1; min-width: 16px; text-align: center; }
+.bc-emblem { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 38px; }
+.bc-emblem-icons { position: relative; display: flex; align-items: center; justify-content: center; height: 24px; min-height: 24px; }
 .bc-ico-shield {
-  font-size: 1.75rem; line-height: 1;
+  font-size: 1.35rem; line-height: 1;
   position: relative; z-index: 0;
 }
 .bc-ico-strike {
-  font-size: 1.75rem; line-height: 1;
+  font-size: 1.35rem; line-height: 1;
   position: relative; z-index: 1;
   transform: translateX(-25%);
   filter: drop-shadow(0 1px 1px rgba(0,0,0,.35));
