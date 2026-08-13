@@ -79,6 +79,11 @@ function syncEndTimeDisabled() {
 
 function bootData() {
   E.globalEventsTitle.classList.add("live");
+  // Boot to the default view: no date range. Browsers can restore the static
+  // datetime-local inputs across a reload, and a restored range would trigger
+  // the slow full-range feed walk at startup instead of the instant single page.
+  if (E.startTimeInput) E.startTimeInput.value = "";
+  syncEndTimeDisabled();
   loadEvents(true);
   loadArticles(true);
   startAutoRefresh();
