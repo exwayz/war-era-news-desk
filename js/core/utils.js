@@ -54,6 +54,38 @@ const SANITIZE_TAGS = new Set([
 ]);
 const SANITIZE_HREF_OK = /^(https?:|mailto:|tel:|#)/i;
 
+// Article rich-text carries its layout as inline styles (alignment, font).
+// Keep only typographic/layout declarations that are safe — no URLs, no JS,
+// no positioning that could overlay the page.
+const SANITIZE_STYLE_OK = new Set([
+  "text-align","text-indent","text-decoration","text-transform","text-shadow",
+  "direction","unicode-bidi",
+  "font-family","font-size","font-weight","font-style","font-variant",
+  "line-height","letter-spacing","word-spacing","white-space","vertical-align",
+  "color","background-color",
+  "margin","margin-top","margin-right","margin-bottom","margin-left",
+  "padding","padding-top","padding-right","padding-bottom","padding-left",
+  "width","height","min-width","min-height","max-width","max-height",
+  "border","border-top","border-right","border-bottom","border-left",
+  "border-color","border-style","border-width","border-radius",
+]);
+const SANITIZE_STYLE_BAD = /url\s*\(|expression\s*\(|javascript\s*:|behavior\s*:|@import|-moz-binding/i;
+
+function sanitizeStyle(raw) {
+  if (!raw) return "";
+  const kept = [];
+  for (const decl of String(raw).split(";")) {
+    const idx = decl.indexOf(":");
+    if (idx <= 0) continue;
+    const prop = decl.slice(0, idx).trim().toLowerCase();
+    if (!SANITIZE_STYLE_OK.has(prop)) continue;
+    const val = decl.slice(idx + 1).replace(/!important/gi, "").trim();
+    if (!val || SANITIZE_STYLE_BAD.test(val)) continue;
+    kept.push(`${prop}:${val}`);
+  }
+  return kept.join(";");
+}
+
 export function sanitizeHtml(html) {
   if (!html) return "";
   const template = document.createElement("template");
@@ -77,8 +109,18 @@ export function sanitizeHtml(html) {
     }
     for (const attr of [...node.attributes]) {
       const n = attr.name.toLowerCase();
-      if (/^on/i.test(n) || /^style$/i.test(n) || /^class$/i.test(n)) {
+      if (/^on/i.test(n) || /^class$/i.test(n)) {
         node.removeAttribute(attr.name);
+        continue;
+      }
+      if (n === "style") {
+        const v = sanitizeStyle(node.getAttribute("style"));
+        if (v) node.setAttribute("style", v); else node.removeAttribute("style");
+        continue;
+      }
+      if (n === "align") {
+        const v = String(attr.value || "").trim().toLowerCase();
+        if (!["left", "right", "center", "justify"].includes(v)) node.removeAttribute("align");
         continue;
       }
       if (n === "href" || n === "src") {
