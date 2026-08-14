@@ -1,11 +1,16 @@
 import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
 import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
-import { fmtDate, fmtNum, getValue, getPoints, normalizeRankRow, escapeHtml, rankBadgeHtml } from "../core/utils.js";
+import { fmtDate, fmtNum, fmtMoney, getValue, getPoints, normalizeRankRow, escapeHtml, rankBadgeHtml } from "../core/utils.js";
 import { nameCountry, nameRegion, nameUser, nameMu, battleSideColors, ensureAlliances, allianceColor, allianceName, sideAllianceGroups, battleSideAllianceCountries } from "./companies.js";
 import { buildAndDownloadXLS, battleId, battleTypeKind } from "./battles.js";
 import { fetchBattleContracts, fetchBattleMoney, bountySummaryHtml, bindBountySummaryButtons } from "./bounty.js";
 import { ensureLookups } from "../timeline/filters.js";
+import { toast } from "../ui/toast.js";
+
+// Snapshot of the currently rendered battle detail, captured inside
+// renderBattleDetail so the markdown copy report can be built on demand.
+let _battleReportCtx = null;
 
 function orderIssuer(o) {
   if (o.mu) return nameMu(o.mu) || `MU ${String(o.mu).slice(-6)}`;
@@ -836,6 +841,18 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
   let currentScopeData = null;
   let currentScopeHtml = "";
 
+  _battleReportCtx = {
+    b, bid,
+    defLabel: sideLabel("defender", def || "Defender"),
+    atkLabel: sideLabel("attacker", atk || "Attacker"),
+    reg, battleTypeLabel, isLive, winner,
+    defRoundsWon, atkRoundsWon, roundsToWin,
+    sortedRounds, started, ended, durationStr,
+    contracts,
+    overallScope, roundScope, rankConfigFor, rankEntity,
+    getScope: () => currentScopeData,
+  };
+
   // Live battles default to the active round so you land on the round that is
   // currently playing; ended battles default to Overall. A saved view for this
   // battle (chosen via the round tabs) still wins over the default.
@@ -992,6 +1009,105 @@ function formatDuration(ms) {
 }
 
 
+
+function brRankTable(typeLabel, list, valFn, valLabel, atkLabel, defLabel) {
+  const rows = (list || [])
+    .filter(r => r._side === "attacker" || r._side === "defender")
+    .sort((a, b) => valFn(b) - valFn(a))
+    .slice(0, 10);
+  if (!rows.length) return "";
+  const head = `| Rank | Side | ${typeLabel} | ${valLabel} |\n|---|---|---|---|\n`;
+  const body = rows.map((r, i) => `| ${i + 1} | ${r._side === "attacker" ? atkLabel : defLabel} | ${r.name} | ${fmtNum(valFn(r))} |`).join("\n");
+  return head + body;
+}
+
+function brBountyLine(ctx) {
+  const b = ctx.b;
+  const atkPerK = b.attacker?.moneyPer1kDamages ?? b.attackerMoneyPer1kDamages;
+  const defPerK = b.defender?.moneyPer1kDamages ?? b.defenderMoneyPer1kDamages;
+  const pool = (Number(b.attacker?.moneyPool ?? b.attackerMoneyPool) || 0) + (Number(b.defender?.moneyPool ?? b.defenderMoneyPool) || 0);
+  const cAtk = ctx.contracts?.side?.attacker?.count ?? ctx.contracts?.attacker?.count;
+  const cDef = ctx.contracts?.side?.defender?.count ?? ctx.contracts?.defender?.count;
+  const parts = [];
+  if (atkPerK != null || defPerK != null) parts.push(`₿${fmtMoney(atkPerK ?? defPerK)}/1k`);
+  if (pool > 0) parts.push(`₿${fmtNum(pool)} pool`);
+  if (cAtk != null || cDef != null) parts.push(`${(cAtk || 0) + (cDef || 0)} contracts`);
+  if (!parts.length) return "";
+  return `**Bounty:** ${parts.join(" · ")}`;
+}
+
+function buildBattleReportMarkdown() {
+  const ctx = _battleReportCtx;
+  if (!ctx) return "";
+  const sc = ctx.getScope() || ctx.overallScope();
+  const { atkLabel, defLabel, reg, battleTypeLabel, isLive, winner } = ctx;
+  const L = [];
+
+  L.push(`# ${battleTypeLabel}: ${defLabel} vs ${atkLabel}${reg ? " — " + reg : ""}`);
+  L.push("");
+  L.push(`- **Status:** ${isLive ? "LIVE" : "Ended"} · **First to:** ${ctx.roundsToWin} round(s) · **Score:** ${ctx.defRoundsWon}–${ctx.atkRoundsWon}`);
+  const times = [
+    ctx.started ? `Started: ${fmtDate(ctx.started)}` : "",
+    ctx.ended ? `Ended: ${fmtDate(ctx.ended)}` : (isLive ? "Ended: Ongoing" : ""),
+    ctx.durationStr ? `Duration: ${ctx.durationStr}` : "",
+  ].filter(Boolean).join(" · ");
+  if (times) L.push(`- ${times}`);
+  L.push(`- **Winner:** ${winner || "—"} · **Total Damage:** ${fmtNum(sc.totalDmg)} · **Fighters:** ${fmtNum(sc.participantsT)} · **Hits:** ${fmtNum(sc.hitCount || 0)}`);
+  L.push(`- **Damage Share:** ${defLabel} ${sc.defPct}% vs ${sc.atkPct}% ${atkLabel}`);
+  const bounty = brBountyLine(ctx);
+  if (bounty) L.push(`- ${bounty}`);
+  L.push("");
+
+  if (ctx.sortedRounds.length) {
+    L.push("## Rounds");
+    L.push("");
+    L.push("| Round | Winner | Total Damage | Split |");
+    L.push("|---|---|---:|---|");
+    ctx.sortedRounds.forEach((rd, idx) => {
+      let r = null;
+      try { r = ctx.roundScope(rd, idx); } catch {}
+      L.push(`| Round ${idx + 1} | ${r?.winner || "—"} | ${r?.totalDmg ? fmtNum(r.totalDmg) : "—"} | ${r ? r.defPct + "% vs " + r.atkPct + "%" : "—"} |`);
+    });
+    L.push("");
+    L.push("## Overall");
+    L.push("");
+    if (sc.narrative) L.push(sc.narrative.replace(/<[^>]*>/g, "").trim());
+    L.push("");
+  }
+
+  L.push("## Rankings");
+  L.push("");
+  const cats = [["damage", "Damage", getValue], ["points", "Ground Points", getPoints]];
+  const types = [
+    ["users", "Fighter", r => nameUser(r.userId || r.user) || r.username || "Unknown"],
+    ["mus", "Military Unit", r => nameMu(r.muId || r.mu) || `MU ${String(r.muId || r.mu).slice(-6)}`],
+    ["countries", "Country", r => nameCountry(r.countryId || r.country) || r.countryName || r.name || "Unknown"],
+  ];
+  for (const [catKey, catLabel, valFn] of cats) {
+    const cfg = ctx.rankConfigFor(sc)[catKey];
+    for (const [typeKey, typeLabel, nameFn] of types) {
+      const src = cfg.sources[typeKey] || [];
+      const table = brRankTable(typeLabel, src.map(r => ({ ...r, name: nameFn(r) })), valFn, catLabel, atkLabel, defLabel);
+      if (table) {
+        L.push(`### ${catLabel} — ${typeLabel}s`);
+        L.push("");
+        L.push(table);
+        L.push("");
+      }
+    }
+  }
+  return L.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+export function copyBattleReport() {
+  const txt = buildBattleReportMarkdown();
+  if (!txt) return;
+  navigator.clipboard?.writeText(txt).then(() => toast("Battle report copied.")).catch(() => {});
+}
+
+document.addEventListener("click", e => {
+  if (e.target.closest("#copyBattleReportBtn")) copyBattleReport();
+});
 
 function exportBattleXLS(b, bid, rankUsers, gpUsers, rankMu, gpMu, rankCountry, gpCountry) {
   const isCivilWar = battleTypeKind(b.type) === "revolution" && b.type !== "tournament";

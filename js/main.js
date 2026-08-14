@@ -435,7 +435,6 @@ function bindAll() {
   injectBattleSearchBar();
   E.closeBattleReport?.addEventListener("click", () => clearBattleDetail());
   E.battleReportModal?.addEventListener("click", e => { if (e.target === E.battleReportModal) clearBattleDetail(); });
-  E.copyBattleReportBtn?.addEventListener("click",()=>{ navigator.clipboard.writeText(E.battleReportContent.innerText||"").then(()=>toast("Battle report copied.")); });
   E.openBattlePageBtn?.addEventListener("click", () => { const id = E.openBattlePageBtn.dataset.battleId; if (id) window.open(`https://app.warera.io/battle/${id}`, "_blank"); });
 
   E.marketRefreshBtn?.addEventListener("click",()=>loadMarketFull(true));
