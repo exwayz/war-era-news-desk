@@ -682,6 +682,7 @@
 /* ── ENTITY LINKS ───────────────────────────────────── */
 .entity-link { color: var(--entity); text-decoration: none; cursor: pointer; }
 .entity-link::after { content: " ↗"; opacity: .45; font-size: .8em; }
+.reader-body .entity-link::after { content: none; }
 .entity-resolving {
   display: inline-flex; align-items: center; gap: 3px;
   padding: 1px 6px; background: var(--surface); border: 1px solid var(--line);
