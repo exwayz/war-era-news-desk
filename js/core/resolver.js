@@ -188,7 +188,7 @@ export async function resolveContentLinks(container) {
   for (const {span,type,id,info} of parsed) {
     const data = getData(type,id);
     const name = entityDisplayName(type,id,data);
-    const url = info?.fullMatch || `https://app.warera.io/${type}/${id}`;
+    const url = `https://app.warera.io/${type}/${id}`;
     span.classList.remove("entity-resolving");
     span.innerHTML = `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="entity-link">${escapeHtml(name)}</a>`;
   }
