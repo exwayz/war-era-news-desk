@@ -117,14 +117,39 @@ function bindAll() {
     btn.addEventListener("click",()=>switchTab(btn.dataset.tab));
   });
 
-  // Writer redirect
-  document.getElementById("writerRedirect")?.addEventListener("click",()=>{
-    window.open("https://lundgrenwarera.github.io/warera-writer/", "_blank");
+  // External tools bubble (folder of external tool links)
+  const extToolsBtn = document.getElementById("externalToolsBtn");
+  const extToolsBubble = document.getElementById("externalToolsBubble");
+  const closeExtTools = () => {
+    if (extToolsBubble) extToolsBubble.hidden = true;
+    extToolsBtn?.setAttribute("aria-expanded", "false");
+  };
+  extToolsBtn?.addEventListener("click", e => {
+    e.stopPropagation();
+    if (extToolsBubble) {
+      if (extToolsBubble.hidden) {
+        const rect = extToolsBtn.getBoundingClientRect();
+        extToolsBubble.style.top = Math.max(8, rect.top) + "px";
+        extToolsBubble.style.left = (rect.right + 8) + "px";
+        extToolsBubble.hidden = false;
+        extToolsBtn.setAttribute("aria-expanded", "true");
+      } else {
+        closeExtTools();
+      }
+    }
   });
-
-  // Article resolver redirect
-  document.getElementById("articleResolverRedirect")?.addEventListener("click",()=>{
-    window.open("https://exwayz.github.io/article-resover/", "_blank");
+  extToolsBubble?.querySelectorAll("[data-ext-url]").forEach(item => {
+    item.addEventListener("click", () => {
+      window.open(item.dataset.extUrl, "_blank");
+      closeExtTools();
+    });
+  });
+  document.addEventListener("click", e => {
+    if (extToolsBubble && !extToolsBubble.hidden &&
+      !e.target.closest("#externalToolsBubble") && !e.target.closest("#externalToolsBtn")) closeExtTools();
+  });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && extToolsBubble && !extToolsBubble.hidden) closeExtTools();
   });
 
   E.clearApiKeyBtn?.addEventListener("click",()=>{ E.apiKeyInput.value=""; E.apiKeyInput.focus(); });

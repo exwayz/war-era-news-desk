@@ -116,6 +116,33 @@
 }
 .timeline-badge[hidden]{ display:none !important; }
 
+/* ── EXTERNAL TOOLS BUBBLE (sidebar) ────────────────── */
+.tools-bubble {
+  position: fixed;
+  z-index: 500;
+  min-width: 195px;
+  padding: 6px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  box-shadow: 0 10px 28px rgba(0,0,0,.45);
+}
+.tools-bubble[hidden] { display: none; }
+.tools-bubble-head {
+  font-family: var(--font-num);
+  font-size: .58rem; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink-dim); padding: 3px 10px 5px; user-select: none;
+}
+.tools-bubble-item {
+  display: flex; align-items: center; gap: 9px;
+  width: 100%; padding: 8px 10px;
+  background: transparent; border: 0; color: var(--ink);
+  font-family: var(--font-body); font-size: .78rem; font-weight: 700;
+  border-radius: 6px; cursor: pointer; text-align: left;
+}
+.tools-bubble-item:hover { background: var(--surface); }
+.tools-bubble-icon { display: flex; align-items: center; justify-content: center; width: 22px; font-size: 1rem; flex-shrink: 0; }
+
 /* ── TIMELINE TAB ──────────────────────────────────── */
 .timeline-grid {
   display: grid; grid-template-columns: 1fr 1fr;
