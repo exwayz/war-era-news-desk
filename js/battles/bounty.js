@@ -3,6 +3,7 @@ import { apiKey, fetchTrpcApi2, unwrap } from "../core/api.js";
 import { fmtMoney, fmtNum, fmtDate, escapeHtml, rankBadgeHtml } from "../core/utils.js";
 import { resolveEntityByType } from "../core/resolver.js";
 import { nameCountry, nameMu, nameUser, nameRegion, battleSideColors } from "./companies.js";
+import { toast } from "../ui/toast.js";
 
 const CONTRACT_STATUSES = ["won", "active", "expiredNoBids"];
 const CONTRACT_TTL = 60000;
@@ -446,10 +447,112 @@ async function resolveContractEntities(contracts, money) {
   ]);
 }
 
+function contractStatusPlain(s) {
+  if (s === "won") return "Won";
+  if (s === "active") return "Active";
+  if (s === "expiredNoBids") return "No bids";
+  if (s === "cancelled") return "Cancelled";
+  if (s === "expiredBattle") return "Battle ended";
+  if (s === "expiredRound") return "Round ended";
+  return s || "—";
+}
+
+function contractWinnerPlain(c) {
+  if (c.status === "active") {
+    const bid = (c.bids || []).slice(-1)[0];
+    if (!bid) return "no bids yet";
+    const parts = [
+      bid.mu ? (nameMu(bid.mu) || `MU ${String(bid.mu).slice(-6)}`) : "",
+      bid.user ? (nameUser(bid.user) || "") : "",
+    ].filter(Boolean);
+    return parts.length ? `top bid ${parts.join(" / ")}` : "no bids yet";
+  }
+  if (c.status !== "won") return "—";
+  const muId = c.currentWinner || c.bids?.[0]?.mu;
+  const userId = c.currentWinnerUser || c.bids?.[0]?.user;
+  return [muId ? (nameMu(muId) || `MU ${String(muId).slice(-6)}`) : "", userId ? (nameUser(userId) || "") : ""].filter(Boolean).join(" / ") || "—";
+}
+
 export function copyBountyReport() {
-  const txt = E.bountyModalBody?.innerText || "";
-  if (!txt) return;
-  navigator.clipboard?.writeText(txt).then(() => {}).catch(() => {});
+  if (!_modalData || !E.bountyModalBody) return;
+  const { b, contracts: c, money } = _modalData;
+  const { atkName, defName } = battleNames(b);
+  const reg = nameRegion(b?.defender?.region || b.defenderRegion || b.region);
+  const spend = battleSpend(b, c, money);
+  const totalMoney = spend.atkSpent + spend.defSpent;
+  const L = [];
+
+  L.push("# War Era Bounty Report");
+  L.push(`Generated: ${new Date().toUTCString()}`);
+  L.push("");
+  L.push("## Bounty & Mercenary Contracts");
+  L.push(`- Battle: ${defName} vs ${atkName}${reg ? " in " + reg : ""}`);
+  L.push("");
+  L.push("## Summary");
+  L.push(`- Contracts: ${c.items.length}`);
+  L.push(`- Contract Budget: ${fmtMoney(c.totalBudget)} BTC`);
+  L.push(`- Contract Payouts: ${fmtMoney(c.totalPayout)} BTC`);
+  L.push(`- Money Paid (Bounty + Contracts): ${fmtMoney(totalMoney)} BTC`);
+  L.push(`- Won: ${c.won.length}`);
+  L.push(`- Active: ${c.active.length}`);
+  L.push(`- No Bids: ${c.expired.length}`);
+  L.push("");
+  L.push("## Per-Side Spend");
+  const sideRow = (name, sideKeyName, perK, count, budget, payout, total) => [
+    `${name} (${sideKeyName}):`,
+    perK != null ? `${perK}/1k damage` : "",
+    `${count} contracts`,
+    `budget ${fmtMoney(budget)} BTC`,
+    `paid ${fmtMoney(payout)} BTC`,
+    `total ${fmtMoney(total)} BTC`,
+  ].filter(Boolean).join(" · ");
+  L.push(`- ${sideRow(defName, "Defender", spend.defPerK, spend.defCount, c.side?.defender?.budget ?? 0, c.side?.defender?.payout ?? 0, spend.defSpent)}`);
+  L.push(`- ${sideRow(atkName, "Attacker", spend.atkPerK, spend.atkCount, c.side?.attacker?.budget ?? 0, c.side?.attacker?.payout ?? 0, spend.atkSpent)}`);
+  L.push("");
+
+  const typeCfgs = [
+    ["users", "Fighters", r => moneyEntityNameLink(r, "users")[0]],
+    ["mus", "Military Units", r => moneyEntityNameLink(r, "mus")[0]],
+    ["countries", "Countries", r => moneyEntityNameLink(r, "countries")[0]],
+  ];
+  const moneyBlocks = [];
+  for (const [typeKey, typeLabel, nameFn] of typeCfgs) {
+    const atkArr = money?.atk?.[typeKey] || [];
+    const defArr = money?.def?.[typeKey] || [];
+    if (!atkArr.length && !defArr.length) continue;
+    const block = [`### ${typeLabel}`, ""];
+    if (defArr.length) {
+      block.push(`${defName} (Defender) top 10:`);
+      defArr.slice(0, 10).forEach((r, i) => block.push(`- ${Number(r.rank) || i + 1}. ${nameFn(r)}: ${fmtMoney(r.value)} BTC`));
+      block.push("");
+    }
+    if (atkArr.length) {
+      block.push(`${atkName} (Attacker) top 10:`);
+      atkArr.slice(0, 10).forEach((r, i) => block.push(`- ${Number(r.rank) || i + 1}. ${nameFn(r)}: ${fmtMoney(r.value)} BTC`));
+      block.push("");
+    }
+    moneyBlocks.push(...block);
+  }
+  if (moneyBlocks.length) {
+    L.push("## Money Ranking — Who Earned What", "");
+    L.push(...moneyBlocks);
+  }
+
+  const filtered = _bountyFilter === "all" ? c.items : c.items.filter(i => i.status === _bountyFilter);
+  const shown = filtered.slice(0, MAX_CARDS);
+  if (shown.length) {
+    L.push("## Mercenary Contracts", "");
+    shown.forEach(x => {
+      const side = sideKey(x) === "defender" ? defName : atkName;
+      const perK = Number.isFinite(Number(x.currentPerK)) ? `${Number(x.currentPerK)}/1k` : "—";
+      L.push(`- [${contractStatusPlain(x.status)}] ${side} — budget ${fmtMoney(x.budget)} BTC · payout ${fmtMoney(x.currentPayout)} BTC · current ${perK} · ${contractWinnerPlain(x)}`);
+    });
+    if (filtered.length > MAX_CARDS) L.push(`- (showing first ${MAX_CARDS} of ${filtered.length} contracts)`);
+    L.push("");
+  }
+
+  const txt = L.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  navigator.clipboard?.writeText(txt).then(() => toast("Bounty report copied.")).catch(() => {});
 }
 
 document.addEventListener("click", e => {

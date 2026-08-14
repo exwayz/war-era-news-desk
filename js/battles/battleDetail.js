@@ -1010,15 +1010,20 @@ function formatDuration(ms) {
 
 
 
-function brRankTable(typeLabel, list, valFn, valLabel, atkLabel, defLabel) {
-  const rows = (list || [])
-    .filter(r => r._side === "attacker" || r._side === "defender")
-    .sort((a, b) => valFn(b) - valFn(a))
-    .slice(0, 10);
-  if (!rows.length) return "";
-  const head = `| Rank | Side | ${typeLabel} | ${valLabel} |\n|---|---|---|---|\n`;
-  const body = rows.map((r, i) => `| ${i + 1} | ${r._side === "attacker" ? atkLabel : defLabel} | ${r.name} | ${fmtNum(valFn(r))} |`).join("\n");
-  return head + body;
+function brRankSection(list, valFn, atkLabel, defLabel, nameFn) {
+  const atk = (list || []).filter(r => r._side === "attacker").sort((a, b) => valFn(b) - valFn(a)).slice(0, 10);
+  const def = (list || []).filter(r => r._side === "defender").sort((a, b) => valFn(b) - valFn(a)).slice(0, 10);
+  if (!atk.length && !def.length) return "";
+  const L = [];
+  if (atk.length) {
+    L.push(`${atkLabel} top 10:`);
+    atk.forEach((r, i) => L.push(`- ${i + 1}. ${nameFn(r) || "Unknown"}: ${fmtNum(valFn(r))}`));
+  }
+  if (def.length) {
+    L.push(`${defLabel} top 10:`);
+    def.forEach((r, i) => L.push(`- ${i + 1}. ${nameFn(r) || "Unknown"}: ${fmtNum(valFn(r))}`));
+  }
+  return L.join("\n");
 }
 
 function brBountyLine(ctx) {
@@ -1029,11 +1034,11 @@ function brBountyLine(ctx) {
   const cAtk = ctx.contracts?.side?.attacker?.count ?? ctx.contracts?.attacker?.count;
   const cDef = ctx.contracts?.side?.defender?.count ?? ctx.contracts?.defender?.count;
   const parts = [];
-  if (atkPerK != null || defPerK != null) parts.push(`₿${fmtMoney(atkPerK ?? defPerK)}/1k`);
-  if (pool > 0) parts.push(`₿${fmtNum(pool)} pool`);
+  if (atkPerK != null || defPerK != null) parts.push(`${fmtMoney(atkPerK ?? defPerK)} BTC/1k damage`);
+  if (pool > 0) parts.push(`${fmtMoney(pool)} BTC total pool`);
   if (cAtk != null || cDef != null) parts.push(`${(cAtk || 0) + (cDef || 0)} contracts`);
   if (!parts.length) return "";
-  return `**Bounty:** ${parts.join(" · ")}`;
+  return `- Bounty: ${parts.join(" · ")}`;
 }
 
 function buildBattleReportMarkdown() {
@@ -1043,58 +1048,66 @@ function buildBattleReportMarkdown() {
   const { atkLabel, defLabel, reg, battleTypeLabel, isLive, winner } = ctx;
   const L = [];
 
-  L.push(`# ${battleTypeLabel}: ${defLabel} vs ${atkLabel}${reg ? " — " + reg : ""}`);
+  L.push("# War Era Battle Report");
+  L.push(`Generated: ${new Date().toUTCString()}`);
   L.push("");
-  L.push(`- **Status:** ${isLive ? "LIVE" : "Ended"} · **First to:** ${ctx.roundsToWin} round(s) · **Score:** ${ctx.defRoundsWon}–${ctx.atkRoundsWon}`);
-  const times = [
-    ctx.started ? `Started: ${fmtDate(ctx.started)}` : "",
-    ctx.ended ? `Ended: ${fmtDate(ctx.ended)}` : (isLive ? "Ended: Ongoing" : ""),
-    ctx.durationStr ? `Duration: ${ctx.durationStr}` : "",
-  ].filter(Boolean).join(" · ");
-  if (times) L.push(`- ${times}`);
-  L.push(`- **Winner:** ${winner || "—"} · **Total Damage:** ${fmtNum(sc.totalDmg)} · **Fighters:** ${fmtNum(sc.participantsT)} · **Hits:** ${fmtNum(sc.hitCount || 0)}`);
-  L.push(`- **Damage Share:** ${defLabel} ${sc.defPct}% vs ${sc.atkPct}% ${atkLabel}`);
+  L.push("## Battle Overview");
+  L.push(`- Battle: ${battleTypeLabel} — ${defLabel} vs ${atkLabel}${reg ? " in " + reg : ""}`);
+  L.push(`- Status: ${isLive ? "LIVE" : "Ended"}`);
+  L.push(`- Score: ${defLabel} ${ctx.defRoundsWon}–${ctx.atkRoundsWon} ${atkLabel}`);
+  L.push(`- First to: ${ctx.roundsToWin} round(s)`);
+  if (ctx.started) L.push(`- Started: ${fmtDate(ctx.started)}`);
+  if (ctx.ended) L.push(`- Ended: ${fmtDate(ctx.ended)}`);
+  if (ctx.durationStr) L.push(`- Duration: ${ctx.durationStr}`);
+  L.push(`- Winner: ${winner || "—"}`);
+  L.push(`- Total Damage: ${fmtNum(sc.totalDmg)}`);
+  L.push(`- Fighters: ${fmtNum(sc.participantsT)}`);
+  L.push(`- Hits: ${fmtNum(sc.hitCount || 0)}`);
+  L.push(`- Damage Share: ${defLabel} ${sc.defPct}% vs ${sc.atkPct}% ${atkLabel}`);
   const bounty = brBountyLine(ctx);
-  if (bounty) L.push(`- ${bounty}`);
+  if (bounty) L.push(bounty);
   L.push("");
 
   if (ctx.sortedRounds.length) {
     L.push("## Rounds");
     L.push("");
-    L.push("| Round | Winner | Total Damage | Split |");
-    L.push("|---|---|---:|---|");
     ctx.sortedRounds.forEach((rd, idx) => {
       let r = null;
       try { r = ctx.roundScope(rd, idx); } catch {}
-      L.push(`| Round ${idx + 1} | ${r?.winner || "—"} | ${r?.totalDmg ? fmtNum(r.totalDmg) : "—"} | ${r ? r.defPct + "% vs " + r.atkPct + "%" : "—"} |`);
+      const w = r?.winner || "—";
+      const dmg = r?.totalDmg ? fmtNum(r.totalDmg) : "—";
+      const split = r ? `${r.defPct}% vs ${r.atkPct}%` : "—";
+      L.push(`- Round ${idx + 1}: winner ${w} — ${dmg} total damage — ${split} split`);
     });
-    L.push("");
-    L.push("## Overall");
-    L.push("");
-    if (sc.narrative) L.push(sc.narrative.replace(/<[^>]*>/g, "").trim());
     L.push("");
   }
 
-  L.push("## Rankings");
-  L.push("");
+  if (sc.narrative) {
+    L.push(`## ${sc.scopeKey === "overall" ? "Overall" : sc.label}`);
+    L.push("");
+    L.push(sc.narrative.replace(/<[^>]*>/g, "").trim());
+    L.push("");
+  }
+
   const cats = [["damage", "Damage", getValue], ["points", "Ground Points", getPoints]];
   const types = [
-    ["users", "Fighter", r => nameUser(r.userId || r.user) || r.username || "Unknown"],
-    ["mus", "Military Unit", r => nameMu(r.muId || r.mu) || `MU ${String(r.muId || r.mu).slice(-6)}`],
-    ["countries", "Country", r => nameCountry(r.countryId || r.country) || r.countryName || r.name || "Unknown"],
+    ["users", "Fighters", r => nameUser(r.userId || r.user) || r.username || "Unknown"],
+    ["mus", "Military Units", r => nameMu(r.muId || r.mu) || `MU ${String(r.muId || r.mu).slice(-6)}`],
+    ["countries", "Countries", r => nameCountry(r.countryId || r.country) || r.countryName || r.name || "Unknown"],
   ];
+  const rankBlocks = [];
   for (const [catKey, catLabel, valFn] of cats) {
     const cfg = ctx.rankConfigFor(sc)[catKey];
     for (const [typeKey, typeLabel, nameFn] of types) {
       const src = cfg.sources[typeKey] || [];
-      const table = brRankTable(typeLabel, src.map(r => ({ ...r, name: nameFn(r) })), valFn, catLabel, atkLabel, defLabel);
-      if (table) {
-        L.push(`### ${catLabel} — ${typeLabel}s`);
-        L.push("");
-        L.push(table);
-        L.push("");
-      }
+      const block = brRankSection(src, valFn, atkLabel, defLabel, nameFn);
+      if (block) rankBlocks.push(`### ${catLabel} — ${typeLabel}`, "", block, "");
     }
+  }
+  if (rankBlocks.length) {
+    L.push("## Rankings");
+    L.push("");
+    L.push(...rankBlocks);
   }
   return L.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
