@@ -508,7 +508,7 @@ export function renderBattleList() {
       if (!isFinite(da) && !isFinite(db)) return 0;
       if (!isFinite(da)) return 1;
       if (!isFinite(db)) return -1;
-      return (db - da) * sortDir;
+      return (da - db) * sortDir;
     }
     const ae = a.endedAt, be = b.endedAt;
     if (!ae && !be) return 0;
