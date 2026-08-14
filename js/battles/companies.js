@@ -371,7 +371,7 @@ export function injectBattleSearchBar() {
       if (!ae && !be) return 0;
       if (!ae) return 1;
       if (!be) return -1;
-      return (new Date(be).getTime() - new Date(ae).getTime()) * sortDir;
+      return (new Date(ae).getTime() - new Date(be).getTime()) * sortDir;
     });
     const lines = list.map(b => {
       const atk = nameCountry(b.attacker?.country||b.attackerCountry||b.attacker?.countryId);

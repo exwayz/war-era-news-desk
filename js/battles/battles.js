@@ -514,7 +514,7 @@ export function renderBattleList() {
     if (!ae && !be) return 0;
     if (!ae) return 1;
     if (!be) return -1;
-    return (new Date(be).getTime() - new Date(ae).getTime()) * sortDir;
+    return (new Date(ae).getTime() - new Date(be).getTime()) * sortDir;
   });
   if (!list.length) {
     E.battleList.innerHTML=`<p style="color:var(--ink-dim);padding:20px;text-align:center">${S.battleSearchMode==="id" ? "Battle not found." : kw ? "No battles match your search." : "No battles found."}</p>`;
