@@ -31,6 +31,7 @@ import { highlightUserData } from "./core/profileHighlighter.js";
 import { initClock, updateInfobar } from "./visuals/clock.js";
 import { initReaderZoom } from "./ui/readerZoom.js";
 import { initImageViewer } from "./ui/imageViewer.js";
+import { openChangelog, closeChangelog } from "./ui/changelog.js";
 
 function escHtml(s) {
   const d = document.createElement("div");
@@ -314,6 +315,13 @@ function bindAll() {
   });
   document.getElementById("aboutModal")?.addEventListener("click",e=>{
     if(e.target===document.getElementById("aboutModal")) document.getElementById("aboutModal").classList.add("hidden");
+  });
+
+  // Changelog modal
+  document.getElementById("changelogBtn")?.addEventListener("click", openChangelog);
+  document.getElementById("changelogCloseBtn")?.addEventListener("click", closeChangelog);
+  document.getElementById("changelogModal")?.addEventListener("click",e=>{
+    if(e.target===document.getElementById("changelogModal")) closeChangelog();
   });
 
   // Rooster link

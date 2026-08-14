@@ -522,6 +522,7 @@
 <!-- ABOUT MODAL -->
 <div id="aboutModal" class="overlay hidden">
   <div class="modal-card" style="max-width:480px">
+    <button class="modal-corner-btn" id="changelogBtn" title="Changelog / release notes"><iconify-icon icon="mdi:history" class="lu"></iconify-icon></button>
     <h2><iconify-icon icon="mdi:information" class="lu"></iconify-icon> About News Desk</h2>
     <div style="font-size:.82rem;line-height:1.6;color:var(--ink-dim)">
       <p><strong>Powered by:</strong><br>gateway.warerastats.io<br>api2.warera.io<br>api5.warera.io</p>
@@ -532,6 +533,22 @@
       <p>From its very beginning, War Era News Desk has embraced the KISS (Keep It Simple, Stupid) philosophy. Every feature is designed with practicality in mind, favoring clarity, efficiency, and reliability over unnecessary visual complexity. The goal is not to build the most elaborate interface, but to create a dependable newsroom tool that helps journalists focus on what matters most: the story.</p>
     </div>
     <button class="btn-primary" id="aboutCloseBtn" style="width:100%">Got it</button>
+  </div>
+</div>
+
+<!-- CHANGELOG MODAL -->
+<div id="changelogModal" class="overlay hidden">
+  <div class="reader-window reader-window--wide">
+    <div class="reader-head">
+      <div class="reader-head-info">
+        <h2><iconify-icon icon="mdi:history" class="lu"></iconify-icon> Changelog</h2>
+        <div class="reader-byline">release notes &amp; version history</div>
+      </div>
+      <div class="reader-head-actions">
+        <button id="changelogCloseBtn" class="btn-icon-sm" title="Close"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
+      </div>
+    </div>
+    <div id="changelogBody" class="reader-body changelog-body"></div>
   </div>
 </div>
 
