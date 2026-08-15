@@ -18,6 +18,12 @@ export function switchTab(tab) {
   document.querySelectorAll(".tab-panel").forEach(p=>p.classList.toggle("active", p.id==="tab-"+tab));
   if(tab === "timeline"){
     clearTimelineBadge();
+    // Fresh viewing session: restart the minimum pulse window for any tagged
+    // cards so the user always gets their full three pulses on return.
+    if (S.newEventIds.size > 0) {
+      S.newMarkersSince = 0;
+      if (S.newMarkersClearTimer) { clearTimeout(S.newMarkersClearTimer); S.newMarkersClearTimer = null; }
+    }
     // Hide any active infobar toast
     const toastEl = document.getElementById("infobarToast");
     const infobar = document.getElementById("infobar");

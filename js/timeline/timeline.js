@@ -272,32 +272,52 @@ export function renderTimeline() {
 
 let _newObserver=null;
 
+// Minimum time the glow + NEW badges stay visible once the user can see them:
+// 3 pulses of the 1.6s ecNewGlow animation (4.8s). Even if every tagged card
+// is on screen instantly, the marker lingers so the user can register them.
+const NEW_MARK_MIN_MS=3*1600;
+
 // Watch cards tagged "new". A card counts as seen once it is actually visible
-// on screen (any real intersection). Only when every currently-rendered new
-// card has been seen are the glow + NEW badges cleared, so out-of-view cards
-// keep their marker until the user scrolls them into view.
+// on screen (any real intersection). When every currently-rendered new card
+// has been seen the glow + NEW badges are cleared, but never before the
+// minimum pulse window above has elapsed since the markers were first shown.
 function watchNewCards(){
   if(_newObserver){ _newObserver.disconnect(); _newObserver=null; }
   const cards=E.eventList.querySelectorAll(".event-card.ec-new");
   if(!cards.length) return;
   _newObserver=new IntersectionObserver((entries)=>{
     let changed=false;
+    let anyVisible=false;
     for(const en of entries){
       if(!en.isIntersecting) continue;
+      anyVisible=true;
       const id=en.target.dataset.eventId;
       if(id && !S.seenNewEventIds.has(id)){ S.seenNewEventIds.add(id); changed=true; }
     }
+    if(anyVisible && !S.newMarkersSince) S.newMarkersSince=Date.now();
     if(!changed) return;
     const domNew=E.eventList.querySelectorAll(".event-card.ec-new");
     const allSeen=domNew.length>0 && [...domNew].every(c=>S.seenNewEventIds.has(c.dataset.eventId));
-    if(allSeen) clearNewEventMarkers();
+    if(allSeen) scheduleMarkerClear();
   },{ root:null, threshold:0.2 });
   cards.forEach(c=>_newObserver.observe(c));
+}
+
+function scheduleMarkerClear(){
+  if(S.newMarkersClearTimer) return;
+  if(!S.newMarkersSince) S.newMarkersSince=Date.now();
+  const wait=Math.max(0, NEW_MARK_MIN_MS-(Date.now()-S.newMarkersSince));
+  S.newMarkersClearTimer=setTimeout(()=>{
+    S.newMarkersClearTimer=null;
+    clearNewEventMarkers();
+  }, wait);
 }
 
 function clearNewEventMarkers(){
   S.newEventIds.clear();
   S.seenNewEventIds.clear();
+  S.newMarkersSince=0;
+  if(S.newMarkersClearTimer){ clearTimeout(S.newMarkersClearTimer); S.newMarkersClearTimer=null; }
   const cards=E.eventList.querySelectorAll(".event-card.ec-new");
   for(const c of cards){
     c.classList.remove("ec-new");
