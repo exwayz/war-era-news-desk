@@ -4,7 +4,7 @@ import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
 import { resolveUsers } from "./filters.js";
 import { resolveContentLinks } from "../core/resolver.js";
 import { playRead } from "../audio/audio.js";
-import { sanitizeHtml } from "../core/utils.js";
+import { sanitizeHtml, readerBylineHtml } from "../core/utils.js";
 import { setCurrentArticle } from "../library/bookmarks.js";
 
 const MAX_FEATURED = 10;
@@ -101,7 +101,7 @@ function openReader(a) {
   const stats = a.stats || {};
   setCurrentArticle(a);
   E.readerTitle.textContent = a.title || "Untitled";
-  E.readerAuthor.textContent = `By ${(S.lookups.usersById.get(a.author)?.username || S.lookups.usersById.get(a.author)?.name) || "Unknown"} | 👁 ${stats.views ?? 0} • ✯ ${stats.score ?? 0} • 🖒 ${stats.likes ?? 0} • 🖓 ${stats.dislikes ?? 0} • 🗪 ${stats.comments ?? 0}`;
+  E.readerAuthor.innerHTML = readerBylineHtml(a.author, stats);
   E.readerContent.innerHTML = sanitizeHtml(a.content) || "<p>No content available.</p>";
   E.readerContent.querySelectorAll("a").forEach(l => { l.target = "_blank"; l.rel = "noopener noreferrer"; });
   E.readerContent.querySelectorAll("iframe").forEach(f => { f.style.width = "100%"; f.style.aspectRatio = "16/9"; f.style.height = "auto"; });

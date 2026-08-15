@@ -3,7 +3,7 @@ import { E } from "./core/dom.js";
 import { populateRegionOptions } from "./core/regionClassification.js";
 import { STORE } from "./core/storage.js";
 import { apiKey, isValidApiKey, resetTxCaches } from "./core/api.js";
-import { debounce, parseLocal, fmtDate, fmtNum, escapeHtml } from "./core/utils.js";
+import { debounce, parseLocal, fmtDate, fmtNum, escapeHtml, readerBylineText } from "./core/utils.js";
 import { populateEventTypes } from "./timeline/filters.js";
 import { loadEvents, startAutoRefresh, scheduleEventsRefresh, handleEventAction } from "./timeline/timeline.js";
 import { loadArticles, renderArticles, refreshLangDropdown } from "./timeline/articles.js";
@@ -25,7 +25,7 @@ import { POLICY_TEXT } from "./community/policy.js";
 import { loadMessages, loadMoreMessages, postMessage, upvoteMessage, renderWallMessages, renderWallCount, getMessageById, hasMoreMessages, getRemainingQuota, prependWallCard, updateUpvoteDisplay, copyCommunityReport } from "./community/wall.js";
 import { loadPolitics, initPolitics, copyPoliticsReport, capturePoliticsReport } from "./politics/politics.js";
 import { initLibrary, ensureLibraryIndex, copyLibraryArticles } from "./library/library.js";
-import { initBookmarkButton } from "./library/bookmarks.js";
+import { initBookmarkButton, getCurrentArticle } from "./library/bookmarks.js";
 import { initTableMaker } from "./tablemaker/tablemaker.js";
 import { highlightUserData } from "./core/profileHighlighter.js";
 import { initClock, updateInfobar } from "./visuals/clock.js";
@@ -454,7 +454,13 @@ function bindAll() {
   });
   E.closeReader?.addEventListener("click",()=>E.readerModal.classList.add("hidden"));
   E.readerModal?.addEventListener("click",e=>{ if(e.target===E.readerModal) E.readerModal.classList.add("hidden"); });
-  E.copyArticleBtn?.addEventListener("click",()=>{ navigator.clipboard.writeText(E.readerContent.innerText||"").then(()=>toast("Article copied.")); });
+  E.copyArticleBtn?.addEventListener("click",()=>{
+    const a = getCurrentArticle();
+    const title = a?.title || E.readerTitle.innerText || "";
+    const byline = a ? readerBylineText(a.author, a.stats) : (E.readerAuthor.innerText || "");
+    const content = E.readerContent.innerText || "";
+    navigator.clipboard.writeText([title, byline, "", content].filter(Boolean).join("\n")).then(()=>toast("Article copied."));
+  });
   initReaderZoom();
   initImageViewer();
   document.getElementById("openArticleBtn")?.addEventListener("click",()=>{

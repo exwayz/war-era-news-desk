@@ -27,6 +27,10 @@ export function setCurrentArticle(a) {
   updateButton();
 }
 
+export function getCurrentArticle() {
+  return L.current;
+}
+
 export async function toggleBookmark() {
   const a = L.current;
   if (!a) return;

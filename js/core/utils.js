@@ -221,6 +221,32 @@ export function entityDisplayName(type, id, data) {
   return "Entity";
 }
 
+export function articleAuthorName(authorId) {
+  const u = S.lookups.usersById?.get(authorId);
+  return (u?.username || u?.name) || "Unknown";
+}
+
+// Reader modal byline with iconify icons (display) — used by articles,
+// featured and library readers.
+export function readerBylineHtml(authorId, stats = {}) {
+  const s = stats || {};
+  const stat = (icon, v, label) => `<span class="reader-stat" title="${label}"><iconify-icon icon="${icon}" class="lu"></iconify-icon> ${v ?? 0}</span>`;
+  return `By ${escapeHtml(articleAuthorName(authorId))} <span class="reader-sep">|</span> ${stat("mdi:eye-outline", s.views, "Views")} <span class="reader-bullet">•</span> ${stat("mdi:star-outline", s.score, "Score")} <span class="reader-bullet">•</span> ${stat("mdi:thumb-up-outline", s.likes, "Likes")} <span class="reader-bullet">•</span> ${stat("mdi:thumb-down-outline", s.dislikes, "Dislikes")} <span class="reader-bullet">•</span> ${stat("mdi:comment-outline", s.comments, "Comments")}`;
+}
+
+// Plain-text byline used by the reader Copy button (labels, no icons).
+export function readerBylineText(authorId, stats = {}) {
+  const s = stats || {};
+  const v = (x) => x ?? 0;
+  return `By ${articleAuthorName(authorId)} | Views: ${v(s.views)} • Score: ${v(s.score)} • Likes: ${v(s.likes)} • Dislikes: ${v(s.dislikes)} • Comments: ${v(s.comments)}`;
+}
+
+// Article card stats row with iconify icons.
+export function articleCardStatsHtml(stats = {}) {
+  const s = stats || {};
+  return `<span class="ac-stat" title="Views"><iconify-icon icon="mdi:eye-outline" class="lu"></iconify-icon> ${s.views ?? 0}</span><span class="ac-stat" title="Score"><iconify-icon icon="mdi:star-outline" class="lu"></iconify-icon> ${s.score ?? 0}</span>`;
+}
+
 export function marketItemName(code){
   const commodityNames = {
     bread:"Bread",
