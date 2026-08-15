@@ -12,7 +12,7 @@ import { toggleTheme, applyTheme, applyTexture } from "./ui/theme.js";
 import { toast, setStatus } from "./ui/toast.js";
 import { evtData, evtTime, buildTitle, buildSummary } from "./timeline/events.js";
 import { initFeatured, loadFeatured } from "./timeline/featured.js";
-import { loadBattles, stopBattlePolling, updateBattleTabPills, clearBattleDetail } from "./battles/battles.js";
+import { loadBattles, stopBattlePolling, updateBattleTabPills, clearBattleDetail, initBattleInfiniteScroll } from "./battles/battles.js";
 import { injectBattleSearchBar } from "./battles/companies.js";
 import { loadMarketFull, loadMarketStats, copyMarketReport, captureMarketReport, renderMarketOrders, initMarketView } from "./market/market.js";
 import { loadJobs, renderJobs, copyJobsReport, captureJobsReport, initJobViews } from "./jobs/jobs.js";
@@ -466,6 +466,7 @@ function bindAll() {
   E.battleTabHistory?.addEventListener("click",()=>{ S.battleMode="history"; stopBattlePolling(); loadBattles(true); updateBattleTabPills(); });
   E.battleRefreshBtn?.addEventListener("click",()=>loadBattles(true));
   injectBattleSearchBar();
+  initBattleInfiniteScroll();
   E.closeBattleReport?.addEventListener("click", () => clearBattleDetail());
   E.battleReportModal?.addEventListener("click", e => { if (e.target === E.battleReportModal) clearBattleDetail(); });
   E.openBattlePageBtn?.addEventListener("click", () => { const id = E.openBattlePageBtn.dataset.battleId; if (id) window.open(`https://app.warera.io/battle/${id}`, "_blank"); });

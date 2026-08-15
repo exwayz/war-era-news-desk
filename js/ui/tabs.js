@@ -38,6 +38,14 @@ export function switchTab(tab) {
     }
     isTimelineOpen();
   }
+  if (tab === "battles") {
+    // Fresh viewing session: restart the minimum pulse window for any tagged
+    // battle cards so the user always gets their full three pulses on return.
+    if (S.newBattleIds.size > 0) {
+      S.battleNewMarkersSince = 0;
+      if (S.battleNewMarkersClearTimer) { clearTimeout(S.battleNewMarkersClearTimer); S.battleNewMarkersClearTimer = null; }
+    }
+  }
   if (tab === "community") {
     loadMessages(S.wallSort).then(result => {
       renderWallMessages("wallGrid", result.messages);

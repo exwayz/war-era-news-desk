@@ -75,6 +75,28 @@ export function updateBattleTabPills() {
   E.battleTabHistory?.classList.toggle("active", S.battleMode==="history");
 }
 
+// Auto load-more for the live battles feed: when the user scrolls near the
+// bottom of the list we page the next chunk of active battles. A busy flag
+// stops overlapping requests, and the pre-load scroll offset is restored after
+// the re-render so appending a page doesn't yank the viewport to the top.
+let battleFeedBusy = false;
+
+export function initBattleInfiniteScroll() {
+  E.battleList?.addEventListener("scroll", () => {
+    if (S.battleMode !== "live") return;
+    if (battleFeedBusy || !battleSearchHasMore()) return;
+    const el = E.battleList;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 400) {
+      battleFeedBusy = true;
+      const st = el.scrollTop;
+      loadBattles(false)
+        .then(() => { el.scrollTop = st; })
+        .catch(() => {})
+        .finally(() => { battleFeedBusy = false; });
+    }
+  });
+}
+
 function setBattleStatus(m,t="info") { E.battleListStatus.hidden=false; E.battleListStatus.textContent=m; E.battleListStatus.classList.toggle("error",t==="error"); }
 function clearBattleStatus() { E.battleListStatus.hidden=true; E.battleListStatus.textContent=""; E.battleListStatus.classList.remove("error"); }
 
@@ -175,6 +197,141 @@ export async function refreshBattleCardStats() {
   renderBattleList();
 }
 
+// Silent live-battle refresh: every 15s we fetch the newest active-battle page
+// with no visible loading state, prepend battles that just started (tagging
+// them as "new"), drop battles that ended when the snapshot is complete, and
+// top up card stats. Mirrors the timeline's silent refresh / new-item register.
+let battleSilentBusy = false;
+
+export async function silentRefreshLiveBattles() {
+  if (S.battleMode !== "live" || S.battleLoadPath !== "feed") return;
+  if (battleSilentBusy || battleFeedBusy) return;
+  const k = apiKey(); if (!k) return;
+  battleSilentBusy = true;
+  try {
+    const result = await fetchTrpc("battle.getBattles", { limit:50, isActive:true }, k);
+    const data = unwrap(result);
+    const fresh = Array.isArray(data) ? data : (data?.items || data?.battles || []);
+    if (fresh.length) {
+      const known = new Set(S.battles.map(battleId));
+      const added = fresh.filter(b => !known.has(battleId(b)));
+      for (const b of fresh) { const id = battleId(b); if (id) S.lookups.battlesById.set(id, b); }
+      const complete = !data?.nextCursor;
+      let changed = false;
+      if (added.length) {
+        for (const b of added) {
+          const id = battleId(b);
+          if (id) { S.newBattleIds.add(id); showLiveBattleToast(b); }
+        }
+        S.battles = [...added, ...S.battles];
+        changed = true;
+      }
+      if (complete) {
+        const activeIds = new Set(fresh.map(battleId));
+        const before = S.battles.length;
+        S.battles = S.battles.filter(b => activeIds.has(battleId(b)));
+        if (S.battles.length !== before) changed = true;
+      }
+      if (changed) {
+        renderBattleList();
+        watchNewBattleCards();
+      }
+      if (added.length) resolveTournamentMUs(k).catch(()=>{});
+    }
+    await refreshBattleCardStats();
+  } catch {}
+  finally { battleSilentBusy = false; }
+}
+
+function showLiveBattleToast(battle) {
+  if (S.currentTab === "battles") return; // the visible list already glows the new card
+  const toastEl = document.getElementById("infobarToast");
+  const toastText = document.getElementById("infobarToastText");
+  const infobar = document.getElementById("infobar");
+  if (!toastEl || !toastText || !infobar) return;
+  toastText.textContent = `New battle: ${battleTitlePhrase(battle)}`;
+  infobar.classList.add("toasting");
+  toastEl.hidden = false;
+  toastEl.classList.remove("hide");
+  requestAnimationFrame(() => toastEl.classList.add("show"));
+  playPing();
+  if (window._infobarToastTimer) clearTimeout(window._infobarToastTimer);
+  window._infobarToastTimer = setTimeout(() => {
+    toastEl.classList.remove("show");
+    toastEl.classList.add("hide");
+    setTimeout(() => {
+      toastEl.hidden = true;
+      infobar.classList.remove("toasting");
+    }, 500);
+  }, 10000);
+}
+
+function playPing(){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type="sine";
+    osc.frequency.value=880;
+    gain.gain.value=.05;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
+    osc.stop(ctx.currentTime + 0.25);
+  }catch(e){}
+}
+
+let _battleNewObserver = null;
+
+// Minimum time the glow + NEW badges stay visible once the user can see them:
+// 3 pulses of the 1.6s ecNewGlow animation (4.8s). Mirrors the timeline marker.
+const BATTLE_NEW_MARK_MIN_MS = 3*1600;
+
+function watchNewBattleCards(){
+  if (_battleNewObserver) { _battleNewObserver.disconnect(); _battleNewObserver = null; }
+  const cards = E.battleList.querySelectorAll(".battle-card.bc-new");
+  if (!cards.length) return;
+  _battleNewObserver = new IntersectionObserver((entries) => {
+    let changed = false;
+    let anyVisible = false;
+    for (const en of entries) {
+      if (!en.isIntersecting) continue;
+      anyVisible = true;
+      const id = en.target.dataset.bid;
+      if (id && !S.seenNewBattleIds.has(id)) { S.seenNewBattleIds.add(id); changed = true; }
+    }
+    if (anyVisible && !S.battleNewMarkersSince) S.battleNewMarkersSince = Date.now();
+    if (!changed) return;
+    const domNew = E.battleList.querySelectorAll(".battle-card.bc-new");
+    const allSeen = domNew.length > 0 && [...domNew].every(c => S.seenNewBattleIds.has(c.dataset.bid));
+    if (allSeen) scheduleBattleMarkerClear();
+  }, { root: E.battleList, threshold: 0.2 });
+  cards.forEach(c => _battleNewObserver.observe(c));
+}
+
+function scheduleBattleMarkerClear(){
+  if (S.battleNewMarkersClearTimer) return;
+  if (!S.battleNewMarkersSince) S.battleNewMarkersSince = Date.now();
+  const wait = Math.max(0, BATTLE_NEW_MARK_MIN_MS - (Date.now() - S.battleNewMarkersSince));
+  S.battleNewMarkersClearTimer = setTimeout(() => {
+    S.battleNewMarkersClearTimer = null;
+    clearNewBattleMarkers();
+  }, wait);
+}
+
+function clearNewBattleMarkers(){
+  S.newBattleIds.clear();
+  S.seenNewBattleIds.clear();
+  S.battleNewMarkersSince = 0;
+  S.battleNewMarkersClearTimer = null;
+  const cards = E.battleList.querySelectorAll(".battle-card.bc-new");
+  for (const c of cards) {
+    c.classList.remove("bc-new");
+    c.querySelector(".bc-new-badge")?.remove();
+  }
+}
+
 export async function loadBattles(reset=true) {
   const k = apiKey(); if (!k) return;
   stopBattlePolling();
@@ -201,7 +358,7 @@ export async function loadBattles(reset=true) {
   if (mini) mini.hidden = !battleSearchHasMore();
   if (S.battleMode === "live") {
     clearInterval(S.liveListTimer); S.liveListTimer = null;
-    S.liveListTimer = setInterval(() => refreshBattleCardStats(), 15000);
+    S.liveListTimer = setInterval(() => silentRefreshLiveBattles(), 15000);
   }
 }
 
@@ -274,7 +431,7 @@ function battleResultStatus() {
 }
 
 async function loadBattleFeed(reset, k) {
-  const payload = { limit:20, isActive: S.battleMode==="live", cursor:reset?undefined:S.battleCursor };
+  const payload = { limit:50, isActive: S.battleMode==="live", cursor:reset?undefined:S.battleCursor };
   const result = await fetchTrpc("battle.getBattles", payload, k);
   const data = unwrap(result);
   const battles = Array.isArray(data)?data:(data?.items||data?.battles||[]);
@@ -454,6 +611,7 @@ async function loadBattleMultiDateRange(reset, k, cids) {
 }
 
 export function renderBattleList() {
+  const prevScroll = E.battleList.scrollTop;
   E.battleList.innerHTML="";
   const kw = S.battleSearchMode === "id" ? "" : (S.battleSearch||"");
   const regionK = (S.battleRegionFilter||"").toLowerCase();
@@ -518,16 +676,19 @@ export function renderBattleList() {
   });
   if (!list.length) {
     E.battleList.innerHTML=`<p style="color:var(--ink-dim);padding:20px;text-align:center">${S.battleSearchMode==="id" ? "Battle not found." : kw ? "No battles match your search." : "No battles found."}</p>`;
+    if (prevScroll > 0) E.battleList.scrollTop = prevScroll;
     return;
   }
   const frag=document.createDocumentFragment();
   for (const b of list) frag.append(makeBattleCard(b));
   E.battleList.append(frag);
+  if (prevScroll > 0) E.battleList.scrollTop = prevScroll;
   if (S.selectedBattleId) {
     const sel = E.battleList.querySelector(`.battle-card[data-bid="${S.selectedBattleId}"]`);
     if (sel) sel.classList.add("selected");
   }
   highlightUserData();
+  watchNewBattleCards();
 }
 
 import { nameCountry, nameRegion, nameMu, battleSideColors } from "./companies.js";
@@ -561,6 +722,13 @@ function makeBattleCard(battle) {
   const node = E.tplBattle.content.firstElementChild.cloneNode(true);
   const bid = battleId(battle);
   node.dataset.bid = bid;
+  if (S.newBattleIds.has(bid)) {
+    node.classList.add("bc-new");
+    const badge = document.createElement("span");
+    badge.className = "bc-new-badge";
+    badge.textContent = "NEW";
+    node.append(badge);
+  }
   const isLive = !battle.endedAt || battle.isActive===true || battle.active===true;
   const kind = battleTypeKind(battle.type);
   const isTournament = kind === "tournament";

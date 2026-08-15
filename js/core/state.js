@@ -33,6 +33,10 @@ export const S = {
   seenNewEventIds:new Set(),   // subset of newEventIds whose cards have been visible on screen
   newMarkersSince:0,           // timestamp when the tagged cards were first shown to the user
   newMarkersClearTimer:null,   // pending clear for the minimum pulse window
+  newBattleIds:new Set(),      // live battles registered while away, awaiting user recognition
+  seenNewBattleIds:new Set(),  // subset of newBattleIds whose cards have been visible on screen
+  battleNewMarkersSince:0,     // timestamp when the tagged battle cards were first shown
+  battleNewMarkersClearTimer:null, // pending clear for the minimum pulse window
 };
 
 S.lookups.muById = new Map();
