@@ -975,8 +975,13 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
 // refresh once after the next tick processes (~7s after nextTickAt), re-check every
 // 4s while the tick is "due" (processing), and back off to 15s when the tick info is
 // stale or missing.
+// A watchdog re-arms the loop even if a reload stalls, so the tick refresh can never
+// silently die and leave the countdown frozen on "due…" forever.
+let _battleReloadWatchdog = null;
+
 function scheduleLiveRefresh(bid, isLive, tickInfo) {
   clearTimeout(S.liveBattleTimer); S.liveBattleTimer = null;
+  clearTimeout(_battleReloadWatchdog); _battleReloadWatchdog = null;
   if (!isLive) return;
   const next = tickInfo?.nextTickAt ? new Date(tickInfo.nextTickAt).getTime() : 0;
   let delay = 15000;
@@ -985,13 +990,18 @@ function scheduleLiveRefresh(bid, isLive, tickInfo) {
     if (diff > 0) delay = Math.min(diff + 7000, 120000);
     else if (diff > -15000) delay = 4000;
   }
-  S.liveBattleTimer = setTimeout(async () => {
+  S.liveBattleTimer = setTimeout(() => {
     if (S.selectedBattleId !== bid) return;
-    try {
-      await loadBattleDetail({ _id: bid }, bid, true);
-    } catch (err) {
-      if (S.selectedBattleId === bid) scheduleLiveRefresh(bid, true, null);
-    }
+    // Watchdog: if this reload ever stalls without re-arming the loop (the next
+    // timer is normally set inside loadBattleDetail → renderBattleDetail), force
+    // a fresh schedule so the live tick refresh keeps running.
+    clearTimeout(_battleReloadWatchdog);
+    _battleReloadWatchdog = setTimeout(() => {
+      if (S.selectedBattleId === bid && !S.liveBattleTimer) {
+        scheduleLiveRefresh(bid, true, null);
+      }
+    }, Math.max(delay + 20000, 45000));
+    loadBattleDetail({ _id: bid }, bid, true).catch(() => {});
   }, delay);
 }
 

@@ -96,6 +96,10 @@ function noUndef(obj) {
   return Object.fromEntries(Object.entries(obj).filter(([,v])=>v!==undefined && v!==null));
 }
 
+// Hard per-attempt timeout so a stalled gateway can never hang an await forever
+// (a hung fetch used to silently kill the live battle tick refresh chain).
+const FETCH_TIMEOUT_MS = 20000;
+
 export async function fetchTrpc(method, input, k) {
   const url=`${TRPC_BASE}/${method}?input=${encodeURIComponent(JSON.stringify(noUndef(input)))}`;
   const headers = {};
@@ -104,7 +108,7 @@ export async function fetchTrpc(method, input, k) {
   for (let attempt=0; attempt<3; attempt++) {
     if (attempt) await new Promise(r => setTimeout(r, attempt*1000));
     try {
-      const res=await fetch(url,{headers}).catch(err=>{
+      const res=await fetch(url,{headers, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)}).catch(err=>{
         if (location.protocol==="file:") throw new Error("Serve over http://localhost — file:// blocks CORS.");
         throw err;
       });
@@ -137,7 +141,8 @@ export async function fetchTrpcApi5(method, input, apiKeyValue) {
     {
       headers: {
         "Authorization": "Bearer " + apiKeyValue
-      }
+      },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
     }
   );
   if (!r.ok) throw new Error(`${method} ${r.status}`);
@@ -151,7 +156,8 @@ export async function fetchTrpcApi2(method, input, apiKeyValue) {
     {
       headers: {
         "X-API-Key": apiKeyValue
-      }
+      },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
     }
   );
   if (!r.ok) throw new Error(`${method} ${r.status}`);
