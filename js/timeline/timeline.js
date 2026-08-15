@@ -179,6 +179,9 @@ export function showLiveEventToast(event) {
   setUnseenTimelineEvents(ue + 1);
   updateTimelineBadge();
 
+  const id = event._id || event.id;
+  if (id) S.newEventIds.add(id);
+
   const toastEl = document.getElementById("infobarToast");
   const toastText = document.getElementById("infobarToastText");
   const infobar = document.getElementById("infobar");
@@ -260,10 +263,47 @@ export function renderTimeline() {
   const frag=document.createDocumentFragment();
   for(const e of visible) frag.append(makeEventCard(e));
   E.eventList.append(frag);
+  watchNewCards();
   E.loadMoreBtn.hidden=!S.cursor;
   E.feedMeta.textContent=`${visible.length} shown — ${S.events.length} loaded.`;
   clearStatus();
   highlightUserData();
+}
+
+let _newObserver=null;
+
+// Watch cards tagged "new". A card counts as seen once it is actually visible
+// on screen (any real intersection). Only when every currently-rendered new
+// card has been seen are the glow + NEW badges cleared, so out-of-view cards
+// keep their marker until the user scrolls them into view.
+function watchNewCards(){
+  if(_newObserver){ _newObserver.disconnect(); _newObserver=null; }
+  const cards=E.eventList.querySelectorAll(".event-card.ec-new");
+  if(!cards.length) return;
+  _newObserver=new IntersectionObserver((entries)=>{
+    let changed=false;
+    for(const en of entries){
+      if(!en.isIntersecting) continue;
+      const id=en.target.dataset.eventId;
+      if(id && !S.seenNewEventIds.has(id)){ S.seenNewEventIds.add(id); changed=true; }
+    }
+    if(!changed) return;
+    const domNew=E.eventList.querySelectorAll(".event-card.ec-new");
+    const allSeen=domNew.length>0 && [...domNew].every(c=>S.seenNewEventIds.has(c.dataset.eventId));
+    if(allSeen) clearNewEventMarkers();
+  },{ root:null, threshold:0.2 });
+  cards.forEach(c=>_newObserver.observe(c));
+}
+
+function clearNewEventMarkers(){
+  S.newEventIds.clear();
+  S.seenNewEventIds.clear();
+  const cards=E.eventList.querySelectorAll(".event-card.ec-new");
+  for(const c of cards){
+    c.classList.remove("ec-new");
+    c.querySelector(".ec-new-badge")?.remove();
+  }
+  if(_newObserver){ _newObserver.disconnect(); _newObserver=null; }
 }
 
 function makeEventCard(event) {
@@ -271,6 +311,16 @@ function makeEventCard(event) {
   const ed=evtData(event);
   const type=event.type||event.eventType||ed.type||event.name||"event";
   const ts=evtTime(event);
+  const id=event._id||event.id||"";
+
+  if (id && S.newEventIds.has(id)) {
+    node.classList.add("ec-new");
+    node.dataset.eventId=id;
+    const badge=document.createElement("span");
+    badge.className="ec-new-badge";
+    badge.textContent="new";
+    node.appendChild(badge);
+  }
 
   node.querySelector(".ec-type").textContent=fmtType(type);
   node.querySelector(".ec-title").textContent=buildTitle(event,type,ed);

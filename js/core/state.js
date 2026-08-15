@@ -29,6 +29,8 @@ export const S = {
   currentTab:"timeline",
   jobWageFilter:0,
   wallSort:"newest",
+  newEventIds:new Set(),       // timeline events registered while away, awaiting user recognition
+  seenNewEventIds:new Set(),   // subset of newEventIds whose cards have been visible on screen
 };
 
 S.lookups.muById = new Map();
