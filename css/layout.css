@@ -461,8 +461,8 @@
 .reader-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
 .reader-head-info h2 { margin: 0; font-size: 1rem; font-weight: 700; font-family: var(--font-article); }
 .reader-head-actions { display: flex; align-items: center; gap: 6px; }
-#bookmarkArticleBtn.bookmarked { border-color: var(--accent); color: var(--accent); background: var(--surface-hi); }
-#bookmarkArticleBtn.bookmarked .lu { color: var(--accent); }
+#bookmarkArticleBtn.bookmarked { border-color: var(--yellow); color: var(--yellow); background: color-mix(in srgb, var(--yellow) 14%, transparent); }
+#bookmarkArticleBtn.bookmarked .lu { color: var(--yellow); }
 .reader-byline { font-size: .78rem; color: var(--ink-dim); }
 .reader-body { flex: 1; overflow-y: auto; padding: 20px 24px; line-height: 1.75; font-size: calc(.92rem * var(--reader-zoom, 1)); font-family: var(--font-article); color: var(--ink); }
 .reader-body img { max-width: 100%; height: auto; cursor: zoom-in; }
