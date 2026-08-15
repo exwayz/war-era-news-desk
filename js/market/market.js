@@ -147,6 +147,9 @@ function renderEconomicOverview(md) {
 
 export async function loadMarketFull(showLoading=true) {
   const k=apiKey(); if(!k) return;
+  // Anchor the momentum clock to this data load so the first prediction pass
+  // measures a real interval instead of a zero delta that voids velocity.
+  S.market._lastUpdateTime = Date.now();
   function setMs(el,msg,err=false) { el.hidden=false; el.textContent=msg; el.classList.toggle("error",err); }
   function clrMs(el) { el.hidden=true; el.textContent=""; el.classList.remove("error"); }
   if(showLoading){
@@ -300,6 +303,7 @@ export async function loadMarketFull(showLoading=true) {
   onTxUpgrade((source) => {
     const best = getBestTxData();
     if (best) renderEconomicOverview(best);
+    syncPredictionView();
   });
 
   // ── Post-render tasks ──
@@ -311,7 +315,9 @@ export async function loadMarketFull(showLoading=true) {
     panel.classList.add("view-" + _marketView);
   }
   storeMarketSnapshot();
-  loadSupabaseHistory();
+  // Once the stored snapshots arrive, push freshly-derived velocity /
+  // acceleration into the prediction view automatically (no manual toggling).
+  loadSupabaseHistory().then(() => syncPredictionView());
   loadWeeklyMVI();
   refreshSignals();
 
@@ -324,6 +330,13 @@ export async function loadMarketFull(showLoading=true) {
       if (S.jobs?.length) renderJobs();
     }).catch(() => {});
   }
+}
+
+// Re-render the prediction view whenever fresh market/history data lands, so
+// momentum values stay in sync with the analytics view without manual toggling.
+function syncPredictionView() {
+  const section = document.querySelector(".prediction-section");
+  if (section) renderPredictionDashboard();
 }
 
 function renderMVI() {

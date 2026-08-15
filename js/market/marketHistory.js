@@ -92,8 +92,10 @@ export async function loadSupabaseHistory(limit = 15) {
     );
     if (!res.ok) return;
     const rows = await res.json();
-    const snapshots = rows.map(r => r.snapshot);
-    S.market._supabaseHistory = snapshots;
+    S.market._supabaseHistory = rows.map(r => r.snapshot);
+    // Keep the per-snapshot timestamps so computePredictions can derive a
+    // prior velocity (and therefore acceleration) from consecutive snapshots.
+    S.market._supabaseHistoryTimes = rows.map(r => new Date(r.created_at).getTime());
 
     // Save current cycle entries (pushed by updateHistories / hourly data)
     const cur = {

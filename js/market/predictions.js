@@ -18,6 +18,28 @@ export function computePredictions() {
   const prevValues = {};
   for (const [k, v] of Object.entries(prevScores)) prevValues[k] = Number(v || 0);
 
+  // Prior velocity derived from the two most recent stored snapshots. This
+  // seeds valueAcceleration so it is available on the very first prediction
+  // render instead of waiting for two extra computePredictions passes.
+  const hist = S.market._supabaseHistory || [];
+  const histTimes = S.market._supabaseHistoryTimes || [];
+  const histVel = {};
+  if (hist.length >= 2 && histTimes.length >= 2) {
+    const s0 = hist[0], s1 = hist[1];
+    const t0 = histTimes[0], t1 = histTimes[1];
+    if (s0 && s1 && Number.isFinite(t0) && Number.isFinite(t1) && t0 > t1) {
+      const dtS = (t0 - t1) / 1000;
+      if (dtS > 0) {
+        const v0map = {}, v1map = {};
+        for (const it of (s0.topValuable || [])) v0map[it.item] = Number(it.value || 0);
+        for (const it of (s1.topValuable || [])) v1map[it.item] = Number(it.value || 0);
+        for (const key of Object.keys(v0map)) {
+          if (v1map[key] != null) histVel[key] = (v0map[key] - v1map[key]) / dtS;
+        }
+      }
+    }
+  }
+
   // ── Price data for reference (spot prices from getPrices API) ──
   const tradePrices = S.market.trade?.prices || S.market.prices || [];
   const tradeByCode = {};
@@ -57,7 +79,7 @@ export function computePredictions() {
     const deltaValue = (previousValue != null) ? currentValue - previousValue : null;
     const valueVelocity = (deltaValue != null && deltaT > 0) ? deltaValue / (deltaT / 1000) : null;
 
-    const prevVelocity = S.market._prevVelocities ? S.market._prevVelocities[itemName] : null;
+    const prevVelocity = (S.market._prevVelocities ? S.market._prevVelocities[itemName] : null) ?? histVel[itemName] ?? null;
     const valueAcceleration = (valueVelocity != null && prevVelocity != null) ? valueVelocity - prevVelocity : null;
 
     if (!S.market._prevVelocities) S.market._prevVelocities = {};
