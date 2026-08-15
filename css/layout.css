@@ -942,6 +942,14 @@
 .rank-table th { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); font-size: .66rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-dim); }
 .rank-table td { padding: 4px 6px; border-bottom: 1px solid var(--line); }
 
+/* ── BATTLE ORDERS SECTIONS ─────────────────────────── */
+.orders-section { margin: 14px 0 4px; }
+.orders-section:first-child { margin-top: 0; }
+.orders-section-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.orders-section-head h3 { margin: 0; font-size: .8rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
+.orders-section-head .lu { font-size: 1rem; }
+.orders-count { margin-left: auto; font-size: .66rem; font-weight: 700; color: var(--ink-dim); padding: 1px 8px; border: 1px solid var(--line); border-radius: 999px; }
+
 /* ── STICKY TOOLBAR ─────────────────────────────────── */
 .sticky-toolbar { position: sticky; top: 0; z-index: 10; display: flex; gap: 6px; padding: 6px 10px; border-bottom: 1px solid var(--line); }
 .sticky-toolbar .search-bar input { height: 24px; font-size: .72rem; padding: 2px 28px 2px 6px; }

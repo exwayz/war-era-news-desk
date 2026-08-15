@@ -59,14 +59,28 @@ function orderRowHtml(o) {
 
 let _ordersModal = { side: "attacker", orders: [], title: "", byline: "", color: "var(--ink-dim)" };
 
+function orderTableHtml(list, color) {
+  if (!list.length) return `<p style="color:var(--ink-dim);text-align:center;padding:10px 0">No orders in this category.</p>`;
+  return `<table class="rank-table"><thead>
+<tr><th style="color:${color}">Through</th><th style="color:${color}">Issuer</th><th style="color:${color}">Issued By</th><th style="color:${color}">Priority</th></tr>
+</thead><tbody>${list.map(o => `<tr>${orderRowHtml(o)}</tr>`).join("")}</tbody></table>`;
+}
+
+function ordersSection(title, icon, list, color) {
+  return `<div class="orders-section"><div class="orders-section-head"><iconify-icon icon="${icon}" class="lu"></iconify-icon> <h3>${title}</h3> <span class="orders-count">${list.length}</span></div>${orderTableHtml(list, color)}</div>`;
+}
+
 function renderOrdersModalBody() {
   if (!E.battleOrdersModalBody) return;
   const { side, orders, title, byline, color } = _ordersModal;
   const list = orderSideList(orders, side);
+  const country = list.filter(o => o.country);
+  const mu = list.filter(o => o.mu);
+  const other = list.filter(o => !o.country && !o.mu);
   const body = list.length
-    ? `<table class="rank-table"><thead>
-<tr><th style="color:${color}">Through</th><th style="color:${color}">Issuer</th><th style="color:${color}">Issued By</th><th style="color:${color}">Priority</th></tr>
-</thead><tbody>${list.map(o => `<tr>${orderRowHtml(o)}</tr>`).join("")}</tbody></table>`
+    ? ordersSection("Country Orders", "mdi:flag-outline", country, color)
+      + ordersSection("MU Orders", "mdi:shield-account-outline", mu, color)
+      + (other.length ? ordersSection("Other Orders", "mdi:help-circle-outline", other, color) : "")
     : `<p style="color:var(--ink-dim);text-align:center;padding:12px 0">No orders issued for this side.</p>`;
   E.battleOrdersModalBody.innerHTML = body;
 }
