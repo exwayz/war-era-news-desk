@@ -501,11 +501,31 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
       ? `<span style="color:var(--red);font-size:.72rem">● Active</span>`
       : `<span style="color:var(--ink-dim);font-size:.72rem">Ended</span>`;
 
+    const rdLive = rd?.live;
+    const tickRemaining = rdLive?.nextTickAt ? Math.max(0, (new Date(rdLive.nextTickAt).getTime() - Date.now()) / 1000) : null;
+    const tickReward = Number(rdLive?.actualTickPoints) || 0;
+    const atkEta = tickRemaining != null ? calculateRoundETA(atkPts, tickReward, tickRemaining) : null;
+    const defEta = tickRemaining != null ? calculateRoundETA(defPts, tickReward, tickRemaining) : null;
+    const etaChip = (eta, side, color) => {
+      if (eta != null) {
+        return `<span style="display:inline-flex;align-items:center;gap:5px;color:${color};font-weight:800"><iconify-icon icon="eos-icons:hourglass" class="lu" style="font-size:14px"></iconify-icon> <span id="brEta${side === "attacker" ? "Atk" : "Def"}_${bid}_${roundIdx}">${formatRoundETA(eta)}</span></span>`;
+      }
+      const pts = side === "attacker" ? atkPts : defPts;
+      return pts >= 300 ? `<span style="color:var(--green);font-size:.66rem;font-weight:800">Won</span>` : "";
+    };
+    const etaRow = (atkEta != null || defEta != null) ? `
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:.7rem;margin-bottom:4px">
+      <span>${etaChip(defEta, "defender", defText)}</span>
+      <span style="font-size:.6rem;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.06em">ETA to 300</span>
+      <span>${etaChip(atkEta, "attacker", atkText)}</span>
+    </div>` : "";
+
     return `<div class="br-section" style="margin-bottom:14px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
       <span style="font-size:.78rem;font-weight:800;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.06em">Round ${roundIdx + 1} Ground Points</span>
       ${rdStatus}
     </div>
+    ${etaRow}
     <div style="display:flex;justify-content:space-between;font-size:.76rem;margin-bottom:5px">
       <span style="color:${defText};font-weight:800"><strong>${fmtNum(defPts)}</strong> pts ${sideLabel("defender", def || "Defender")}</span>
       <span style="color:var(--ink-dim);font-size:.68rem">First to 300 wins</span>
@@ -844,13 +864,31 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
   if (isLive && tickInfo?.nextTickAt) {
     const countEl = document.getElementById(`brTickCount_${bid}`);
     const noEl = document.getElementById(`brTickNo_${bid}`);
+    const liveRoundIdx = currentLiveRound ? sortedRounds.indexOf(currentLiveRound) : -1;
+    const updateEta = (diff) => {
+      const etaAtkEl = liveRoundIdx >= 0 ? document.getElementById(`brEtaAtk_${bid}_${liveRoundIdx}`) : null;
+      const etaDefEl = liveRoundIdx >= 0 ? document.getElementById(`brEtaDef_${bid}_${liveRoundIdx}`) : null;
+      if (etaAtkEl || etaDefEl) {
+        const rem = Math.max(0, diff / 1000);
+        const rw = Number(tickInfo.actualTickPoints) || 0;
+        const atkP = Number(currentLiveRound?.attacker?.points ?? currentLiveRound?.pointsAttacker ?? 0);
+        const defP = Number(currentLiveRound?.defender?.points ?? currentLiveRound?.pointsDefender ?? 0);
+        const aEta = calculateRoundETA(atkP, rw, rem);
+        const dEta = calculateRoundETA(defP, rw, rem);
+        if (etaAtkEl) etaAtkEl.textContent = aEta != null ? formatRoundETA(aEta) : (atkP >= 300 ? "Won" : "");
+        if (etaDefEl) etaDefEl.textContent = dEta != null ? formatRoundETA(dEta) : (defP >= 300 ? "Won" : "");
+      }
+    };
     const updateTick = () => {
       const diff = new Date(tickInfo.nextTickAt).getTime() - Date.now();
       if (countEl) {
-        if (diff <= 0) { countEl.textContent = "due…"; if (noEl) noEl.textContent = String((Number(tickInfo.ticksCount) || 0) + 1); return; }
-        const s = Math.floor(diff / 1000);
-        countEl.textContent = `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+        if (diff <= 0) { countEl.textContent = "due…"; if (noEl) noEl.textContent = String((Number(tickInfo.ticksCount) || 0) + 1); }
+        else {
+          const s = Math.floor(diff / 1000);
+          countEl.textContent = `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+        }
       }
+      updateEta(diff);
     };
     updateTick();
     S.battleTickTimer = setInterval(updateTick, 1000);
@@ -1052,6 +1090,49 @@ function rowsSideBySide(atkArr, defArr, nameFn, valFn) {
     ]);
   }
   return rows;
+}
+
+function calculateRoundETA(roundPoints, tickReward, tickRemaining) {
+  const TARGET_POINTS = 300;
+  const TICK_DURATION = 120;
+
+  if (roundPoints >= TARGET_POINTS) {
+    return null;
+  }
+
+  if (!tickReward || tickReward <= 0) {
+    return null;
+  }
+
+  const remainingPoints = Math.max(0, TARGET_POINTS - roundPoints);
+  const requiredTicks = Math.ceil(remainingPoints / tickReward);
+
+  return tickRemaining + (requiredTicks - 1) * TICK_DURATION;
+}
+
+function formatRoundETA(seconds) {
+  if (seconds == null) {
+    return "—";
+  }
+
+  if (seconds < 60) {
+    return `~${Math.ceil(seconds)}s`;
+  }
+
+  const minutes = Math.ceil(seconds / 60);
+
+  if (minutes < 60) {
+    return `~${minutes}m`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  if (remainingMinutes === 0) {
+    return `~${hours}h`;
+  }
+
+  return `~${hours}h ${remainingMinutes}m`;
 }
 
 function formatDuration(ms) {
