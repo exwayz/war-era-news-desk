@@ -503,9 +503,8 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
 
     const rdLive = rd?.live;
     const tickRemaining = rdLive?.nextTickAt ? Math.max(0, (new Date(rdLive.nextTickAt).getTime() - Date.now()) / 1000) : null;
-    const tickReward = Number(rdLive?.actualTickPoints) || 0;
-    const atkEta = tickRemaining != null ? calculateRoundETA(atkPts, tickReward, tickRemaining) : null;
-    const defEta = tickRemaining != null ? calculateRoundETA(defPts, tickReward, tickRemaining) : null;
+    const atkEta = tickRemaining != null ? calculateRoundETA(atkPts, defPts, tickRemaining) : null;
+    const defEta = tickRemaining != null ? calculateRoundETA(defPts, atkPts, tickRemaining) : null;
     const etaChip = (eta, side, color) => {
       if (eta != null) {
         return `<span style="display:inline-flex;align-items:center;gap:5px;color:${color};font-weight:800"><iconify-icon icon="eos-icons:hourglass" class="lu" style="font-size:14px"></iconify-icon> <span id="brEta${side === "attacker" ? "Atk" : "Def"}_${bid}_${roundIdx}">${formatRoundETA(eta)}</span></span>`;
@@ -870,11 +869,10 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
       const etaDefEl = liveRoundIdx >= 0 ? document.getElementById(`brEtaDef_${bid}_${liveRoundIdx}`) : null;
       if (etaAtkEl || etaDefEl) {
         const rem = Math.max(0, diff / 1000);
-        const rw = Number(tickInfo.actualTickPoints) || 0;
         const atkP = Number(currentLiveRound?.attacker?.points ?? currentLiveRound?.pointsAttacker ?? 0);
         const defP = Number(currentLiveRound?.defender?.points ?? currentLiveRound?.pointsDefender ?? 0);
-        const aEta = calculateRoundETA(atkP, rw, rem);
-        const dEta = calculateRoundETA(defP, rw, rem);
+        const aEta = calculateRoundETA(atkP, defP, rem);
+        const dEta = calculateRoundETA(defP, atkP, rem);
         if (etaAtkEl) etaAtkEl.textContent = aEta != null ? formatRoundETA(aEta) : (atkP >= 300 ? "Won" : "");
         if (etaDefEl) etaDefEl.textContent = dEta != null ? formatRoundETA(dEta) : (defP >= 300 ? "Won" : "");
       }
@@ -1092,7 +1090,12 @@ function rowsSideBySide(atkArr, defArr, nameFn, valFn) {
   return rows;
 }
 
-function calculateRoundETA(roundPoints, tickReward, tickRemaining) {
+// Adaptive round ETA: the tick reward tier is based on combined round points
+// (min(6, floor((atkPts+defPts)/100)+1)), so as the winning side accumulates
+// points the combined total crosses 200/300/400/500 and the per-tick reward
+// grows. Simulate that progression instead of freezing the current reward,
+// which would overestimate the ETA by nearly 2x on low-points rounds.
+function calculateRoundETA(roundPoints, otherRoundPoints, tickRemaining) {
   const TARGET_POINTS = 300;
   const TICK_DURATION = 120;
 
@@ -1100,14 +1103,16 @@ function calculateRoundETA(roundPoints, tickReward, tickRemaining) {
     return null;
   }
 
-  if (!tickReward || tickReward <= 0) {
-    return null;
+  let p = roundPoints;
+  let ticks = 0;
+  while (p < TARGET_POINTS && ticks < 1000) {
+    const reward = Math.min(6, Math.floor((p + otherRoundPoints) / 100) + 1);
+    if (reward <= 0) return null;
+    p += reward;
+    ticks++;
   }
 
-  const remainingPoints = Math.max(0, TARGET_POINTS - roundPoints);
-  const requiredTicks = Math.ceil(remainingPoints / tickReward);
-
-  return tickRemaining + (requiredTicks - 1) * TICK_DURATION;
+  return tickRemaining + (ticks - 1) * TICK_DURATION;
 }
 
 function formatRoundETA(seconds) {
