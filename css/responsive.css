@@ -1,57 +1,365 @@
 /* ── RESPONSIVE ─────────────────────────────────────── */
 
+/* Base visibility toggles (overridden in breakpoints below) */
+#rankingsViewToggle,
+#libraryCatFilter,
+.lib-filters-toggle { display: none; }
+
+/* ≤1100px: collapsing two-column layouts */
 @media (max-width: 1100px) {
   .timeline-grid { grid-template-columns: 1fr; }
   .battles-layout { grid-template-columns: 1fr; }
   .market-grid { grid-template-columns: 1fr; }
-  .rk-grid { grid-template-columns: 1fr; }
+  .rk-grid { grid-template-columns: repeat(2, 1fr); }
+  .rk-grid.single { grid-template-columns: 1fr; }
   .pol-grid { grid-template-columns: 1fr; }
   .analytics-cards-grid { grid-template-columns: repeat(2, 1fr); }
   .library-list { grid-template-columns: repeat(2, 1fr); }
   #battleList { grid-template-columns: repeat(2, 1fr); }
   .topbar-right { display: none; }
+  #rankingsViewToggle { display: inline-flex; }
 }
 
+/* ≤860px: sidebar becomes an off-canvas drawer */
 @media (max-width: 860px) {
-  .sidebar { width: 40px; }
-  .sidebar:hover { width: 140px; }
-  .side-btn { height: 34px; padding: 0 8px; }
-  .side-icon { width: 24px; font-size: .9rem; }
-  .side-label { font-size: .76rem; }
-  .sidebar-bottom { display: flex; flex-direction: column; }
+  .topbar-left { flex: 0 0 auto; }
+  .menu-toggle { display: inline-flex; }
+
+  .sidebar {
+    position: fixed; top: 0; bottom: 0; left: 0;
+    width: min(230px, 82vw); z-index: 300;
+    transform: translateX(-102%);
+    transition: transform .22s ease;
+    overflow-y: auto;
+    box-shadow: 0 0 24px rgba(0,0,0,.45);
+  }
+  .app.sidebar-open .sidebar { transform: translateX(0); }
+  .sidebar .side-btn { justify-content: flex-start; height: 42px; padding: 0 16px; }
+  .sidebar .side-btn::after {
+    content: attr(title);
+    margin-left: 12px;
+    font-size: .8rem; font-weight: 700;
+    font-family: var(--font-body); color: var(--ink);
+  }
+  .sidebar .sidebar-sec-label { text-align: left; padding: 7px 16px 2px; }
+  .sidebar .sidebar-top { padding: 0 0 6px; }
+  .sidebar .sidebar-bottom { padding: 6px 0 calc(6px + env(safe-area-inset-bottom)); }
+
+  /* Bottom tab bar */
+  .tab-bar { display: flex; }
+  .content { padding-bottom: calc(48px + env(safe-area-inset-bottom) + 4px); }
 }
 
+/* ≤760px: phone layout */
 @media (max-width: 760px) {
-  .topbar { height: 40px; padding: 0 10px; }
-  .topbar-title { font-size: 1rem; }
-  .topbar-left { flex: 0 0 auto; }
-  .timeline-grid { grid-template-columns: 1fr; }
-  .battles-layout { grid-template-columns: 1fr; }
-  .market-grid { grid-template-columns: 1fr; }
-  .jobs-grid { grid-template-columns: 1fr; }
-  .rk-grid { grid-template-columns: 1fr; }
-  .wall-grid { grid-template-columns: 1fr; }
-  .pol-grid { grid-template-columns: 1fr; }
+  .topbar { height: 42px; padding: 0 8px; }
+  .topbar-title { font-size: 1.02rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .topbar-left { flex: 0 0 auto; gap: 6px; }
+  .topbar-center { text-align: right; flex: 1; min-width: 0; }
+  .clock { font-size: .84rem; }
+  .clock-date { font-size: .6rem; }
+  .theme-toggle { width: 26px; height: 26px; }
+
+  /* App shell scrolls naturally (no nested panes) */
+  .app { overflow-y: auto; }
+  .content { overflow: visible; padding-bottom: 0; }
+  .tab-panel { flex: none; overflow: visible; padding-bottom: calc(48px + env(safe-area-inset-bottom) + 4px); }
+  .timeline-grid { height: auto; }
+
+  /* Timeline: single-pane mobile toggle */
+  .tl-mobile-toggle {
+    display: flex; gap: 4px; padding: 6px 10px;
+    border-bottom: 1px solid var(--line); flex-shrink: 0;
+  }
+  .timeline-grid[data-tl-view="events"] .tl-right { display: none; }
+  .timeline-grid[data-tl-view="articles"] .tl-left { display: none; }
+  .tl-left { border-right: 0; }
+  .tl-left, .tl-right { flex: none; height: auto; }
+  .tl-right { display: block; }
+  .tl-right-side { flex: none; }
+  #eventList, #articleList { flex: none; overflow-y: visible; }
+  #articleList { grid-template-columns: 1fr; }
+  .tl-right-side--featured .featured-stage { min-height: 200px; }
+  .featured-img { max-height: 200px; }
+
+  .timeline-grid,
+  .battles-layout,
+  .market-grid,
+  .jobs-grid,
+  .rk-grid,
+  .wall-grid,
+  .pol-grid,
   .library-list { grid-template-columns: 1fr; }
   #battleList { grid-template-columns: 1fr; }
+
+  /* Event cards on mobile: single-column grid so title/summary/actions fill
+     the full width; the date is pinned top-right instead of reserving a wide
+     `auto` grid column (its nowrap text otherwise eats ~40% of the card). */
+  .event-card { grid-template-columns: 1fr; }
+  .ec-time { position: absolute; top: 8px; right: 10px; }
+  .ec-title { padding-right: 120px; }
   .analytics-cards-grid { grid-template-columns: 1fr; }
   .topbar-right { display: none; }
   .infobar { height: 24px; }
   .infobar-pill { font-size: .62rem; padding: 1px 6px; }
-  .tl-filter-bar { flex-direction: column; align-items: stretch; }
-  .tl-filter-bar .input-wrap { width: 100%; }
-  .jobs-search-bar { flex-wrap: wrap; }
-  .jobs-search-bar > * { flex: 1 1 200px; }
+
+  /* Inner panes scroll naturally with the page */
+  .battles-layout { height: auto; }
+  .battle-list-col { height: auto; overflow: visible; }
+  #battleList { flex: none; overflow-y: visible; }
+  .market-grid { height: auto; overflow: visible; }
+  .jobs-grid { overflow-y: visible; }
+  .analytics-section,
+  .signals-section,
+  .production-section,
+  .prediction-section { overflow-y: visible; }
+  .politics-layout { height: auto; overflow: visible; }
+  .library-layout { height: auto; flex: none; }
+  #libraryList { flex: none; overflow-y: visible; }
+  .tablemaker-layout { height: auto; }
+  .tm-output { overflow-y: visible; }
+
+  /* Timeline: Global Events filters → 3 compact rows
+     Row 1: Country | Region | Event Type
+     Row 2: From | To | Limit
+     Row 3: More | Copy | Refresh | Clear */
+  .tl-filter-bar {
+    display: grid; grid-template-columns: repeat(12, 1fr);
+    gap: 6px; padding: 6px 8px;
+  }
+  .tl-filter-bar .input-wrap,
+  .tl-filter-bar select,
+  .tl-filter-bar input[type=datetime-local],
+  .tl-filter-bar input[type=number] { grid-column: span 4; width: auto; min-width: 0; height: 26px; }
+  .tl-filter-bar .input-wrap { max-width: none !important; }
+  .tl-filter-bar .input-wrap input { height: 26px; font-size: .74rem; }
+  .tl-filter-bar .btn-icon-sm { grid-column: span 3; width: auto; height: 26px; min-height: 26px; }
+
+  /* Overlay: bottom-sheet modals */
   .overlay { padding: 0; align-items: flex-end; }
   .modal-card { width: 100%; max-height: 80vh; }
   .reader-window { width: 100%; height: 100%; max-height: 100%; border-radius: 0; }
+
+  /* Reader modal headers: info + close on row 1, actions wrap to row 2 */
+  .reader-head { flex-wrap: wrap; padding: 10px 12px; row-gap: 8px; }
+  .reader-head-info { order: 1; }
+  .reader-head-close { order: 2; }
+  .reader-head-actions { order: 3; flex-basis: 100%; justify-content: flex-end; margin-left: 0; }
+
+  /* About modal stays centered with scrollable body */
+  #aboutModal { align-items: center; padding: 16px; }
+  #aboutModal .modal-card { max-height: 85vh; }
+  #aboutModal .about-modal-body { overflow-y: auto; flex: 1; min-height: 0; }
+
+  /* Battles: filters → 3 compact rows
+     Row 1: Search (67%) | Region (33%)
+     Row 2: From (50%) | To (50%)
+     Row 3: Date Sort | Damage Sort | More | Copy | Reset */
+  .battle-toolbar {
+    display: grid; grid-template-columns: repeat(12, 1fr);
+    gap: 6px; padding: 6px 8px;
+  }
+  .battle-toolbar .search-bar { grid-column: 1 / span 8; grid-row: 1; }
+  .battle-toolbar .input-wrap:not(.search-bar) { grid-column: 9 / span 4; grid-row: 1; }
+  #battleDateFrom { grid-column: 1 / span 6; grid-row: 2; }
+  #battleDateTo { grid-column: 7 / span 6; grid-row: 2; }
+  .battle-toolbar .tab-pill-group { grid-column: 1 / span 3; grid-row: 3; display: flex; align-items: stretch; }
+  .battle-toolbar .tab-pill-group .pill-btn { flex: 1 1 0; min-width: 0; height: 26px; padding: 2px 4px; display: inline-flex; align-items: center; justify-content: center; }
+  #battleLoadMini { grid-column: 4 / span 3; grid-row: 3; }
+  #copyBattleListBtn { grid-column: 7 / span 3; grid-row: 3; }
+  #resetBattleFiltersBtn { grid-column: 10 / span 3; grid-row: 3; }
+  .battle-toolbar .input-wrap input { height: 26px; }
+  .battle-toolbar input[type=date] { max-width: none; width: 100%; height: 26px; }
+  .battle-toolbar .btn-icon-sm,
+  .battle-toolbar .btn-load-mini { width: auto; height: 26px; min-height: 26px; }
+  .br-stats-grid { grid-template-columns: repeat(3, 1fr); }
+  .br-score-block img { display: none; }
+  .br-score-block [data-alliance-row] { display: none !important; }
+  .br-rank-pill { padding: 2px 6px; }
+  .br-rank-pill .pill-label { display: none; }
+  .br-rank-pill iconify-icon { font-size: .95rem; }
+
+  /* Market overview: collapsible cells (title opens/closes), natural page scroll */
+  .market-cell { overflow-y: visible; max-height: none; }
+  .market-cell > :not(.cell-title) { display: none; }
+  .market-cell.open > :not(.cell-title) { display: block; }
+  .cell-title { display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 0 0 6px; }
+  .market-cell .market-order-switch { margin-left: auto; }
+  .market-cell #marketPricesData,
+  .market-cell #marketValuableData { overflow-y: visible !important; flex: none !important; }
+
+  /* Market + Jobs toolbars: nav pills in one full-width balanced row */
+  .market-toolbar .tab-pill-group { flex: 1 1 100%; flex-wrap: nowrap; }
+  .market-toolbar .tab-pill-group .pill-btn {
+    flex: 1 1 0; min-width: 0; padding: 4px 2px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .market-toolbar .tab-pill-group .pill-btn iconify-icon { font-size: 1.05rem; }
+  #tab-jobs .market-toolbar .tab-pill-group .pill-btn {
+    font-size: .6rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* Market/Jobs/Rankings: action buttons move onto the tab-title row, anchored
+     right; the view pills keep their own full-width row below */
+  .market-toolbar .btn-row { order: 1; margin-left: auto; flex: 0 0 auto; flex-wrap: nowrap; }
+  .market-toolbar .tab-pill-group { order: 2; }
+  .market-toolbar h2 { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Market: compact buttons (labels kept, slimmed) so no extra space is added */
+  #tab-market .btn-row .btn-primary,
+  #tab-market .btn-row .btn-secondary { flex: 0 0 auto; min-height: 26px; padding: 0 7px; font-size: .66rem; }
+  #tab-market .btn-row button iconify-icon { font-size: .9rem; }
+
+  /* Jobs + Rankings: equal-width icon-only buttons next to the title */
+  #tab-jobs .btn-row button,
+  #tab-rankings .btn-row button {
+    width: 30px; min-height: 28px; padding: 0; font-size: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  #tab-jobs .btn-row button iconify-icon,
+  #tab-rankings .btn-row button iconify-icon { font-size: .95rem; }
+
+  /* Copy Conc. / Capture Conc. share icons with Copy/Capture — tint blue so
+     the two job concentration actions stand apart */
+  #copyJobsConcentrationBtn,
+  #captureJobsConcentrationBtn { border-color: var(--blue); color: var(--blue); }
+
+  /* Market signals: compact cards (top metrics + bottom signal section) */
+  .sig-head { display: none; }
+  .sig-row {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 5px 8px;
+    padding: 10px; margin-bottom: 8px;
+    border: 1px solid var(--line); border-radius: 8px;
+    background: var(--surface);
+    align-items: end;
+  }
+  .sig-row [data-l] { grid-column: span 2; }
+  .sig-row .sig-name { grid-column: 1 / -1; font-size: .86rem; }
+  .sig-row [data-l]::before {
+    content: attr(data-l);
+    display: block; font-size: .54rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .05em;
+    color: var(--ink-dim); margin-bottom: 3px;
+  }
+  .sig-row .sig-num { text-align: left; }
+  .sig-row .sig-badge { justify-self: start; display: block; width: fit-content; border: 0; padding: 0; font-weight: 800; }
+  .sig-row .sig-conf,
+  .sig-row .sig-score { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 4px; }
+  .sig-row .sig-conf { height: auto; background: none; }
+  .sig-row .sig-conf i { position: static; display: block; height: 8px; border-radius: 4px; }
+
+  /* Production: accordion blocks */
+  .prod-acc-head {
+    display: flex; align-items: center; gap: 6px; width: 100%;
+    padding: 8px 10px; border: 1px solid var(--line); background: var(--surface);
+    color: var(--ink); font-weight: 700; font-size: .78rem; cursor: pointer; text-align: left;
+  }
+  .prod-acc-head .prod-acc-caret { margin-left: auto; transition: transform .15s; }
+  .prod-acc.open > .prod-acc-head .prod-acc-caret { transform: rotate(180deg); }
+  .prod-acc-body { display: none; padding: 8px 0 0; }
+  .prod-acc.open > .prod-acc-body { display: block; }
+
+  /* Jobs */
+  .jobs-search-bar { flex-direction: column; align-items: stretch; }
+  .jobs-search-bar > * { flex: 1 1 auto; width: 100%; }
+  .wage-slider-wrap { width: 100%; }
+
+  /* Politics */
+  .politics-toolbar { gap: 8px; }
+  .politics-toolbar .input-wrap { max-width: none !important; flex: 2 1 0; min-width: 0; }
+  .politics-toolbar .input-wrap:first-of-type { flex: 3 1 0; }
+  /* Icon-only, equal-width buttons free up room so the country/region bars
+     stay wide enough for their clear (×) buttons and fit in one row */
+  .politics-toolbar .btn-row { flex-wrap: nowrap; }
+  .politics-toolbar .btn-row button {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; min-height: 28px; padding: 0; font-size: 0;
+  }
+  .politics-toolbar .btn-row button iconify-icon { font-size: .95rem; }
+  .pol-section { max-height: none; }
+  .pol-section.closed > :not(.pol-section-title) { display: none; }
+  .pol-section-title { cursor: pointer; }
+  .pol-country-grid { grid-template-columns: repeat(2, 1fr); }
+  .pol-country-card { padding: 10px 6px; }
+
+  /* Rankings: always dual-column on mobile; single/dual toggle hidden */
+  .rk-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .rk-grid.single { grid-template-columns: repeat(2, 1fr); }
+  #rankingsViewToggle { display: none; }
+
+  /* Library: exactly 3 rows on mobile — every control gets an EXPLICIT
+     grid-row so auto-placement can never push items into extra rows.
+     Row 1: [Keyword] [Author] [Search..........]
+     Row 2: [Date Sort] [Score Sort] [Languages] [Category]
+     Row 3: [Date From...] [Date To...] [Copy Details] [Clear Cache] */
+  .library-toolbar {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 6px; padding: 6px 8px; align-items: center;
+  }
+  /* Row 1: icon-only Keyword / Author toggles (compact) + flexible search bar */
+  .library-toolbar .search-mode-group { grid-row: 1; grid-column: 1 / span 3; display: flex; gap: 4px; }
+  .library-toolbar .search-mode-group .pill-btn {
+    flex: 1 1 0; min-width: 0; padding: 0; height: 26px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .library-toolbar .search-mode-group .pill-btn iconify-icon { font-size: 1.05rem; }
+  .library-toolbar .library-search { grid-row: 1; grid-column: 4 / span 9; min-width: 0; }
+  .library-toolbar .library-search input { height: 26px; }
+  /* Row 2: four controls share the full width */
+  .library-toolbar .tab-pill-group { grid-row: 2; grid-column: 1 / span 4; display: flex; align-items: stretch; }
+  .library-toolbar .tab-pill-group .pill-btn {
+    flex: 1 1 0; min-width: 0; padding: 2px 2px; height: 26px;
+    display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; font-size: .6rem;
+  }
+  .library-toolbar #libraryLangFilter { grid-row: 2; grid-column: 5 / span 4; }
+  .library-toolbar #libraryLangFilter .lang-dropdown-trigger { font-size: .6rem; padding: 2px 4px; height: 26px; }
+  .library-toolbar #libraryCatFilter {
+    grid-row: 2; grid-column: 9 / span 4; display: block; width: 100%; max-width: none; min-width: 0;
+    height: 26px; font-size: .6rem; padding: 0 4px;
+  }
+  /* Row 3: flexible date filters + compact action buttons (icon + label) */
+  .library-toolbar #libraryTimeFrom { grid-row: 3; grid-column: 1 / span 3; }
+  .library-toolbar #libraryTimeTo { grid-row: 3; grid-column: 4 / span 3; }
+  .library-toolbar input.art-date { width: 100%; max-width: none; min-width: 0; height: 26px; font-size: .6rem; padding: 1px 2px; }
+  .library-toolbar #copyLibraryBtn { grid-row: 3; grid-column: 7 / span 3; justify-self: start; }
+  .library-toolbar #libraryRebuildBtn { grid-row: 3; grid-column: 10 / span 3; justify-self: start; }
+  .library-toolbar #copyLibraryBtn,
+  .library-toolbar #libraryRebuildBtn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 3px;
+    padding: 2px 4px; height: 26px; min-width: 0; white-space: nowrap; font-size: .56rem;
+  }
+  .library-toolbar #copyLibraryBtn::after { content: "Copy Details"; }
+  .library-toolbar #libraryRebuildBtn::after { content: "Clear Cache"; }
+
+  /* Collapsible filter rows: toggle bar collapses all 3 rows to free
+     screen space for the article cards */
+  .lib-filters-toggle {
+    display: flex; align-items: center; gap: 6px;
+    width: 100%; padding: 8px 10px;
+    border: 0; border-bottom: 1px solid var(--line);
+    background: var(--surface); color: var(--ink);
+    font-family: var(--font-body); font-size: .72rem; font-weight: 700;
+    cursor: pointer; text-align: left;
+  }
+  .lib-filters-toggle .lib-filters-chevron { margin-left: auto; transition: transform .15s; }
+  .library-layout.filters-collapsed .library-toolbar { display: none; }
+  .library-layout.filters-collapsed .lib-filters-chevron { transform: rotate(180deg); }
+
+  /* Bookshelf category buttons are redundant on mobile — the Category
+     and Languages dropdowns in the toolbar already cover this */
+  .library-shelf { display: none; }
 }
 
 @media (max-width: 420px) {
-  .sidebar { width: 36px; }
-  .sidebar:hover { width: 120px; }
-  .side-btn { height: 30px; padding: 0 6px; }
-  .side-icon { font-size: .8rem; width: 24px; }
-  .topbar { height: 36px; padding: 0 6px; }
-  .topbar-title { font-size: .88rem; }
+  .topbar { height: 38px; padding: 0 6px; }
+  .topbar-title { font-size: .9rem; }
+  .theme-toggle { width: 24px; height: 24px; }
+  .clock { font-size: .78rem; }
+  .menu-toggle { width: 26px; height: 26px; }
+  .pol-country-grid { grid-template-columns: 1fr; }
+  .tab-bar button { min-height: 46px; font-size: .52rem; }
+  .tab-bar button iconify-icon { font-size: 1.05rem; }
 }

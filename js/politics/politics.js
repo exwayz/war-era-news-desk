@@ -208,6 +208,7 @@ function renderPolitics() {
     navigator.clipboard.writeText(body.innerText.trim()).then(() => toast("Political summary copied."));
   });
   document.getElementById("backToCountryGridBtn")?.addEventListener("click", backToCountryGrid);
+  window.ndMobile?.applyPolitics();
 }
 
 function renderGovernment() {

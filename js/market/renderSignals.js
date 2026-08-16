@@ -275,16 +275,16 @@ function signalsHTML() {
     const color = LEVEL_COLOR[s.level.key] || "var(--ink)";
     const conf = Math.round(s.confidence * 100);
     return `<div class="sig-row" data-commodity-code="${s.code}">
-      <span class="sig-name">${marketItemName(s.code)}</span>
-      <span class="sig-price">${fmtMoney(s.price)}</span>
-      <span class="sig-chg ${d1 > 0 ? "up" : d1 < 0 ? "down" : ""}">${fmtPct(d1)}</span>
-      <span class="sig-chg ${d7 > 0 ? "up" : d7 < 0 ? "down" : ""}">${fmtPct(d7)}</span>
-      <span class="sig-num">${s.rsi != null ? s.rsi.toFixed(0) : "—"}</span>
-      <span class="sig-num">${spr == null ? "—" : spr.toFixed(1) + "%"}</span>
-      <span class="sig-num">${imb == null ? "—" : (imb > 0 ? "+" : "") + imb.toFixed(0) + "%"}</span>
-      <span class="sig-badge" style="color:${color};border-color:${color}" data-signal-key="${s.level.key}">${s.level.name}</span>
-      <span class="sig-conf"><i style="width:${conf}%"></i></span>
-      <span class="sig-num sig-score">${s.score.toFixed(3)}</span>
+      <span class="sig-name" data-l="Commodity">${marketItemName(s.code)}</span>
+      <span class="sig-price" data-l="Price">${fmtMoney(s.price)}</span>
+      <span class="sig-chg ${d1 > 0 ? "up" : d1 < 0 ? "down" : ""}" data-l="1D">${fmtPct(d1)}</span>
+      <span class="sig-chg ${d7 > 0 ? "up" : d7 < 0 ? "down" : ""}" data-l="7D">${fmtPct(d7)}</span>
+      <span class="sig-num" data-l="RSI">${s.rsi != null ? s.rsi.toFixed(0) : "—"}</span>
+      <span class="sig-num" data-l="Spread">${spr == null ? "—" : spr.toFixed(1) + "%"}</span>
+      <span class="sig-num" data-l="Imbal.">${imb == null ? "—" : (imb > 0 ? "+" : "") + imb.toFixed(0) + "%"}</span>
+      <span class="sig-badge" style="color:${color};border-color:${color}" data-signal-key="${s.level.key}" data-l="Signal">${s.level.name}</span>
+      <span class="sig-conf" data-l="Confidence"><i style="width:${conf}%"></i></span>
+      <span class="sig-num sig-score" data-l="Score">${s.score.toFixed(3)}</span>
     </div>`;
   }).join("");
 

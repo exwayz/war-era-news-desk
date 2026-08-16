@@ -563,7 +563,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
   const atkAllianceHtml = allianceRowHtml(sideAllianceGroups(battleSideAllianceCountries(b, orders, "attacker")), "attacker");
   const defAllianceHtml = allianceRowHtml(sideAllianceGroups(battleSideAllianceCountries(b, orders, "defender")), "defender");
   const battleScoreHtml = `
-  <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;padding:12px;background:var(--surface-hi);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:12px">
+  <div class="br-score-block" style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;padding:12px;background:var(--surface-hi);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:12px">
     <div style="display:flex;align-items:center;gap:10px;justify-self:start">${defAvatar}${isLive ? orderBtnHtml(defOrderCount, "defender") : ""}${defAllianceHtml}</div>
     <div style="display:flex;justify-content:center;align-items:center;gap:16px">
       <div style="text-align:center">
@@ -799,16 +799,16 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
 
   function rankingsHtml(sc, cat, type) {
     const rankCatPills = [
-      ["damage", `<iconify-icon icon="mdi:sword-cross" class="lu"></iconify-icon> Damage`],
-      ["points", `<iconify-icon icon="mdi:flag" class="lu"></iconify-icon> Ground Points`],
+      ["damage", "mdi:sword-cross", "Damage"],
+      ["points", "mdi:flag", "Ground Points"],
     ];
     const rankTypePills = [
-      ["users", "Users"],
-      ["mus", "MUs"],
-      ["countries", "Countries"],
+      ["users", "mdi:account-group", "Users"],
+      ["mus", "mdi:shield-account-outline", "MUs"],
+      ["countries", "mdi:flag", "Countries"],
     ];
-    const rankPillHtml = (list, group, defaultVal) => list.map(([val, label]) =>
-      `<button class="pill-btn${val === defaultVal ? " active" : ""}" data-rank-${group}="${val}" style="font-size:.72rem">${label}</button>`
+    const rankPillHtml = (list, group, defaultVal) => list.map(([val, icon, label]) =>
+      `<button class="pill-btn br-rank-pill${val === defaultVal ? " active" : ""}" data-rank-${group}="${val}" style="font-size:.72rem"><iconify-icon icon="${icon}" class="lu"></iconify-icon><span class="pill-label">${label}</span></button>`
     ).join("");
     const rankTablesHtml = rankCatPills.map(([c]) => rankTypePills.map(([t]) =>
       `<div data-rank-table="${c}-${t}" style="${c === cat && t === type ? "" : "display:none"}">${rankTableHtml(c, t, sc)}</div>`

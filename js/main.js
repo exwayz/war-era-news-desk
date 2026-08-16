@@ -634,6 +634,206 @@ function bindAll() {
   });
 }
 
+function initMobileUI() {
+  const app = document.querySelector(".app");
+  const menuBtn = document.getElementById("menuBtn");
+  const backdrop = document.getElementById("sidebarBackdrop");
+  const mq860 = window.matchMedia("(max-width: 860px)");
+  const mq760 = window.matchMedia("(max-width: 760px)");
+
+  // ── Sidebar off-canvas drawer ─────────────────────────
+  const setDrawer = (open) => {
+    app?.classList.toggle("sidebar-open", open);
+    backdrop?.classList.toggle("show", open);
+  };
+  menuBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setDrawer(!app?.classList.contains("sidebar-open"));
+  });
+  backdrop?.addEventListener("click", () => setDrawer(false));
+  document.querySelectorAll(".side-btn[data-tab]").forEach(btn => {
+    btn.addEventListener("click", () => setDrawer(false));
+  });
+  document.querySelectorAll(".tab-bar [data-tab]").forEach(btn => {
+    btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+  });
+  mq860.addEventListener("change", (e) => { if (!e.matches) setDrawer(false); });
+
+  // ── Timeline Events/Articles single-pane toggle ──────
+  const tlGrid = document.querySelector(".timeline-grid");
+  const tlToggle = document.getElementById("timelineMobileToggle");
+  const setTlView = (view) => {
+    if (!tlGrid) return;
+    if (view === "events" || view === "articles") {
+      tlGrid.dataset.tlView = view;
+      tlToggle?.querySelectorAll("[data-tl-view]").forEach(b =>
+        b.classList.toggle("active", b.dataset.tlView === view));
+    } else {
+      delete tlGrid.dataset.tlView;
+    }
+  };
+  tlToggle?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-tl-view]");
+    if (btn) setTlView(btn.dataset.tlView);
+  });
+  mq760.addEventListener("change", (e) => {
+    if (e.matches) {
+      if (!tlGrid?.dataset.tlView) setTlView("events");
+      applyMarket();
+      applyPolitics();
+    } else {
+      setTlView(null);
+    }
+  });
+  if (mq760.matches) setTlView("events");
+
+  // ── Market overview collapsible cells ─────────────────
+  document.addEventListener("click", (e) => {
+    const title = e.target.closest(".market-cell > .cell-title");
+    if (!title) return;
+    if (e.target.closest("button, input, select, a")) return;
+    title.parentElement.classList.toggle("open");
+  });
+  const applyMarket = () => {
+    document.querySelectorAll(".market-cell").forEach((c, i) => c.classList.toggle("open", i === 0));
+  };
+  if (mq760.matches) applyMarket();
+
+  // ── Politics section accordions ───────────────────────
+  document.addEventListener("click", (e) => {
+    const title = e.target.closest(".pol-section > .pol-section-title");
+    if (!title) return;
+    if (e.target.closest("button")) return;
+    title.parentElement.classList.toggle("closed");
+  });
+  const applyPolitics = () => {
+    document.querySelectorAll(".pol-section").forEach(sec => {
+      sec.classList.toggle("closed", !sec.classList.contains("pol-gov"));
+    });
+  };
+  if (mq760.matches) applyPolitics();
+
+  // ── Production accordions (Cost Studio / Worker Yield) ─
+  document.addEventListener("click", (e) => {
+    const head = e.target.closest(".prod-acc-head");
+    if (!head) return;
+    head.parentElement.classList.toggle("open");
+  });
+
+  // ── Rankings single / dual column toggle ─────────────
+  const rkToggle = document.getElementById("rankingsViewToggle");
+  rkToggle?.addEventListener("click", () => {
+    const grid = document.getElementById("rankingsGrid");
+    if (!grid) return;
+    const single = grid.classList.toggle("single");
+    rkToggle.innerHTML = `<iconify-icon icon="mdi:view-column" class="lu"></iconify-icon> ${single ? "Dual" : "Single"}`;
+  });
+
+  // ── Market view nav: icon-only labels on mobile ──────
+  const marketNavIcons = {
+    overview: "healthicons:market-stall",
+    analytics: "icon-park-outline:market-analysis",
+    predictions: "hugeicons:market-order",
+    signals: "simple-icons:cardmarket",
+    production: "carbon:cics-region-target",
+  };
+  const applyMarketNav = () => {
+    const mobile = mq760.matches;
+    document.querySelectorAll(".market-toolbar [data-market-view]").forEach(btn => {
+      if (mobile) {
+        if (btn.dataset._origHtml === undefined) {
+          btn.dataset._origHtml = btn.innerHTML;
+          btn.title = btn.title || btn.textContent.trim();
+        }
+        if (!btn.dataset._iconOnly) {
+          btn.dataset._iconOnly = "1";
+          btn.innerHTML = `<iconify-icon icon="${marketNavIcons[btn.dataset.marketView] || ""}" class="lu"></iconify-icon>`;
+        }
+      } else if (btn.dataset._iconOnly) {
+        btn.innerHTML = btn.dataset._origHtml || "";
+        delete btn.dataset._iconOnly;
+        delete btn.dataset._origHtml;
+      }
+    });
+  };
+  applyMarketNav();
+  mq760.addEventListener("change", applyMarketNav);
+
+  // ── Report/action buttons: icon-only on mobile ────────
+  // Copy Report / Capture Report in every tab header plus the Market
+  // tab's Refresh and Go To Market. Desktop keeps icon + text.
+  const iconOnlySelectors = [
+    "#marketRefreshBtn", "#marketOpenBtn",
+    "#copyMarketReportBtn", "#captureMarketReportBtn",
+    "#copyJobsReportBtn", "#captureJobsReportBtn",
+    "#copyPoliticsReportBtn", "#capturePoliticsReportBtn",
+    "#copyRankingsReportBtn", "#captureRankingsReportBtn",
+    "#copyCommunityReportBtn",
+  ];
+  const applyIconOnly = () => {
+    const mobile = mq760.matches;
+    iconOnlySelectors.forEach(sel => {
+      const btn = document.querySelector(sel);
+      if (!btn) return;
+      if (mobile) {
+        if (btn.dataset._origHtml === undefined) btn.dataset._origHtml = btn.innerHTML;
+        const icon = btn.querySelector("iconify-icon");
+        if (icon && !btn.dataset._iconOnly) {
+          btn.dataset._iconOnly = "1";
+          btn.title = btn.title || btn.textContent.trim();
+          btn.innerHTML = icon.outerHTML;
+        }
+      } else if (btn.dataset._iconOnly) {
+        btn.innerHTML = btn.dataset._origHtml || "";
+        delete btn.dataset._iconOnly;
+        delete btn.dataset._origHtml;
+      }
+    });
+  };
+  applyIconOnly();
+  mq760.addEventListener("change", applyIconOnly);
+
+  // ── Library search-mode toggles: icon-only on mobile ──
+  const libSearchIcons = { keyword: "nonicons:keyword-16", author: "wordpress:post-author" };
+  const applyLibSearchMode = () => {
+    const mobile = mq760.matches;
+    document.querySelectorAll("[data-lib-search]").forEach(btn => {
+      if (mobile) {
+        if (btn.dataset._origLabel === undefined) btn.dataset._origLabel = btn.textContent.trim();
+        if (!btn.dataset._iconOnly) {
+          btn.dataset._iconOnly = "1";
+          btn.title = btn.dataset._origLabel;
+          btn.innerHTML = `<iconify-icon icon="${libSearchIcons[btn.dataset.libSearch] || ""}" class="lu"></iconify-icon>`;
+        }
+      } else if (btn.dataset._iconOnly) {
+        btn.innerHTML = btn.dataset._origLabel || "";
+        delete btn.dataset._iconOnly;
+        delete btn.dataset._origLabel;
+      }
+    });
+  };
+  applyLibSearchMode();
+  mq760.addEventListener("change", applyLibSearchMode);
+
+  // ── Rankings mobile: compact "Weekly" pill label ─────
+  const weeklyPill = document.querySelector('[data-rank-cat="weekly"]');
+  const applyRankingsMobile = () => {
+    if (!weeklyPill) return;
+    if (mq760.matches) {
+      if (weeklyPill.dataset._origLabel === undefined) weeklyPill.dataset._origLabel = weeklyPill.textContent;
+      weeklyPill.textContent = "Weekly";
+    } else if (weeklyPill.dataset._origLabel !== undefined) {
+      weeklyPill.textContent = weeklyPill.dataset._origLabel;
+      delete weeklyPill.dataset._origLabel;
+    }
+  };
+  applyRankingsMobile();
+  mq760.addEventListener("change", applyRankingsMobile);
+
+  // Expose helpers so renderers can re-apply mobile state after re-render.
+  window.ndMobile = { applyMarket, applyPolitics };
+}
+
 function init() {
   E.apiKeyInput.value = localStorage.getItem(STORE.apiKey) || "";
   applyTheme(localStorage.getItem(STORE.theme) || "dark");
@@ -642,6 +842,7 @@ function init() {
   populateEventTypes();
   injectJobsCountryFilter();
   bindAll();
+  initMobileUI();
 
   if (apiKey()) {
     bootData();

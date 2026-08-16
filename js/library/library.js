@@ -250,6 +250,16 @@ export function renderBookshelf() {
       <span class="lib-book-count">${fmtNum(count)}</span>
     </button>`;
   }).join("");
+
+  const select = document.getElementById("libraryCatFilter");
+  if (select) {
+    select.innerHTML = categories.map(c => {
+      const meta = c === "all" ? { label: "All Articles" } : CATEGORY_META[c];
+      const label = (c === "all" ? "All Articles" : meta.label) || c;
+      const count = counts[c] || 0;
+      return `<option value="${c}"${isActive(c) ? " selected" : ""}>${escapeHtml(label)} (${fmtNum(count)})</option>`;
+    }).join("");
+  }
 }
 
 function renderBookmarksBtn() {
@@ -511,6 +521,15 @@ export function initLibrary() {
     });
   }
 
+  const libCatFilter = document.getElementById("libraryCatFilter");
+  libCatFilter?.addEventListener("change", () => {
+    L.category = libCatFilter.value === "all" ? "" : libCatFilter.value;
+    L.visible = VISIBLE_STEP;
+    renderBookshelf();
+    renderBookmarksBtn();
+    renderLibrary();
+  });
+
   document.getElementById("libraryBookmarksBtn")?.addEventListener("click", () => {
     L.category = L.category === "bookmarks" ? "" : "bookmarks";
     L.visible = VISIBLE_STEP;
@@ -594,5 +613,14 @@ export function initLibrary() {
     renderBookshelf();
     renderBookmarksBtn();
     renderLibrary();
+  });
+
+  // Mobile: expand/collapse the filter rows (rows 1-3 of the toolbar)
+  const filtersToggle = document.getElementById("libraryFiltersToggle");
+  const libraryLayoutEl = document.querySelector(".library-layout");
+  filtersToggle?.addEventListener("click", () => {
+    if (!libraryLayoutEl) return;
+    const collapsed = libraryLayoutEl.classList.toggle("filters-collapsed");
+    filtersToggle.setAttribute("aria-expanded", String(!collapsed));
   });
 }

@@ -104,12 +104,14 @@
 
 /* ── Responsive ── */
 @media (max-width: 1100px) {
-  .rk-grid { height: auto; grid-template-columns: 1fr; }
+  .rk-grid { height: auto; grid-template-columns: repeat(2, 1fr); }
+  .rk-grid.single { grid-template-columns: 1fr; }
   .rk-cell { max-height: 55vh; }
 }
 
 @media (max-width: 760px) {
-  .rk-grid { grid-template-columns: 1fr; gap: 8px; }
+  .rk-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .rk-grid.single { grid-template-columns: 1fr; }
   .rk-cell { max-height: 50vh; }
   .rk-row { font-size: .78rem; padding: 4px 0; }
 }

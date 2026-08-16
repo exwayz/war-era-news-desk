@@ -219,7 +219,7 @@ function renderCategory(catKey) {
   }
 
   grid.innerHTML = "";
-  grid.className = "rk-grid";
+  grid.className = "rk-grid" + (grid.classList.contains("single") ? " single" : "");
   entries.forEach((entry, i) => {
     const cell = document.createElement("div");
     cell.className = "rk-cell glass-panel";

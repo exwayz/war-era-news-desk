@@ -216,7 +216,10 @@ function ensureStudioDom(container) {
   _cont = container; _built = false;
   container.innerHTML = `
     <div class="prod-studio">
-      <div class="prod-controls">
+      <div class="prod-acc open">
+        <button type="button" class="prod-acc-head"><iconify-icon icon="mdi:sliders" class="lu"></iconify-icon><span>Controls</span><iconify-icon icon="mdi:chevron-down" class="lu prod-acc-caret"></iconify-icon></button>
+        <div class="prod-acc-body">
+        <div class="prod-controls">
         <div class="prod-field wide"><label class="prod-field-label">Product</label><select id="psProduct" class="prod-input"></select></div>
         <div class="prod-field"><label class="prod-field-label">Wage</label>
           <span class="prod-inline">
@@ -237,13 +240,26 @@ function ensureStudioDom(container) {
           </span>
         </div>
         <div class="prod-field"><label class="prod-field-label">Sell price (₿)</label><input id="psSell" type="number" step="0.0001" class="prod-input"></div>
-        <div class="prod-field wide"><label class="prod-field-label">Regions</label><div id="psRegions" class="prod-region-list"></div></div>
+        <div class="prod-acc" style="grid-column:1/-1">
+          <button type="button" class="prod-acc-head"><iconify-icon icon="mdi:map-marker-multiple" class="lu"></iconify-icon><span>Regions</span><iconify-icon icon="mdi:chevron-down" class="lu prod-acc-caret"></iconify-icon></button>
+          <div class="prod-acc-body"><div class="prod-field wide"><label class="prod-field-label">Regions</label><div id="psRegions" class="prod-region-list"></div></div></div>
+        </div>
+        </div>
+        </div>
       </div>
-      <div class="prod-chartbox" id="psChart"></div>
-      <div class="prod-table-wrap"><table class="prod-table" id="psReadout"><thead><tr>
-        <th>Region</th><th class="prod-num">Set wage (net)</th><th class="prod-num">Cost (avg)</th><th class="prod-num">Net benefit (avg)</th><th class="prod-num">Cost range</th><th class="prod-num">Raw BE @fid</th><th class="prod-num">Fidelity BE</th>
-      </tr></thead><tbody></tbody></table></div>
-      <p class="prod-hint">Band = cost across raw-price range; upper edge low fidelity, lower edge full fidelity. Net benefit = sell − avg cost. Raw BE = raw price where you break even; Fidelity BE = fidelity at which cost meets sell.</p>
+      <div class="prod-acc">
+        <button type="button" class="prod-acc-head"><iconify-icon icon="mdi:chart-line" class="lu"></iconify-icon><span>Cost band chart</span><iconify-icon icon="mdi:chevron-down" class="lu prod-acc-caret"></iconify-icon></button>
+        <div class="prod-acc-body"><div class="prod-chartbox" id="psChart"></div></div>
+      </div>
+      <div class="prod-acc">
+        <button type="button" class="prod-acc-head"><iconify-icon icon="mdi:table" class="lu"></iconify-icon><span>Readout table</span><iconify-icon icon="mdi:chevron-down" class="lu prod-acc-caret"></iconify-icon></button>
+        <div class="prod-acc-body">
+          <div class="prod-table-wrap"><table class="prod-table" id="psReadout"><thead><tr>
+            <th>Region</th><th class="prod-num">Set wage (net)</th><th class="prod-num">Cost (avg)</th><th class="prod-num">Net benefit (avg)</th><th class="prod-num">Cost range</th><th class="prod-num">Raw BE @fid</th><th class="prod-num">Fidelity BE</th>
+          </tr></thead><tbody></tbody></table></div>
+          <p class="prod-hint">Band = cost across raw-price range; upper edge low fidelity, lower edge full fidelity. Net benefit = sell − avg cost. Raw BE = raw price where you break even; Fidelity BE = fidelity at which cost meets sell.</p>
+        </div>
+      </div>
     </div>`;
   document.getElementById("psProduct").innerHTML = _products.map((k, i) => `<option value="${i}">${esc(goodName(k))}</option>`).join("");
   const bind = el => {
@@ -391,16 +407,29 @@ export function renderWorkerYield(container, data) {
     return;
   }
   container.innerHTML = `
-    <div class="prod-yield-bar">
-      <label class="prod-field-label">Wage</label>
-      <select id="psYieldMode" class="prod-input"><option value="net">Net</option><option value="gross">Gross</option></select>
-      <input id="psYieldWage" class="prod-input" type="number" step="0.001" min="0" value="0.12">
-      <span class="prod-yield-note">Net benefit per production point per resource, at each region's best bonus. Click a row to drill into fidelity curves.</span>
+    <div class="prod-acc open">
+      <button type="button" class="prod-acc-head"><iconify-icon icon="mdi:cash-clock" class="lu"></iconify-icon><span>Wage settings</span><iconify-icon icon="mdi:chevron-down" class="lu prod-acc-caret"></iconify-icon></button>
+      <div class="prod-acc-body">
+        <div class="prod-yield-bar">
+          <label class="prod-field-label">Wage</label>
+          <select id="psYieldMode" class="prod-input"><option value="net">Net</option><option value="gross">Gross</option></select>
+          <input id="psYieldWage" class="prod-input" type="number" step="0.001" min="0" value="0.12">
+          <span class="prod-yield-note">Net benefit per production point per resource, at each region's best bonus. Click a row to drill into fidelity curves.</span>
+        </div>
+      </div>
     </div>
-    <div class="prod-table-wrap"><table class="prod-table" id="psYieldRank"><thead><tr>
-      <th>Resource</th><th>Best @ 10% fidelity</th><th class="prod-num">Net/PP</th><th>Best @ 1% fidelity</th><th class="prod-num">Net/PP</th>
-    </tr></thead><tbody></tbody></table></div>
-    <div id="psYieldDrill"></div>`;
+    <div class="prod-acc">
+      <button type="button" class="prod-acc-head"><iconify-icon icon="mdi:table" class="lu"></iconify-icon><span>Yield ranking</span><iconify-icon icon="mdi:chevron-down" class="lu prod-acc-caret"></iconify-icon></button>
+      <div class="prod-acc-body">
+        <div class="prod-table-wrap"><table class="prod-table" id="psYieldRank"><thead><tr>
+          <th>Resource</th><th>Best @ 10% fidelity</th><th class="prod-num">Net/PP</th><th>Best @ 1% fidelity</th><th class="prod-num">Net/PP</th>
+        </tr></thead><tbody></tbody></table></div>
+      </div>
+    </div>
+    <div class="prod-acc">
+      <button type="button" class="prod-acc-head"><iconify-icon icon="mdi:chart-timeline-variant" class="lu"></iconify-icon><span>Fidelity drill-down</span><iconify-icon icon="mdi:chevron-down" class="lu prod-acc-caret"></iconify-icon></button>
+      <div class="prod-acc-body"><div id="psYieldDrill"></div></div>
+    </div>`;
   const modeEl = container.querySelector("#psYieldMode");
   const wageEl = container.querySelector("#psYieldWage");
   const render = () => renderYieldTable(container, data, modeEl.value, parseFloat(wageEl.value) || 0.12);

@@ -15,6 +15,7 @@ export function switchTab(tab) {
   document.querySelectorAll(".overlay").forEach(o => o.classList.add("hidden"));
   S.currentTab = tab;
   document.querySelectorAll(".side-btn[data-tab]").forEach(b=>b.classList.toggle("active", b.dataset.tab===tab));
+  document.querySelectorAll(".tab-bar [data-tab]").forEach(b=>b.classList.toggle("active", b.dataset.tab===tab));
   document.querySelectorAll(".tab-panel").forEach(p=>p.classList.toggle("active", p.id==="tab-"+tab));
   if(tab === "timeline"){
     clearTimelineBadge();
