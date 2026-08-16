@@ -5,8 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="theme-color" content="#f8f8dc">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="News Desk">
+  <meta name="theme-color" content="#121212">
   <title>War Era · News Desk</title>
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Literata:opsz,wght@7..72,400;7..72,700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@400;700&family=Fira+Code:wght@400;700&family=Caesar+Dressing&family=Kode+Mono:wght@400;600;700&family=Lacquer&family=Pixelify+Sans:wght@400..700&family=Skranji:wght@400;700&family=Texturina:opsz,wght@12..72,400..700&family=Tiny5&display=swap" rel="stylesheet">
@@ -494,6 +497,11 @@
     <div class="settings-group">
       <label>Audio</label>
       <label class="settings-toggle"><input type="checkbox" id="audioEnabledToggle"><span>Play UI sound effects</span></label>
+    </div>
+    <div class="settings-group" id="installAppGroup" hidden>
+      <label>Install App</label>
+      <button class="btn-primary" id="installAppBtn" style="width:100%"><iconify-icon icon="mdi:download" class="lu"></iconify-icon> Install News Desk</button>
+      <p style="font-size:.72rem;color:var(--ink-dim);margin:0">Install as an app to get a dedicated window and offline access.</p>
     </div>
     <div style="display:flex;gap:6px">
       <button class="btn-primary" id="closeSettingsBtn" style="flex:1">Done</button>

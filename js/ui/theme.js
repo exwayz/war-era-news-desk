@@ -9,6 +9,8 @@ export function applyTheme(t) {
     const icon = t==="dark" ? "mdi:weather-sunny" : "mdi:weather-night";
     btn.innerHTML = `<span class="side-icon"><iconify-icon icon="${icon}" class="lu"></iconify-icon></span>`;
   }
+  const themeColor = document.querySelector('meta[name="theme-color"]:not([media])');
+  if (themeColor) themeColor.content = t === "dark" ? "#121212" : "#f8f8dc";
 }
 export function applyTexture(on) {
   document.documentElement.dataset.texture = on ? "on" : "off";
