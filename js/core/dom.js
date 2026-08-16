@@ -41,6 +41,7 @@ export const E = {
   battleReportTitle: document.getElementById("battleReportTitle"),
   battleReportMeta: document.getElementById("battleReportMeta"),
   battleReportContent: document.getElementById("battleReportContent"),
+  refreshBattleReportBtn: document.getElementById("refreshBattleReportBtn"),
   openBattlePageBtn: document.getElementById("openBattlePageBtn"),
   copyBattleReportBtn: document.getElementById("copyBattleReportBtn"),
   closeBattleReport: document.getElementById("closeBattleReport"),

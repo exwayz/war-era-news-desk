@@ -1,6 +1,6 @@
 import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
-import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
+import { apiKey, fetchTrpc, fetchTrpcApi2, unwrap } from "../core/api.js";
 import { fmtDate, fmtNum, fmtMoney, getValue, getPoints, normalizeRankRow, escapeHtml, rankBadgeHtml } from "../core/utils.js";
 import { nameCountry, nameRegion, nameUser, nameMu, battleSideColors, ensureAlliances, allianceColor, allianceName, sideAllianceGroups, battleSideAllianceCountries } from "./companies.js";
 import { buildAndDownloadXLS, battleId, battleTypeKind } from "./battles.js";
@@ -278,6 +278,41 @@ export async function loadBattleDetail(battle, bid, silent=false) {
       };
     })
     .filter(Boolean);
+
+    // battle.getLiveBattleData returns fresh tick/score data within seconds of a
+    // tick, while round.getById can be cached server-side for ~5 minutes. Overlay
+    // the live payload onto the current round so the countdown never freezes on
+    // "due…" and the score/damage numbers advance on the real tick.
+    const [liveGw, liveApi2] = await Promise.allSettled([
+      fetchTrpc("battle.getLiveBattleData", { battleId: bid }, k),
+      fetchTrpcApi2("battle.getLiveBattleData", { battleId: bid }, k),
+    ]);
+    const liveRes = (liveGw.status === "fulfilled" ? unwrap(liveGw.value) : null) || (liveApi2.status === "fulfilled" ? unwrap(liveApi2.value) : null);
+    const liveRound = liveRes?.round;
+    if (liveRound && (liveRound.nextTickAt || liveRound.actualTickPoints != null)) {
+      const cur = roundsData.find(rd => rd._id === liveRound.roundId) || roundsData.find(rd => rd._isCurrent);
+      if (cur) {
+        cur.isActive = liveRound.isActive ?? cur.isActive;
+        if (liveRound.nextTickAt || liveRound.actualTickPoints != null) {
+          cur.live = { ...(cur.live || {}), nextTickAt: liveRound.nextTickAt ?? cur.live?.nextTickAt, actualTickPoints: liveRound.actualTickPoints ?? cur.live?.actualTickPoints };
+        }
+        if (liveRound.attackerPoints != null) { cur.attacker = { ...(cur.attacker || {}), points: liveRound.attackerPoints }; cur.pointsAttacker = liveRound.attackerPoints; }
+        if (liveRound.defenderPoints != null) { cur.defender = { ...(cur.defender || {}), points: liveRound.defenderPoints }; cur.pointsDefender = liveRound.defenderPoints; }
+        if (liveRound.attackerDamages != null) cur.attacker = { ...(cur.attacker || {}), damages: liveRound.attackerDamages };
+        if (liveRound.defenderDamages != null) cur.defender = { ...(cur.defender || {}), damages: liveRound.defenderDamages };
+      } else if (!roundsData.length) {
+        roundsData.push({
+          _id: liveRound.roundId,
+          _isCurrent: true,
+          isActive: liveRound.isActive ?? true,
+          live: { nextTickAt: liveRound.nextTickAt, actualTickPoints: liveRound.actualTickPoints },
+          attacker: { points: liveRound.attackerPoints ?? 0, damages: liveRound.attackerDamages ?? 0 },
+          defender: { points: liveRound.defenderPoints ?? 0, damages: liveRound.defenderDamages ?? 0 },
+          pointsAttacker: liveRound.attackerPoints ?? 0,
+          pointsDefender: liveRound.defenderPoints ?? 0,
+        });
+      }
+    }
 
     const atkCountryId = bdDetail.attacker?.country || bdDetail.attackerCountry || "";
     const defCountryId = bdDetail.defender?.country || bdDetail.defenderCountry || "";
@@ -799,6 +834,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     ? `${battleTypeLabel}: ${cwDef} vs ${cwAtk}${reg ? " — "+reg : ""}`
     : `${battleTypeLabel}: ${def||"?"} vs ${atk||"?"}${reg ? " — "+reg : ""}`;
   if (E.battleReportMeta) E.battleReportMeta.textContent = `${isLive ? "Live" : "Ended"}${started ? " · "+fmtDate(started) : ""}${ended ? " → "+fmtDate(ended) : ""}`;
+  if (E.refreshBattleReportBtn) E.refreshBattleReportBtn.style.display = isLive ? "" : "none";
   const prevScroll = E.battleReportContent.scrollTop;
   E.battleReportContent.innerHTML = detailHtml;
   E.battleReportContent.scrollTop = prevScroll;
@@ -1144,6 +1180,16 @@ export function copyBattleReport() {
 
 document.addEventListener("click", e => {
   if (e.target.closest("#copyBattleReportBtn")) copyBattleReport();
+  if (e.target.closest("#refreshBattleReportBtn")) {
+    const bid = E.openBattlePageBtn?.dataset.battleId;
+    if (bid) {
+      const btn = e.target.closest("#refreshBattleReportBtn");
+      btn.disabled = true;
+      loadBattleDetail({ _id: bid }, bid, true)
+        .catch(() => {})
+        .finally(() => { btn.disabled = false; });
+    }
+  }
 });
 
 function exportBattleXLS(b, bid, rankUsers, gpUsers, rankMu, gpMu, rankCountry, gpCountry) {
