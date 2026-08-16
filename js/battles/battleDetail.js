@@ -625,8 +625,8 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     let narrative = "";
     if (isLive) {
       narrative = isCivilWar
-        ? `${battleTypeLabel} ongoing${reg ? " in " + reg : ""}. Damage split: ${atkPct}% vs ${defPct}%.`
-        : `${battleTypeLabel} ongoing: <strong>${def||"Defender"}</strong> vs <strong>${atk||"Attacker"}</strong>${reg?" in "+reg:""}. Damage split: ${atkPct}% vs ${defPct}%.`;
+        ? `${battleTypeLabel} ongoing${reg ? " in " + reg : ""}. Damage split: ${defPct}% vs ${atkPct}%.`
+        : `${battleTypeLabel} ongoing: <strong>${def||"Defender"}</strong> vs <strong>${atk||"Attacker"}</strong>${reg?" in "+reg:""}. Damage split: ${defPct}% vs ${atkPct}%.`;
     } else {
       narrative = winner
         ? (isCivilWar
@@ -668,7 +668,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
     const rWinner = rd.wonBy === "attacker" ? sideLabel("attacker", atk) : rd.wonBy === "defender" ? sideLabel("defender", def) : null;
     const rActive = (rd.isActive === true || rd._isCurrent === true || !rd.endedAt) && !rWinner;
     const statusLabel = rWinner ? "WON" : rActive ? "ACTIVE" : "ENDED";
-    const narrative = `Round ${idx + 1} ${rWinner ? `won by <strong>${rWinner}</strong>` : rActive ? "ongoing" : "concluded"}${totalDmg ? `: ${fmtNum(totalDmg)} total damage, ${atkPct}% vs ${defPct}% split` : ""}.`;
+    const narrative = `Round ${idx + 1} ${rWinner ? `won by <strong>${rWinner}</strong>` : rActive ? "ongoing" : "concluded"}${totalDmg ? `: ${fmtNum(totalDmg)} total damage, ${defPct}% vs ${atkPct}% split` : ""}.`;
     const rSides = orderSplit([...(pr.ordersAtk || []), ...(pr.ordersDef || [])]);
     return {
       scopeKey: String(idx),
