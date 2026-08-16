@@ -78,8 +78,8 @@ function renderOrdersModalBody() {
   const mu = list.filter(o => o.mu);
   const other = list.filter(o => !o.country && !o.mu);
   const body = list.length
-    ? ordersSection("Country Orders", "mdi:flag-outline", country, color)
-      + ordersSection("MU Orders", "mdi:shield-account-outline", mu, color)
+    ? ordersSection("Country Orders", "tdesign:flag-filled", country, color)
+      + ordersSection("MU Orders", "carbon:pcn-military", mu, color)
       + (other.length ? ordersSection("Other Orders", "mdi:help-circle-outline", other, color) : "")
     : `<p style="color:var(--ink-dim);text-align:center;padding:12px 0">No orders issued for this side.</p>`;
   E.battleOrdersModalBody.innerHTML = body;
@@ -527,7 +527,7 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
   const orderBtnHtml = (count, side) => {
     const color = side === "attacker" ? atkColor : defColor;
     const text = side === "attacker" ? atkText : defText;
-    const btn = `<button class="order-detail-btn" data-order-side="${side}" data-order-bid="${bid}" title="${count} ${side} order${count === 1 ? "" : "s"} issued" style="width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;border:1px solid ${color};color:${text};background:color-mix(in srgb, ${color} 16%, transparent);cursor:pointer;padding:0"><iconify-icon icon="mdi:crosshairs" class="lu" style="font-size:15px"></iconify-icon></button>`;
+    const btn = `<button class="order-detail-btn" data-order-side="${side}" data-order-bid="${bid}" title="${count} ${side} order${count === 1 ? "" : "s"} issued" style="width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;border:1px solid ${color};color:${text};background:color-mix(in srgb, ${color} 16%, transparent);cursor:pointer;padding:0"><iconify-icon icon="boxicons:target" class="lu" style="font-size:15px"></iconify-icon></button>`;
     const cnt = `<span style="font-size:.74rem;font-weight:900;color:${text};min-width:1em;text-align:center;font-variant-numeric:tabular-nums" title="Orders issued">${count}</span>`;
     return `<span style="display:inline-flex;align-items:center;gap:5px">${side === "attacker" ? btn + cnt : cnt + btn}</span>`;
   };
