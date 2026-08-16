@@ -228,28 +228,6 @@ function bindAll() {
   document.getElementById("settingsBtn")?.addEventListener("click", openSettingsModal);
   updateUserButton();
 
-  // PWA install prompt — show a button in Settings while the browser offers it.
-  let deferredInstallPrompt = null;
-  window.addEventListener("beforeinstallprompt", (e) => {
-    e.preventDefault();
-    deferredInstallPrompt = e;
-    const group = document.getElementById("installAppGroup");
-    if (group) group.hidden = false;
-  });
-  document.getElementById("installAppBtn")?.addEventListener("click", async () => {
-    if (!deferredInstallPrompt) return;
-    deferredInstallPrompt.prompt();
-    await deferredInstallPrompt.userChoice;
-    deferredInstallPrompt = null;
-    const group = document.getElementById("installAppGroup");
-    if (group) group.hidden = true;
-  });
-  window.addEventListener("appinstalled", () => {
-    deferredInstallPrompt = null;
-    const group = document.getElementById("installAppGroup");
-    if (group) group.hidden = true;
-  });
-
   // API key modal — save triggers data load
   E.saveApiKeyButton?.addEventListener("click",()=>{
     const key=E.apiKeyInput.value.trim();
