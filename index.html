@@ -619,6 +619,23 @@
   </div>
 </div>
 
+<!-- COPY WARNING MODAL -->
+<div id="copyWarningModal" class="overlay hidden">
+  <div class="modal-card copy-warning-card">
+    <h2><iconify-icon icon="mdi:scale-balance" class="lu"></iconify-icon> Before You Copy</h2>
+    <div class="copy-warning-body">
+      <p>The Copy tool is provided to support journalistic work and make research and reporting easier.</p>
+      <p>Please keep in mind that copying an article does not grant permission to republish, reproduce, or present its content as your own. Plagiarism and unauthorized use of copyrighted material are serious violations of journalistic ethics and intellectual property rights.</p>
+      <p>Use copied content responsibly. When quoting or using another journalist's work, follow proper attribution and applicable copyright rules.</p>
+    </div>
+    <p class="copy-warning-question">Do you understand and want to copy this article?</p>
+    <div style="display:flex;gap:8px">
+      <button id="copyWarningAccept" class="btn-primary" style="flex:1"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon> I Understand, Copy</button>
+      <button id="copyWarningCancel" class="btn-secondary" style="flex:1">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- IMAGE VIEWER MODAL -->
 <div id="imageViewerModal" class="overlay image-viewer-overlay hidden">
   <div class="image-viewer-window">

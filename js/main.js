@@ -476,12 +476,35 @@ function bindAll() {
   });
   E.closeReader?.addEventListener("click",()=>E.readerModal.classList.add("hidden"));
   E.readerModal?.addEventListener("click",e=>{ if(e.target===E.readerModal) E.readerModal.classList.add("hidden"); });
-  E.copyArticleBtn?.addEventListener("click",()=>{
+
+  // Reader copy protection — block copy/cut events on the article body so text
+  // can only be taken out via the gated Copy button. Links/images stay usable.
+  E.readerContent?.addEventListener("copy", e => {
+    if (!window.getSelection()?.toString()) return;
+    e.preventDefault();
+    e.stopPropagation();
+  });
+  E.readerContent?.addEventListener("cut", e => e.preventDefault());
+
+  const copyWarningModal = document.getElementById("copyWarningModal");
+  const doCopyArticle = () => {
     const a = getCurrentArticle();
     const title = a?.title || E.readerTitle.innerText || "";
     const byline = a ? readerBylineText(a.author, a.stats) : (E.readerAuthor.innerText || "");
     const content = E.readerContent.innerText || "";
-    navigator.clipboard.writeText([title, byline, "", content].filter(Boolean).join("\n")).then(()=>toast("Article copied."));
+    return navigator.clipboard.writeText([title, byline, "", content].filter(Boolean).join("\n")).then(()=>toast("Article copied."));
+  };
+  E.copyArticleBtn?.addEventListener("click",()=>{
+    if (copyWarningModal) copyWarningModal.classList.remove("hidden");
+  });
+  copyWarningModal?.addEventListener("click",e=>{ if(e.target===copyWarningModal) copyWarningModal.classList.add("hidden"); });
+  document.getElementById("copyWarningAccept")?.addEventListener("click",()=>{
+    copyWarningModal?.classList.add("hidden");
+    playCopy();
+    doCopyArticle();
+  });
+  document.getElementById("copyWarningCancel")?.addEventListener("click",()=>{
+    copyWarningModal?.classList.add("hidden");
   });
   initReaderZoom();
   initImageViewer();
@@ -598,7 +621,7 @@ function bindAll() {
 
   document.addEventListener("click", e => {
     const t = e.target;
-    if (t.closest("#copyMarketReportBtn, #copyJobsReportBtn, #copyRankingsReportBtn, #copyArticleBtn, #copyBattleReportBtn, #copyPoliticsReportBtn, #copyJobsConcentrationBtn, #copyCommunityReportBtn, #copyAllLinksBtn, .ec-copy, .link-copy")) { playCopy(); return; }
+    if (t.closest("#copyMarketReportBtn, #copyJobsReportBtn, #copyRankingsReportBtn, #copyBattleReportBtn, #copyPoliticsReportBtn, #copyJobsConcentrationBtn, #copyCommunityReportBtn, #copyAllLinksBtn, .ec-copy, .link-copy")) { playCopy(); return; }
     if (t.closest(".ac-read, .wall-read-btn")) { playRead(); return; }
     if (t.closest("button, a, .event-card, .battle-card, .wall-upvote-btn")) { playClick(); }
   });
