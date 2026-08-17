@@ -483,11 +483,30 @@
       <div id="profileDisplay" class="profile-display"></div>
       <p id="profileQuota" style="font-size:.72rem;color:var(--ink-dim);text-align:center"></p>
       <p style="font-size:.7rem;color:var(--ink-dim);text-align:center">No personal information is stored.</p>
+      <button class="btn-primary" id="openStudioBtn" style="width:100%"><iconify-icon icon="mdi:chart-box-outline" class="lu"></iconify-icon> Newsroom Studio</button>
       <button class="btn-secondary" id="deleteProfileBtn" style="width:100%;color:var(--red);border-color:var(--red)">Delete User</button>
     </div>
     <div style="display:flex;gap:6px;margin-top:6px">
       <button class="btn-primary" id="closeProfileBtn" style="flex:1">Done</button>
     </div>
+  </div>
+</div>
+
+<!-- NEWSROOM STUDIO MODAL -->
+<div id="studioModal" class="overlay hidden">
+  <div class="modal-card st-modal">
+    <div class="st-head">
+      <div id="studioHeaderInfo"></div>
+      <button id="closeStudioBtn" class="btn-icon-sm" title="Close"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
+    </div>
+    <div id="studioTabs" class="st-tabs">
+      <button class="pill-btn active" data-tab="overview"><iconify-icon icon="mdi:view-dashboard-outline" class="lu"></iconify-icon> Overview</button>
+      <button class="pill-btn" data-tab="articles"><iconify-icon icon="mdi:newspaper-variant-outline" class="lu"></iconify-icon> Articles</button>
+      <button class="pill-btn" data-tab="audience"><iconify-icon icon="mdi:account-group-outline" class="lu"></iconify-icon> Audience</button>
+      <button class="pill-btn" data-tab="revenue"><iconify-icon icon="mdi:currency-btc" class="lu"></iconify-icon> Revenue</button>
+      <button class="pill-btn" data-tab="publishing"><iconify-icon icon="mdi:calendar-clock" class="lu"></iconify-icon> Publishing</button>
+    </div>
+    <div id="studioContent" class="st-body"></div>
   </div>
 </div>
 

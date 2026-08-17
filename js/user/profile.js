@@ -139,6 +139,8 @@ export async function resolveProfile(input, apiKey) {
     }
 
     const subscribers = richData.rankings?.userSubscribers?.value ?? null;
+    const subscriberRank = richData.rankings?.userSubscribers?.rank ?? null;
+    const subscriberTier = richData.rankings?.userSubscribers?.tier ?? null;
 
     const profile = saveProfile({
       userId,
@@ -153,6 +155,8 @@ export async function resolveProfile(input, apiKey) {
       partyId,
       partyName,
       subscribers,
+      subscriberRank,
+      subscriberTier,
     });
 
     return { success: true, profile };

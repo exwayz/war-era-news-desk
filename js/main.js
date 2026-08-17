@@ -34,6 +34,7 @@ import { initReaderHighlight, loadHighlightsForArticle } from "./ui/readerHighli
 import { openReaderFromMention, navigateBack, closeReaderNav } from "./ui/readerNav.js";
 import { initImageViewer } from "./ui/imageViewer.js";
 import { openChangelog, closeChangelog } from "./ui/changelog.js";
+import { initStudio, openStudio } from "./studio/studio.js";
 
 function escHtml(s) {
   const d = document.createElement("div");
@@ -359,6 +360,13 @@ function bindAll() {
     setTimeout(highlightUserData, 200);
   });
 
+  document.getElementById("openStudioBtn")?.addEventListener("click", async () => {
+    const profile = loadProfile();
+    if (!profile) { toast("Register a profile first."); return; }
+    document.getElementById("profileModal")?.classList.add("hidden");
+    openStudio(profile.userId, profile);
+  });
+
   document.getElementById("deleteProfileBtn")?.addEventListener("click",()=>{
     if (!confirm("Delete your profile and all stored data?")) return;
     deleteProfile();
@@ -518,6 +526,7 @@ function bindAll() {
   });
   if (E.readerModal) readerMo.observe(E.readerModal, { attributes: true, attributeFilter: ["class"] });
   initImageViewer();
+  initStudio();
   document.getElementById("openArticleBtn")?.addEventListener("click",()=>{
     const id = document.getElementById("openArticleBtn").dataset.id;
     if (id) window.open(`https://app.warera.io/article/${id}`, "_blank", "noopener");
