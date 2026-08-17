@@ -20,12 +20,12 @@ jobs:
       SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
       NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         env:
           GIT_SSL_CAINFO: /etc/ssl/certs/ca-certificates.crt
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
       - name: Refresh offline lookups from live API
         run: node data/refreshLookups.mjs
         env:
