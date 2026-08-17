@@ -30,6 +30,7 @@ import { initTableMaker } from "./tablemaker/tablemaker.js";
 import { highlightUserData } from "./core/profileHighlighter.js";
 import { initClock, updateInfobar } from "./visuals/clock.js";
 import { initReaderZoom } from "./ui/readerZoom.js";
+import { initReaderHighlight, loadHighlightsForArticle } from "./ui/readerHighlight.js";
 import { initImageViewer } from "./ui/imageViewer.js";
 import { openChangelog, closeChangelog } from "./ui/changelog.js";
 
@@ -485,6 +486,12 @@ function bindAll() {
     copyWarningModal?.classList.add("hidden");
   });
   initReaderZoom();
+  initReaderHighlight();
+  // Restore article highlights whenever the reader opens
+  const readerMo = new MutationObserver(() => {
+    if (!E.readerModal?.classList.contains("hidden")) loadHighlightsForArticle(E.readerContent);
+  });
+  if (E.readerModal) readerMo.observe(E.readerModal, { attributes: true, attributeFilter: ["class"] });
   initImageViewer();
   document.getElementById("openArticleBtn")?.addEventListener("click",()=>{
     const id = document.getElementById("openArticleBtn").dataset.id;
