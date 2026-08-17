@@ -42,6 +42,8 @@ export const S = {
 S.lookups.muById = new Map();
 S.lookups.partiesById = new Map();
 S.lookups.articlesById = new Map();
+S.lookups.tournamentTeamsById = new Map(); // team ID → { _id, number, colorScheme, countries, mus, participants }
+S.lookups.tournamentsById = new Map();    // tournament ID → { _id, type, name, ... }
 
 export let unseenTimelineEvents = 0;
 

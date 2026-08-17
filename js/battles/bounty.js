@@ -1,4 +1,5 @@
 import { E } from "../core/dom.js";
+import { S } from "../core/state.js";
 import { apiKey, fetchTrpcApi2, unwrap } from "../core/api.js";
 import { fmtMoney, fmtNum, fmtDate, escapeHtml, rankBadgeHtml } from "../core/utils.js";
 import { resolveEntityByType } from "../core/resolver.js";
@@ -170,10 +171,17 @@ function sideKey(c) {
 }
 
 function battleNames(b) {
+  if (b?.type === "tournament") {
+    const atkTeam = S.lookups.tournamentTeamsById.get(b?.attacker?.tournamentTeam);
+    const defTeam = S.lookups.tournamentTeamsById.get(b?.defender?.tournamentTeam);
+    const atkName = atkTeam ? `Team ${atkTeam.number}` : (nameMu(b?.attacker?.tournamentTeam) || "Attacker");
+    const defName = defTeam ? `Team ${defTeam.number}` : (nameMu(b?.defender?.tournamentTeam) || "Defender");
+    return { atkName, defName };
+  }
   const atkId = b?.attacker?.country || b.attackerCountry || b.attacker?.countryId;
   const defId = b?.defender?.country || b.defenderCountry || b.defender?.countryId;
-  const atkName = nameCountry(atkId) || (b.type === "tournament" ? nameMu(b?.attacker?.tournamentTeam) : "") || "Attacker";
-  const defName = nameCountry(defId) || (b.type === "tournament" ? nameMu(b?.defender?.tournamentTeam) : "") || "Defender";
+  const atkName = nameCountry(atkId) || "Attacker";
+  const defName = nameCountry(defId) || "Defender";
   return { atkName, defName };
 }
 

@@ -197,6 +197,15 @@ export async function fetchAI(prompt) {
   }
 }
 
+/** Fetch tournament teams for a tournament ID (works via api2 gateway) */
+export async function fetchTournamentTeams(tournamentId, k) {
+  try {
+    const r = await fetchTrpcApi2("tournamentTeam.getByTournamentId", { tournamentId }, k);
+    const data = unwrap(r);
+    return Array.isArray(data) ? data : [];
+  } catch { return []; }
+}
+
 /** Fetch from Belmo cache first, fall back to direct API on miss/stale */
 export async function fetchCached(key, directFetcher) {
   if (MARKET_SERVER_URL) {

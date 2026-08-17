@@ -1,6 +1,6 @@
 import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
-import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
+import { apiKey, fetchTrpc, fetchTrpcApi2, fetchTournamentTeams, unwrap } from "../core/api.js";
 import { fmtDate, fmtNum, fmtMoney, escapeHtml, escapeXml } from "../core/utils.js";
 import { toast } from "../ui/toast.js";
 import { highlightUserData } from "../core/profileHighlighter.js";
@@ -36,7 +36,10 @@ export function battleTypeKeyword(kw) {
 // "Civil war of Aetern", "MU Tournament".
 export function battleTitlePhrase(b) {
   const kind = battleTypeKind(b?.type);
-  if (kind === "tournament") return "MU Tournament";
+  if (kind === "tournament") {
+    const t = S.lookups.tournamentsById.get(b?.tournament);
+    return t?.type === "country" ? "Country Tournament" : t?.type === "mu" ? "MU Tournament" : (t?.name || "Tournament");
+  }
   const reg = nameRegion(b?.defender?.region || b.defenderRegion || b.region);
   const def = nameCountry(b?.defender?.country || b.defenderCountry || b.defender?.countryId);
   if (kind === "resistance") return reg ? `Resistance for ${reg}` : "Resistance";
@@ -45,23 +48,70 @@ export function battleTitlePhrase(b) {
 }
 
 
-async function resolveTournamentMUs(k) {
-  const muIds = new Set();
+// Fetch tournament type and team data for all tournament battles in the list.
+// Stores tournament objects in S.lookups.tournamentsById and team objects in
+// S.lookups.tournamentTeamsById so sideFlagHtml, battleSideColors, and
+// battleTitlePhrase can resolve names, colors, and emblems.
+async function resolveTournamentData(k) {
+  const tournamentIds = new Set();
+  const teamIds = new Set();
   for (const b of S.battles) {
     if (b.type !== "tournament") continue;
-    const atkMu = b.attacker?.tournamentTeam;
-    const defMu = b.defender?.tournamentTeam;
-    if (atkMu && !S.lookups.muById.has(atkMu)) muIds.add(atkMu);
-    if (defMu && !S.lookups.muById.has(defMu)) muIds.add(defMu);
+    if (b.tournament && !S.lookups.tournamentsById.has(b.tournament)) tournamentIds.add(b.tournament);
+    const atkTeam = b.attacker?.tournamentTeam;
+    const defTeam = b.defender?.tournamentTeam;
+    if (atkTeam && !S.lookups.tournamentTeamsById.has(atkTeam)) teamIds.add(atkTeam);
+    if (defTeam && !S.lookups.tournamentTeamsById.has(defTeam)) teamIds.add(defTeam);
   }
-  if (!muIds.size) return;
-  await Promise.all([...muIds].map(async mid => {
-    try {
-      const r = await fetchTrpc("mu.getById", { muId: mid }, k);
-      const mu = unwrap(r);
-      if (mu) S.lookups.muById.set(mid, mu);
-    } catch {}
-  }));
+  // Fetch missing tournament docs (only need the type field)
+  if (tournamentIds.size) {
+    await Promise.all([...tournamentIds].map(async tid => {
+      try {
+        const r = await fetchTrpc("tournament.getById", { tournamentId: tid }, k);
+        const t = unwrap(r);
+        if (t) S.lookups.tournamentsById.set(tid, t);
+      } catch {}
+    }));
+  }
+  // We don't know which tournament each team belongs to without the tournament doc,
+  // but the teams come in bulk via tournamentTeam.getByTournamentId. Group by
+  // tournament ID and fetch all teams for each.
+  const teamsByTournament = new Map();
+  for (const tid of tournamentIds) {
+    if (teamsByTournament.has(tid)) continue;
+    const teams = await fetchTournamentTeams(tid, k);
+    teamsByTournament.set(tid, teams);
+    for (const team of teams) {
+      if (team?._id) S.lookups.tournamentTeamsById.set(team._id, team);
+    }
+  }
+  // For team IDs we didn't get from the bulk fetch above (e.g. if the tournament
+  // wasn't in S.battles), try individual lookup via the battle's tournament field.
+  if (teamIds.size) {
+    // Group orphan team IDs by tournament
+    const orphansByTournament = new Map();
+    for (const b of S.battles) {
+      if (b.type !== "tournament" || !b.tournament) continue;
+      for (const tid2 of [b.attacker?.tournamentTeam, b.defender?.tournamentTeam]) {
+        if (tid2 && !S.lookups.tournamentTeamsById.has(tid2)) {
+          if (!orphansByTournament.has(b.tournament)) orphansByTournament.set(b.tournament, new Set());
+          orphansByTournament.get(b.tournament).add(tid2);
+        }
+      }
+    }
+    for (const [tid3, orphans] of orphansByTournament) {
+      if (teamsByTournament.has(tid3)) continue; // already fetched above
+      const teams = await fetchTournamentTeams(tid3, k);
+      for (const team of teams) {
+        if (team?._id) S.lookups.tournamentTeamsById.set(team._id, team);
+      }
+    }
+  }
+}
+
+// Legacy alias so callers don't break
+async function resolveTournamentMUs(k) {
+  await resolveTournamentData(k);
 }
 
 export function stopBattlePolling() {
@@ -623,8 +673,10 @@ export function renderBattleList() {
     list = list.filter(b => {
       let atk, def;
       if (b.type === "tournament") {
-        atk = nameMu(b.attacker?.tournamentTeam).toLowerCase();
-        def = nameMu(b.defender?.tournamentTeam).toLowerCase();
+        const atkTeam = S.lookups.tournamentTeamsById.get(b.attacker?.tournamentTeam);
+        const defTeam = S.lookups.tournamentTeamsById.get(b.defender?.tournamentTeam);
+        atk = atkTeam ? `team ${atkTeam.number}` : nameMu(b.attacker?.tournamentTeam).toLowerCase();
+        def = defTeam ? `team ${defTeam.number}` : nameMu(b.defender?.tournamentTeam).toLowerCase();
       } else {
         atk = nameCountry(b.attacker?.country||b.attackerCountry||b.attacker?.countryId).toLowerCase();
         def = nameCountry(b.defender?.country||b.defenderCountry||b.defender?.countryId).toLowerCase();
@@ -691,7 +743,7 @@ export function renderBattleList() {
   watchNewBattleCards();
 }
 
-import { nameCountry, nameRegion, nameMu, battleSideColors } from "./companies.js";
+import { nameCountry, nameRegion, nameMu, battleSideColors, SCHEME_COLORS } from "./companies.js";
 
 function sumDmg(d) {
   if (d == null) return 0;
@@ -703,11 +755,97 @@ function sumDmg(d) {
 function sideFlagHtml(id, isTournament) {
   if (!id) return "";
   if (isTournament) {
+    const team = S.lookups.tournamentTeamsById.get(id);
+    const scheme = team?.colorScheme || "";
+    const num = team?.number;
+    const shades = SCHEME_COLORS[scheme];
+    const color = shades ? shades.light : "var(--ink-dim)";
+    if (num) {
+      return `<span class="bc-team-emblem" data-team-id="${escapeHtml(id)}" title="Team ${num} — click to view members">
+        <iconify-icon icon="game-icons:swords-emblem" class="bc-team-swords" style="color:${color};font-size:36px;width:36px;height:36px"></iconify-icon>
+        <span class="bc-team-num" style="color:#fff">${num}</span>
+      </span>`;
+    }
     const mu = S.lookups.muById.get(id);
     return mu?.avatarUrl ? `<img class="bc-flag-img bc-flag-img--round" src="${escapeHtml(mu.avatarUrl)}" alt="">` : "";
   }
   const code = (S.lookups.countriesById.get(id)?.code || "").toLowerCase();
   return code ? `<img class="bc-flag-img" src="https://media.warera.io/images/flags/${code}.svg" alt="">` : "";
+}
+
+// ── Team country popover ──────────────────────────
+let _teamPopoverEl = null;
+let _teamPopoverOverlay = null;
+
+function hideTeamPopover() {
+  if (_teamPopoverEl) { _teamPopoverEl.remove(); _teamPopoverEl = null; }
+  if (_teamPopoverOverlay) { _teamPopoverOverlay.remove(); _teamPopoverOverlay = null; }
+}
+
+function showTeamPopover(teamId, anchorEl) {
+  hideTeamPopover();
+  const team = S.lookups.tournamentTeamsById.get(teamId);
+  if (!team) return;
+  const scheme = team.colorScheme || "";
+  const shades = SCHEME_COLORS[scheme];
+  const accent = shades ? shades.light : "var(--ink-dim)";
+  const countryIds = team.countries || [];
+  const muIds = team.mus || [];
+
+  const popover = document.createElement("div");
+  popover.className = "team-popover";
+  popover.innerHTML = `<div class="team-popover-head" style="color:${accent}">Team ${team.number} Members</div>` +
+    (countryIds.length
+      ? countryIds.map(cid => {
+          const c = S.lookups.countriesById.get(cid);
+          const name = c?.name || String(cid).slice(-6);
+          const code = (c?.code || "").toLowerCase();
+          const flag = code ? `<img src="https://media.warera.io/images/flags/${code}.svg" alt="">` : "";
+          return `<div class="team-popover-item">${flag}<span class="tp-name">${escapeHtml(name)}</span></div>`;
+        }).join("")
+      : muIds.length
+        ? muIds.map(mid => {
+            const m = S.lookups.muById.get(mid);
+            const name = m?.name || m?.muName || String(mid).slice(-6);
+            const av = m?.avatarUrl ? `<img src="${escapeHtml(m.avatarUrl)}" alt="" style="width:22px;height:22px;border-radius:50%;object-fit:cover">` : "";
+            return `<div class="team-popover-item">${av}<span class="tp-name">${escapeHtml(name)}</span></div>`;
+          }).join("")
+        : `<div class="team-popover-empty">No members loaded</div>`
+    );
+
+  const overlay = document.createElement("div");
+  overlay.className = "team-popover-overlay";
+  overlay.addEventListener("click", hideTeamPopover);
+
+  document.body.appendChild(overlay);
+  document.body.appendChild(popover);
+  _teamPopoverOverlay = overlay;
+  _teamPopoverEl = popover;
+
+  // Position near the anchor
+  const rect = anchorEl.getBoundingClientRect();
+  let top = rect.bottom + 6;
+  let left = rect.left + rect.width / 2 - popover.offsetWidth / 2;
+  if (top + popover.offsetHeight > window.innerHeight) top = rect.top - popover.offsetHeight - 6;
+  if (left < 8) left = 8;
+  if (left + popover.offsetWidth > window.innerWidth - 8) left = window.innerWidth - popover.offsetWidth - 8;
+  popover.style.top = top + "px";
+  popover.style.left = left + "px";
+}
+
+// Delegated click handler for team emblems (battle cards + detail)
+function onTeamEmblemClick(e) {
+  const emblem = e.target.closest(".bc-team-emblem");
+  if (emblem) {
+    e.stopPropagation();
+    const teamId = emblem.dataset.teamId;
+    if (teamId) showTeamPopover(teamId, emblem);
+  }
+}
+
+// Attach once the DOM is ready
+if (typeof document !== "undefined") {
+  document.addEventListener("click", onTeamEmblemClick);
 }
 
 function fmtDateShort(v) {
@@ -737,8 +875,10 @@ function makeBattleCard(battle) {
   if (isTournament) {
     atkId = battle.attacker?.tournamentTeam;
     defId = battle.defender?.tournamentTeam;
-    atk = nameMu(atkId);
-    def = nameMu(defId);
+    const atkTeam = S.lookups.tournamentTeamsById.get(atkId);
+    const defTeam = S.lookups.tournamentTeamsById.get(defId);
+    atk = atkTeam ? `Team ${atkTeam.number}` : (nameMu(atkId) || `Team ${String(atkId).slice(-4)}`);
+    def = defTeam ? `Team ${defTeam.number}` : (nameMu(defId) || `Team ${String(defId).slice(-4)}`);
   } else {
     atkId = battle.attacker?.country||battle.attackerCountry||battle.attacker?.countryId;
     defId = battle.defender?.country||battle.defenderCountry||battle.defender?.countryId;

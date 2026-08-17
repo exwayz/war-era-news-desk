@@ -1,8 +1,8 @@
 import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
-import { apiKey, fetchTrpc, fetchTrpcApi2, unwrap } from "../core/api.js";
+import { apiKey, fetchTrpc, fetchTrpcApi2, fetchTournamentTeams, unwrap } from "../core/api.js";
 import { fmtDate, fmtNum, fmtMoney, getValue, getPoints, normalizeRankRow, escapeHtml, rankBadgeHtml } from "../core/utils.js";
-import { nameCountry, nameRegion, nameUser, nameMu, battleSideColors, ensureAlliances, allianceColor, allianceName, sideAllianceGroups, battleSideAllianceCountries } from "./companies.js";
+import { nameCountry, nameRegion, nameUser, nameMu, battleSideColors, ensureAlliances, allianceColor, allianceName, sideAllianceGroups, battleSideAllianceCountries, SCHEME_COLORS } from "./companies.js";
 import { buildAndDownloadXLS, battleId, battleTypeKind } from "./battles.js";
 import { fetchBattleContracts, fetchBattleMoney, bountySummaryHtml, bindBountySummaryButtons } from "./bounty.js";
 import { ensureLookups } from "../timeline/filters.js";
@@ -239,16 +239,40 @@ export async function loadBattleDetail(battle, bid, silent=false) {
       }));
     }
 
-    // Resolve tournament team MUs
-    if (bdDetail.type === "tournament") {
-      const tMuIds = [bdDetail.attacker?.tournamentTeam, bdDetail.defender?.tournamentTeam].filter(id => id && !S.lookups.muById.has(id));
-      await Promise.all(tMuIds.map(async mid => {
+    // Resolve tournament team data (type + teams)
+    if (bdDetail.type === "tournament" && bdDetail.tournament) {
+      // Fetch tournament doc if not cached
+      if (!S.lookups.tournamentsById.has(bdDetail.tournament)) {
         try {
-          const res = await fetchTrpc("mu.getById", { muId: mid }, k);
-          const mu = unwrap(res);
-          if (mu) S.lookups.muById.set(mid, mu);
+          const tRes = await fetchTrpc("tournament.getById", { tournamentId: bdDetail.tournament }, k);
+          const tData = unwrap(tRes);
+          if (tData) S.lookups.tournamentsById.set(bdDetail.tournament, tData);
         } catch {}
-      }));
+      }
+      // Fetch tournament teams if not cached
+      const teamIds = [bdDetail.attacker?.tournamentTeam, bdDetail.defender?.tournamentTeam].filter(id => id && !S.lookups.tournamentTeamsById.has(id));
+      if (teamIds.length) {
+        const teams = await fetchTournamentTeams(bdDetail.tournament, k);
+        for (const team of teams) {
+          if (team?._id) S.lookups.tournamentTeamsById.set(team._id, team);
+        }
+      }
+      // Also resolve the individual MUs that belong to the teams for ranking display
+      const allTeamMuIds = new Set();
+      for (const tid of [bdDetail.attacker?.tournamentTeam, bdDetail.defender?.tournamentTeam]) {
+        const team = S.lookups.tournamentTeamsById.get(tid);
+        if (team?.mus) team.mus.forEach(mid => allTeamMuIds.add(mid));
+      }
+      const unknownTeamMu = [...allTeamMuIds].filter(id => id && !S.lookups.muById.has(id));
+      if (unknownTeamMu.length) {
+        await Promise.all(unknownTeamMu.map(async mid => {
+          try {
+            const res = await fetchTrpc("mu.getById", { muId: mid }, k);
+            const mu = unwrap(res);
+            if (mu) S.lookups.muById.set(mid, mu);
+          } catch {}
+        }));
+      }
     }
 
     const allRoundIds = [
@@ -413,15 +437,25 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
   const sideLabel = (side, fallback) => isCivilWar ? (side === "attacker" ? cwAtk : cwDef) : fallback;
   let atk, def, atkId, defId, atkAvatar, defAvatar;
   if (isTournament) {
-    atk = nameMu(b.attacker?.tournamentTeam);
-    def = nameMu(b.defender?.tournamentTeam);
     atkId = b.attacker?.tournamentTeam;
     defId = b.defender?.tournamentTeam;
-    const atkMu = S.lookups.muById.get(atkId);
-    const defMu = S.lookups.muById.get(defId);
-    const muAvatar = (mu) => mu?.avatarUrl ? `<img src="${mu.avatarUrl}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;display:block">` : "";
-    atkAvatar = muAvatar(atkMu);
-    defAvatar = muAvatar(defMu);
+    const atkTeam = S.lookups.tournamentTeamsById.get(atkId);
+    const defTeam = S.lookups.tournamentTeamsById.get(defId);
+    atk = atkTeam ? `Team ${atkTeam.number}` : (nameMu(atkId) || `Team ${String(atkId).slice(-4)}`);
+    def = defTeam ? `Team ${defTeam.number}` : (nameMu(defId) || `Team ${String(defId).slice(-4)}`);
+    // Build team emblem avatars (swords-emblem icon with team number)
+    const teamEmblem = (team) => {
+      if (!team) return "";
+      const scheme = team.colorScheme || "";
+      const shades = SCHEME_COLORS[scheme];
+      const color = shades ? shades.light : "var(--ink-dim)";
+      return `<span class="br-team-emblem bc-team-emblem" data-team-id="${escapeHtml(team._id)}" title="Team ${team.number} — click to view members" style="cursor:pointer">
+        <iconify-icon icon="game-icons:swords-emblem" class="bc-team-swords" style="color:${color};font-size:44px;width:44px;height:44px"></iconify-icon>
+        <span class="bc-team-num" style="color:#fff">${team.number}</span>
+      </span>`;
+    };
+    atkAvatar = teamEmblem(atkTeam);
+    defAvatar = teamEmblem(defTeam);
   } else {
     atk = nameCountry(b.attacker?.country||b.attackerCountry||b.attacker?.countryId);
     def = nameCountry(b.defender?.country||b.defenderCountry||b.defender?.countryId);
@@ -457,7 +491,13 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
   }
   const liveTag = isLive ? ` <span style="color:var(--red);font-size:.68rem;animation:livePulse 1.5s infinite;display:inline-block">● LIVE</span>` : "";
   const battleKind = battleTypeKind(b.type);
-  const battleTypeLabel = battleKind === "resistance" ? "Resistance" : battleKind === "revolution" ? "Civil War" : battleKind === "tournament" ? "MU Tournament" : "Battle";
+  let battleTypeLabel;
+  if (battleKind === "tournament") {
+    const t = S.lookups.tournamentsById.get(b.tournament);
+    battleTypeLabel = t?.type === "country" ? "Country Tournament" : t?.type === "mu" ? "MU Tournament" : (t?.name || "Tournament");
+  } else {
+    battleTypeLabel = battleKind === "resistance" ? "Resistance" : battleKind === "revolution" ? "Civil War" : "Battle";
+  }
   const rounds = roundsData || [];
   const sortedRounds = [...rounds].sort((a,b) => {
     const ta = new Date(a.createdAt||a.startedAt||0).getTime();
@@ -1280,8 +1320,19 @@ document.addEventListener("click", e => {
 
 function exportBattleXLS(b, bid, rankUsers, gpUsers, rankMu, gpMu, rankCountry, gpCountry) {
   const isCivilWar = battleTypeKind(b.type) === "revolution" && b.type !== "tournament";
-  const atk = isCivilWar ? "Rebels" : (nameCountry(b.attacker?.country||b.attackerCountry||b.attacker?.countryId)||"Attacker");
-  const def = isCivilWar ? "Government" : (nameCountry(b.defender?.country||b.defenderCountry||b.defender?.countryId)||"Defender");
+  let atk, def;
+  if (b.type === "tournament") {
+    const atkTeam = S.lookups.tournamentTeamsById.get(b.attacker?.tournamentTeam);
+    const defTeam = S.lookups.tournamentTeamsById.get(b.defender?.tournamentTeam);
+    atk = atkTeam ? `Team ${atkTeam.number}` : (nameMu(b.attacker?.tournamentTeam) || "Attacker");
+    def = defTeam ? `Team ${defTeam.number}` : (nameMu(b.defender?.tournamentTeam) || "Defender");
+  } else if (isCivilWar) {
+    atk = "Rebels";
+    def = "Government";
+  } else {
+    atk = nameCountry(b.attacker?.country||b.attackerCountry||b.attacker?.countryId) || "Attacker";
+    def = nameCountry(b.defender?.country||b.defenderCountry||b.defender?.countryId) || "Defender";
+  }
   const reg = nameRegion(b.defender?.region||b.defenderRegion||b.region)||"";
   const title = `${def} vs ${atk}${reg ? " - " + reg : ""}`;
 

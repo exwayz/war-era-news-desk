@@ -1275,3 +1275,56 @@ mark.reader-highlight {
 .tm-table-wrap tbody tr:hover td { background: var(--surface-hi); }
 .tm-table-wrap .col-center { text-align: center; }
 .tm-table-wrap .col-right { text-align: right; }
+
+/* ── TOURNAMENT TEAM EMBLEM ──────────────────────── */
+.bc-team-emblem {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; cursor: pointer; line-height: 1; flex-shrink: 0;
+}
+.bc-team-emblem .bc-team-swords {
+  position: absolute; inset: 0; z-index: 1;
+}
+.bc-team-emblem .bc-team-num {
+  position: relative; z-index: 2; font-size: .72rem; font-weight: 900; line-height: 1;
+  pointer-events: none; color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,.6), 0 0 6px rgba(0,0,0,.3);
+  margin-top: 1px;
+}
+/* Detail view variant — larger */
+.br-team-emblem {
+  width: 44px; height: 44px;
+}
+.br-team-emblem .bc-team-num { font-size: .85rem; }
+/* Hover outline on detail emblems */
+.br-team-emblem:hover { outline: 2px solid currentColor; outline-offset: 2px; border-radius: 50%; }
+
+/* ── TEAM COUNTRY POPOVER ────────────────────────── */
+.team-popover-overlay {
+  position: fixed; inset: 0; z-index: 100001;
+}
+.team-popover {
+  position: fixed; z-index: 100002;
+  background: var(--surface); border: 1px solid var(--line);
+  box-shadow: 0 8px 32px rgba(0,0,0,.45); border-radius: var(--radius);
+  padding: 8px 0; max-height: 320px; overflow-y: auto;
+  min-width: 180px; max-width: 260px;
+}
+.team-popover-head {
+  padding: 4px 12px 6px; font-size: .68rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: .05em; border-bottom: 1px solid var(--line); margin-bottom: 4px;
+}
+.team-popover-item {
+  display: flex; align-items: center; gap: 8px; padding: 4px 12px; font-size: .72rem;
+  font-weight: 700; color: var(--ink); white-space: nowrap;
+}
+.team-popover-item:hover { background: var(--surface-hi); }
+.team-popover-item img {
+  width: 22px; height: 15px; object-fit: cover; border: 1px solid var(--line);
+  box-shadow: 0 1px 2px rgba(0,0,0,.3); flex-shrink: 0;
+}
+.team-popover-item .tp-name {
+  overflow: hidden; text-overflow: ellipsis;
+}
+.team-popover-empty {
+  padding: 8px 12px; color: var(--ink-dim); font-size: .7rem; text-align: center;
+}

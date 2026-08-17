@@ -72,7 +72,7 @@ export function nameRegion(id) { if(!id) return ""; return S.lookups.regionsById
 export function nameUser(id) { if(!id) return ""; const u=S.lookups.usersById.get(id)||offlineResolve("user",id); return u?.username||u?.name||""; }
 export function nameMu(id) { if(!id) return ""; const m=S.lookups.muById.get(id)||offlineResolve("mu",id); return m?.name||m?.muName||m?.displayName||m?.fullName||""; }
 
-const SCHEME_COLORS = {
+export const SCHEME_COLORS = {
   red:        { light: "#782122", normal: "#651C1D", dark: "#531718" },
   deepOrange: { light: "#803025", normal: "#6D2820", dark: "#59211A" },
   orange:     { light: "#7E3E22", normal: "#6B341D", dark: "#572B18" },
@@ -176,6 +176,22 @@ function darkenHex(hex, amt) {
 }
 
 export function battleSideColors(b) {
+  // For tournament battles, use the team's colorScheme instead of country colors
+  if (b?.type === "tournament") {
+    const atkTeam = S.lookups.tournamentTeamsById.get(b?.attacker?.tournamentTeam);
+    const defTeam = S.lookups.tournamentTeamsById.get(b?.defender?.tournamentTeam);
+    const atkScheme = atkTeam?.colorScheme || "";
+    const defScheme = defTeam?.colorScheme || "";
+    const atkShades = SCHEME_COLORS[atkScheme];
+    const defShades = SCHEME_COLORS[defScheme];
+    const atkColor = atkShades ? atkShades.normal : "var(--blue)";
+    const defColor = defShades ? defShades.normal : "var(--red)";
+    const atkText = atkShades ? atkShades.light : atkColor;
+    const defText = defShades ? defShades.light : defColor;
+    const atkBarText = atkShades ? darkenHex(atkColor, 0.4) : "rgba(0,0,0,0.55)";
+    const defBarText = defShades ? darkenHex(defColor, 0.4) : "rgba(0,0,0,0.55)";
+    return { atkColor, defColor, atkText, defText, atkBarText, defBarText };
+  }
   const atkId = b?.attacker?.country || b.attackerCountry || b.attacker?.countryId;
   const defId = b?.defender?.country || b.defenderCountry || b.defender?.countryId;
   const atkColor = countryColor(atkId) || "var(--blue)";
@@ -333,8 +349,16 @@ export function injectBattleSearchBar() {
     if (kw) {
       const kwKind = battleTypeKeyword(kw);
       list = list.filter(b => {
-        const atk = nameCountry(b.attacker?.country||b.attackerCountry||b.attacker?.countryId).toLowerCase();
-        const def = nameCountry(b.defender?.country||b.defenderCountry||b.defender?.countryId).toLowerCase();
+        let atk, def;
+        if (b.type === "tournament") {
+          const atkTeam = S.lookups.tournamentTeamsById.get(b.attacker?.tournamentTeam);
+          const defTeam = S.lookups.tournamentTeamsById.get(b.defender?.tournamentTeam);
+          atk = atkTeam ? `team ${atkTeam.number}` : nameMu(b.attacker?.tournamentTeam).toLowerCase();
+          def = defTeam ? `team ${defTeam.number}` : nameMu(b.defender?.tournamentTeam).toLowerCase();
+        } else {
+          atk = nameCountry(b.attacker?.country||b.attackerCountry||b.attacker?.countryId).toLowerCase();
+          def = nameCountry(b.defender?.country||b.defenderCountry||b.defender?.countryId).toLowerCase();
+        }
         if (kwKind && battleTypeKind(b.type) === kwKind) return true;
         const reg = nameRegion(b.defender?.region||b.defenderRegion||b.region).toLowerCase();
         const title = (b.title||b.name||"").toLowerCase();
@@ -374,8 +398,16 @@ export function injectBattleSearchBar() {
       return (new Date(ae).getTime() - new Date(be).getTime()) * sortDir;
     });
     const lines = list.map(b => {
-      const atk = nameCountry(b.attacker?.country||b.attackerCountry||b.attacker?.countryId);
-      const def = nameCountry(b.defender?.country||b.defenderCountry||b.defender?.countryId);
+      let atk, def;
+      if (b.type === "tournament") {
+        const atkTeam = S.lookups.tournamentTeamsById.get(b.attacker?.tournamentTeam);
+        const defTeam = S.lookups.tournamentTeamsById.get(b.defender?.tournamentTeam);
+        atk = atkTeam ? `Team ${atkTeam.number}` : (nameMu(b.attacker?.tournamentTeam) || "Attacker");
+        def = defTeam ? `Team ${defTeam.number}` : (nameMu(b.defender?.tournamentTeam) || "Defender");
+      } else {
+        atk = nameCountry(b.attacker?.country||b.attackerCountry||b.attacker?.countryId);
+        def = nameCountry(b.defender?.country||b.defenderCountry||b.defender?.countryId);
+      }
       const reg = nameRegion(b.defender?.region||b.defenderRegion||b.region);
       const typePhrase = battleTitlePhrase(b);
       const started = fmtDate(b.createdAt||b.startedAt);
