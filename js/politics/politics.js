@@ -202,10 +202,10 @@ function renderPolitics() {
     </div>
   `;
   document.getElementById("copyPolSummaryBtn")?.addEventListener("click", () => {
-    const body = document.querySelector("#polSummaryBody .pol-summary-body");
-    if (!body || !body.innerText.trim()) { toast("No summary available yet."); return; }
+    const el = document.querySelector("#polSummaryBody .pol-summary-body") || document.querySelector("#polSummaryBody");
+    if (!el || !el.innerText.trim()) { toast("No summary available yet."); return; }
     playCopy();
-    navigator.clipboard.writeText(body.innerText.trim()).then(() => toast("Political summary copied."));
+    navigator.clipboard.writeText(el.innerText.trim()).then(() => toast("Political summary copied."));
   });
   document.getElementById("backToCountryGridBtn")?.addEventListener("click", backToCountryGrid);
   window.ndMobile?.applyPolitics();
