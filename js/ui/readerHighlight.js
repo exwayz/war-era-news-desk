@@ -80,6 +80,7 @@ function wrapSelectionInBlock(sel, container, idx) {
   const mark = document.createElement("mark");
   mark.className = "reader-highlight";
   mark.style.backgroundColor = cssVarColor(idx);
+  mark.dataset.hlColor = idx;
   try {
     range.surroundContents(mark);
     sel.removeAllRanges();
@@ -103,6 +104,7 @@ function applyHighlights(body, highlights) {
       const mark = document.createElement("mark");
       mark.className = "reader-highlight";
       mark.style.backgroundColor = cssVarColor(h.color);
+      mark.dataset.hlColor = h.color;
       mark.textContent = after.textContent;
       after.parentNode.replaceChild(mark, after);
       break;
@@ -131,7 +133,7 @@ function syncHighlights(body) {
   const marks = [...body.querySelectorAll("mark.reader-highlight")];
   const highlights = marks.map(m => ({
     text: m.textContent,
-    color: colorIndexFromBg(m.style.backgroundColor),
+    color: parseInt(m.dataset.hlColor, 10) || 0,
   }));
   const store = getStore();
   if (highlights.length > 0) store[articleKey] = highlights;
@@ -266,8 +268,8 @@ export function initReaderHighlight() {
   });
   observer.observe(body, { childList: true, subtree: true });
 
-  // Re-resolve all highlight colors when theme changes
-  const themeObserver = new MutationObserver(() => reResolveHighlights(body));
+  // Theme observer: no-op — CSS variables auto-update the colors
+  const themeObserver = new MutationObserver(() => {});
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
   // Deactivate on close

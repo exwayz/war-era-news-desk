@@ -3,9 +3,9 @@ import { E } from "../core/dom.js";
 import { apiKey, fetchTrpc, fetchTrpcApi2, fetchTrpcApi5, unwrap } from "../core/api.js";
 import { fmtDate, sanitizeHtml, readerBylineHtml, articleCardStatsHtml } from "../core/utils.js";
 import { resolveUsers } from "./filters.js";
-import { resolveContentLinks } from "../core/resolver.js";
 import { highlightUserData } from "../core/profileHighlighter.js";
 import { setCurrentArticle } from "../library/bookmarks.js";
+import { openRootArticle } from "../ui/readerNav.js";
 
 const LANG_NAMES = {
   en:"English",de:"Deutsch",es:"Español",fr:"Français",pt:"Português",ru:"Русский",
@@ -200,15 +200,8 @@ export function renderArticles() {
     node.querySelector(".ac-open").addEventListener("click",()=>window.open(`https://app.warera.io/article/${a._id||a.id}`,"_blank","noopener"));
     node.querySelector(".ac-read").addEventListener("click",()=>{
       setCurrentArticle(a);
-      E.readerTitle.textContent=a.title||"Untitled";
-      E.readerAuthor.innerHTML=readerBylineHtml(a.author, stats);
-      E.readerContent.innerHTML=sanitizeHtml(a.content)||"<p>No content available.</p>";
-      E.readerContent.querySelectorAll("a").forEach(l=>{ l.target="_blank"; l.rel="noopener noreferrer"; });
-      E.readerContent.querySelectorAll("iframe").forEach(f=>{ f.style.width="100%"; f.style.aspectRatio="16/9"; f.style.height="auto"; });
-      const openBtn = document.getElementById("openArticleBtn");
-      if (openBtn) openBtn.dataset.id = a._id || a.id;
+      openRootArticle(a);
       E.readerModal.classList.remove("hidden");
-      resolveContentLinks(E.readerContent);
     });
     E.articleList.append(node);
   }

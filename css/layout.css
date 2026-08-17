@@ -515,6 +515,9 @@
 .reader-head-info h2 { margin: 0; font-size: 1rem; font-weight: 700; font-family: var(--font-article); }
 .reader-head-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 .reader-head-close { flex-shrink: 0; }
+#readerBackBtn { color: var(--accent); }
+#readerBackBtn:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.reader-nav-depth { font-size: .7rem; color: var(--ink-dim); padding: 0 6px; }
 #bookmarkArticleBtn.bookmarked { border-color: var(--yellow); color: var(--yellow); background: color-mix(in srgb, var(--yellow) 14%, transparent); }
 #bookmarkArticleBtn.bookmarked .lu { color: var(--yellow); }
 .reader-byline { font-size: .78rem; color: var(--ink-dim); display: flex; align-items: center; flex-wrap: wrap; gap: 4px; row-gap: 2px; }

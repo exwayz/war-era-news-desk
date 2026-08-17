@@ -31,6 +31,7 @@ import { highlightUserData } from "./core/profileHighlighter.js";
 import { initClock, updateInfobar } from "./visuals/clock.js";
 import { initReaderZoom } from "./ui/readerZoom.js";
 import { initReaderHighlight, loadHighlightsForArticle } from "./ui/readerHighlight.js";
+import { openReaderFromMention, navigateBack, closeReaderNav } from "./ui/readerNav.js";
 import { initImageViewer } from "./ui/imageViewer.js";
 import { openChangelog, closeChangelog } from "./ui/changelog.js";
 
@@ -453,8 +454,32 @@ function bindAll() {
     await copyLibraryArticles();
     toast("Articles copied.");
   });
-  E.closeReader?.addEventListener("click",()=>E.readerModal.classList.add("hidden"));
-  E.readerModal?.addEventListener("click",e=>{ if(e.target===E.readerModal) E.readerModal.classList.add("hidden"); });
+  E.closeReader?.addEventListener("click",()=>{
+    if (navigateBack()) return;
+    closeReaderNav();
+    E.readerModal.classList.add("hidden");
+  });
+  E.readerModal?.addEventListener("click",e=>{
+    if (e.target !== E.readerModal) return;
+    if (navigateBack()) return;
+    closeReaderNav();
+    E.readerModal.classList.add("hidden");
+  });
+
+  document.getElementById("readerBackBtn")?.addEventListener("click",()=>{
+    if (!navigateBack()) {
+      closeReaderNav();
+      E.readerModal.classList.add("hidden");
+    }
+  });
+
+  E.readerContent?.addEventListener("click",e=>{
+    const link = e.target.closest(".reader-article-link");
+    if (!link) return;
+    e.preventDefault();
+    const articleId = link.dataset.articleId;
+    if (articleId) openReaderFromMention(articleId);
+  });
 
   // Reader copy protection — block copy/cut events on the article body so text
   // can only be taken out via the gated Copy button. Links/images stay usable.
@@ -601,6 +626,12 @@ function bindAll() {
 
   document.addEventListener("keydown",e=>{
     if(e.key!=="Escape") return;
+    if (!E.readerModal?.classList.contains("hidden")) {
+      if (navigateBack()) return;
+      closeReaderNav();
+      E.readerModal.classList.add("hidden");
+      return;
+    }
     document.querySelectorAll(".overlay").forEach(m=>m.classList.add("hidden"));
   });
 

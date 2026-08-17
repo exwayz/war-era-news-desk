@@ -2,10 +2,9 @@ import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
 import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
 import { resolveUsers } from "./filters.js";
-import { resolveContentLinks } from "../core/resolver.js";
 import { playRead } from "../audio/audio.js";
-import { sanitizeHtml, readerBylineHtml } from "../core/utils.js";
 import { setCurrentArticle } from "../library/bookmarks.js";
+import { openRootArticle } from "../ui/readerNav.js";
 
 const MAX_FEATURED = 10;
 const AUTO_INTERVAL = 10000;
@@ -98,17 +97,9 @@ export async function loadFeatured() {
 
 function openReader(a) {
   if (!a) return;
-  const stats = a.stats || {};
   setCurrentArticle(a);
-  E.readerTitle.textContent = a.title || "Untitled";
-  E.readerAuthor.innerHTML = readerBylineHtml(a.author, stats);
-  E.readerContent.innerHTML = sanitizeHtml(a.content) || "<p>No content available.</p>";
-  E.readerContent.querySelectorAll("a").forEach(l => { l.target = "_blank"; l.rel = "noopener noreferrer"; });
-  E.readerContent.querySelectorAll("iframe").forEach(f => { f.style.width = "100%"; f.style.aspectRatio = "16/9"; f.style.height = "auto"; });
-  const openBtn = document.getElementById("openArticleBtn");
-  if (openBtn) openBtn.dataset.id = a._id || a.id;
+  openRootArticle(a);
   E.readerModal.classList.remove("hidden");
-  resolveContentLinks(E.readerContent);
   playRead();
 }
 

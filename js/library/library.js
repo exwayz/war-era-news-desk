@@ -1,12 +1,12 @@
 import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
 import { apiKey, fetchTrpc, fetchTrpcApi2, fetchTrpcApi5, unwrap } from "../core/api.js";
-import { debounce, fmtDate, fmtNum, escapeHtml, sanitizeHtml, readerBylineHtml, articleCardStatsHtml } from "../core/utils.js";
+import { debounce, fmtDate, fmtNum, escapeHtml, articleCardStatsHtml } from "../core/utils.js";
 import { langName } from "../timeline/articles.js";
 import { resolveUsers } from "../timeline/filters.js";
-import { resolveContentLinks } from "../core/resolver.js";
 import { getMeta, saveMeta, loadAll, saveMany, clearStore } from "./libraryStore.js";
 import { setCurrentArticle, getBookmarkRecords, isBookmarked, ensureBookmarksLoaded } from "./bookmarks.js";
+import { openRootArticle } from "../ui/readerNav.js";
 
 const CATEGORY_META = {
   news:          { label: "News",          icon: "mdi:newspaper-variant-outline" },
@@ -380,17 +380,9 @@ export async function copyLibraryArticles() {
 }
 
 function openReader(a) {
-  const stats = a.stats || {};
   setCurrentArticle(a);
-  E.readerTitle.textContent = a.title || "Untitled";
-  E.readerAuthor.innerHTML = readerBylineHtml(a.author, stats);
-  E.readerContent.innerHTML = sanitizeHtml(a.content) || "<p>No content available.</p>";
-  E.readerContent.querySelectorAll("a").forEach(l => { l.target = "_blank"; l.rel = "noopener noreferrer"; });
-  E.readerContent.querySelectorAll("iframe").forEach(f => { f.style.width = "100%"; f.style.aspectRatio = "16/9"; f.style.height = "auto"; });
-  const openBtn = document.getElementById("openArticleBtn");
-  if (openBtn) openBtn.dataset.id = a._id || a.id;
+  openRootArticle(a);
   E.readerModal.classList.remove("hidden");
-  resolveContentLinks(E.readerContent);
 }
 
 function updateLangTrigger() {

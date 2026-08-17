@@ -190,6 +190,11 @@ export async function resolveContentLinks(container) {
     const name = entityDisplayName(type,id,data);
     const url = `https://app.warera.io/${type}/${id}`;
     span.classList.remove("entity-resolving");
-    span.innerHTML = `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="entity-link">${escapeHtml(name)}</a>`;
+
+    if (type === "article") {
+      span.innerHTML = `<a href="${escapeHtml(url)}" class="entity-link reader-article-link" data-article-id="${escapeHtml(id)}">${escapeHtml(name)}</a>`;
+    } else {
+      span.innerHTML = `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="entity-link">${escapeHtml(name)}</a>`;
+    }
   }
 }
