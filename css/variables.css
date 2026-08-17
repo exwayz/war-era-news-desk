@@ -25,6 +25,9 @@
   --bronze:          #e0a066;
   --surface:         #1a1a1a;
   --surface-hi:      #242424;
+  /* reader highlight colors — dark variants */
+  --hl-1:            #c9a820; --hl-2: #3a9e6a; --hl-3: #3a8db5;
+  --hl-4: #7a5ec0; --hl-5: #c47a30; --hl-6: #b84040; --hl-7: #c56080;
 }
 
 [data-theme="light"] {
@@ -53,6 +56,9 @@
   --bronze:          #a85f2f;
   --surface:         #f0f0d0;
   --surface-hi:      #e8e8c8;
+  /* reader highlight colors — light variants */
+  --hl-1:            #F4D35E; --hl-2: #7FD8A6; --hl-3: #72C7E8;
+  --hl-4: #B69BE8; --hl-5: #F4A261; --hl-6: #F08080; --hl-7: #EFA3B5;
 }
 
 /* ── FONT TOKENS ────────────────────────────────────── */

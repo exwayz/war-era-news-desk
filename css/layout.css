@@ -607,12 +607,18 @@
 .reader-highlight-swatch:hover { transform: scale(1.15); }
 .reader-highlight-swatch.selected { border-color: var(--ink); }
 
-/* Highlight mode — enable text selection in the reader body */
-.reader-body.reader-highlight-mode { user-select: text; -webkit-user-select: text; cursor: text; }
+/* Highlight mode — pencil cursor, enable text selection in the reader body */
+.reader-body.reader-highlight-mode {
+  user-select: text; -webkit-user-select: text;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22'%3E%3Cpath d='M3 19.5l1.5-5L15.6 2.9a1 1 0 011.4 0l2.1 2.1a1 1 0 010 1.4L7 18l-5 1.5z' fill='none' stroke='%23333' stroke-width='1.5' stroke-linejoin='round'/%3E%3Cpath d='M12.5 5l2.1 2.1' stroke='%23333' stroke-width='1.5'/%3E%3C/svg%3E") 2 20, text;
+}
+.reader-body.reader-highlight-mode mark.reader-highlight {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22'%3E%3Cpath d='M6 18h10a1 1 0 001-1v-5l-4-4-5 5v5a1 1 0 001 1z' fill='%23ddd' stroke='%23333' stroke-width='1.3'/%3E%3Cpath d='M4 18l3-3M7 15l5-5' stroke='%23333' stroke-width='1.3'/%3E%3C/svg%3E") 2 20, pointer;
+}
 
 /* Highlighted text marks */
 mark.reader-highlight {
-  background-color: inherit;
+  background-color: var(--hl-1);
   color: inherit;
   padding: 1px 0;
   border-radius: 2px;
