@@ -13,6 +13,10 @@ const MAX_PAGES = 50;
 const PAGE_SIZE = 100;
 const ARTICLES_PER_PAGE = 20;
 const TIP_VALUE = 5;
+const TIP_FEE = 3;
+
+function articleBtcRev(a) { return (a.tips || 0) * TIP_VALUE - ((a.tips || 0) > 0 ? TIP_FEE : 0); }
+function articleGemRev(a) { return (a.gemTips || 0) * TIP_VALUE - ((a.gemTips || 0) > 0 ? TIP_FEE : 0); }
 
 let _data = null;
 let _section = "overview";
@@ -261,15 +265,19 @@ function computeMetrics(articles, profile) {
   const clsCtx = { avgViews, avgEngagement: engagementRate, avgCommentRate: commentRate, avgTips };
   for (const am of articleMetrics) am.classifications = classifyArticle(am, clsCtx);
 
+  const tippedArticles = articleMetrics.filter(a => (a.tips + a.gemTips) > 0).length;
+  const totalBtcRev = Math.max(0, totalTips * TIP_VALUE - tippedArticles * TIP_FEE);
+  const totalGemRev = Math.max(0, totalGemTips * TIP_VALUE - tippedArticles * TIP_FEE);
+
   return {
     articles: sorted, articleMetrics, totalArticles: n,
     totalViews, totalLikes, totalDislikes, totalScore, totalComments,
     totalTips, totalGemTips,
-    totalBtcRevenue: totalTips * TIP_VALUE,
-    totalGemRevenue: totalGemTips * TIP_VALUE,
+    totalBtcRevenue: totalBtcRev,
+    totalGemRevenue: totalGemRev,
     avgViews, avgScore, avgComments,
-    avgBtcRevenue: (totalTips * TIP_VALUE) / n,
-    avgGemRevenue: (totalGemTips * TIP_VALUE) / n,
+    avgBtcRevenue: n ? totalBtcRev / n : 0,
+    avgGemRevenue: n ? totalGemRev / n : 0,
     reactions, engagementRate, reactionRate, commentRate,
     subscriberCount, subscriberRank, subscriberTier, publishing,
   };
@@ -283,7 +291,7 @@ function generateInsights(m) {
   const topEng = [...m.articleMetrics].sort((a, b) => b.engagementRate - a.engagementRate)[0];
   if (topEng?.engagementRate > 0) ins.push({ icon: "mdi:comment-processing-outline", text: `"${topEng.title}" had the strongest engagement rate (${topEng.engagementRate.toFixed(1)}%).` });
   const topTip = [...m.articleMetrics].sort((a, b) => (b.tips + b.gemTips) - (a.tips + a.gemTips))[0];
-  if (topTip && (topTip.tips + topTip.gemTips) > 0) ins.push({ icon: "mdi:currency-btc", text: `"${topTip.title}" generated the most tips (${fmtN((topTip.tips + topTip.gemTips) * TIP_VALUE)} units).` });
+  if (topTip && (topTip.tips + topTip.gemTips) > 0) ins.push({ icon: "mdi:currency-btc", text: `"${topTip.title}" generated the most tips (${fmtN(articleBtcRev(topTip) + articleGemRev(topTip))} units).` });
   const topCom = [...m.articleMetrics].sort((a, b) => b.comments - a.comments)[0];
   if (topCom?.comments > 0) ins.push({ icon: "mdi:forum-outline", text: `"${topCom.title}" generated the most discussion (${topCom.comments} comments).` });
   if (m.publishing.articlesPerWeek > 0) ins.push({ icon: "mdi:calendar-clock", text: `Publishing at ${m.publishing.articlesPerWeek.toFixed(1)} articles per week.` });
@@ -515,8 +523,9 @@ function renderOverview(el) {
   const cutoff = cutoffMap[_timeframe] || 0;
   const fa = cutoff ? m.articleMetrics.filter(a => new Date(a.publishedAt || a.createdAt).getTime() >= now - cutoff) : m.articleMetrics;
   const fTotalViews = fa.reduce((s, a) => s + a.views, 0);
-  const fTotalTips = fa.reduce((s, a) => s + a.tips, 0) * TIP_VALUE;
-  const fTotalGem = fa.reduce((s, a) => s + a.gemTips, 0) * TIP_VALUE;
+  const fTippedArticles = fa.filter(a => (a.tips + a.gemTips) > 0).length;
+  const fTotalTips = Math.max(0, fa.reduce((s, a) => s + a.tips, 0) * TIP_VALUE - fTippedArticles * TIP_FEE);
+  const fTotalGem = Math.max(0, fa.reduce((s, a) => s + a.gemTips, 0) * TIP_VALUE - fTippedArticles * TIP_FEE);
   const fEng = fa.length ? fa.reduce((s, a) => s + a.engagementRate, 0) / fa.length : 0;
 
   el.innerHTML = `
@@ -590,7 +599,7 @@ function renderArticles(el) {
         <td>${fmtN(a.views)}</td>
         <td>${fmtN(a.score)}</td>
         <td>${fmtN(a.comments)}</td>
-        <td>${fmtN((a.tips + a.gemTips) * TIP_VALUE)}</td>
+        <td>${fmtN(articleBtcRev(a) + articleGemRev(a))}</td>
         <td>${a.engagementRate.toFixed(1)}%</td>
       </tr>`).join("")}</tbody>
     </table></div>
@@ -622,8 +631,8 @@ function renderDetail(el) {
       ${mCard("Dislikes", fmtN(a.dislikes), "mdi:thumb-down-outline")}
       ${mCard("Score", fmtN(a.score), "mdi:star-outline")}
       ${mCard("Comments", fmtN(a.comments), "mdi:comment-outline")}
-      ${mCard("BTC Revenue", fmtN(a.tips * TIP_VALUE), "mdi:currency-btc")}
-      ${mCard("Gem Revenue", fmtN(a.gemTips * TIP_VALUE), "mdi:gem-outline")}
+      ${mCard("BTC Revenue", fmtN(articleBtcRev(a)), "mdi:currency-btc")}
+      ${mCard("Gem Revenue", fmtN(articleGemRev(a)), "mdi:gem-outline")}
       ${mCard("Engagement Rate", a.engagementRate.toFixed(1) + "%", "mdi:chart-line")}
       ${mCard("Reaction Rate", a.reactionRate.toFixed(1) + "%", "mdi:heart-outline")}
       ${mCard("Comment Rate", a.commentRate.toFixed(1) + "%", "mdi:forum-outline")}
@@ -683,8 +692,8 @@ function renderRevenue(el) {
       ${mCard("Avg Revenue / Article", fmtN(m.avgBtcRevenue + m.avgGemRevenue), "mdi:chart-line")}
     </div>
     <div class="st-section-head">Top Earning Articles</div>
-    <div class="st-list">${[...m.articleMetrics].sort((a, b) => ((b.tips + b.gemTips) * TIP_VALUE) - ((a.tips + a.gemTips) * TIP_VALUE)).filter(a => (a.tips + a.gemTips) > 0).slice(0, 10).map((a, i) =>
-      `<div class="st-list-item"><span class="st-list-rank">#${i + 1}</span><span class="st-list-title">${esc(a.title || "Untitled")}</span><span class="st-list-val">${fmtN(a.tips * TIP_VALUE)} BTC \u00B7 ${fmtN(a.gemTips * TIP_VALUE)} Gem</span></div>`
+    <div class="st-list">${[...m.articleMetrics].sort((a, b) => (articleBtcRev(b) + articleGemRev(b)) - (articleBtcRev(a) + articleGemRev(a))).filter(a => (a.tips + a.gemTips) > 0).slice(0, 10).map((a, i) =>
+      `<div class="st-list-item"><span class="st-list-rank">#${i + 1}</span><span class="st-list-title">${esc(a.title || "Untitled")}</span><span class="st-list-val">${fmtN(articleBtcRev(a))} BTC \u00B7 ${fmtN(articleGemRev(a))} Gem</span></div>`
     ).join("")}</div>
     ${m.totalBtcRevenue === 0 && m.totalGemRevenue === 0 ? `<p style="color:var(--ink-dim);padding:20px;text-align:center">No tips recorded for this journalist.</p>` : ""}
   `;
