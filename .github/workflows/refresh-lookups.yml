@@ -41,6 +41,7 @@ jobs:
             echo "No changes to offline lookups."
           else
             git commit -m "chore(data): refresh offline lookups (scheduled)"
+            git pull --rebase origin main
             git push origin main
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
