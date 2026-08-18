@@ -661,6 +661,29 @@ mark.reader-highlight {
 .profile-detail { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border: 1px solid var(--line); font-size: .74rem; }
 .profile-label { font-weight: 700; color: var(--ink-dim); text-transform: uppercase; font-size: .66rem; letter-spacing: .04em; }
 
+/* ── NEWSROOM STUDIO BUTTON ────────────────────────── */
+.btn-studio {
+  width: 100%; position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 8px 14px; border: 1.5px solid rgba(0,229,255,.45); border-radius: 6px;
+  background: rgba(0,229,255,.08); color: #00e5ff; cursor: pointer;
+  font-family: var(--font-ui); font-size: .82rem; font-weight: 600;
+  transition: background .2s, border-color .2s, box-shadow .2s;
+}
+.btn-studio::after {
+  content: ""; position: absolute; top: 0; left: -100%; width: 40%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(0,229,255,.25), transparent);
+  animation: studioShine 3s ease-in-out infinite;
+}
+.btn-studio:hover {
+  background: rgba(0,229,255,.18); border-color: rgba(0,229,255,.8);
+  box-shadow: 0 0 14px rgba(0,229,255,.35), 0 0 28px rgba(0,229,255,.15);
+}
+@keyframes studioShine {
+  0%, 70%, 100% { left: -100%; }
+  85% { left: 120%; }
+}
+
 /* ── NEWSROOM STUDIO ──────────────────────────────── */
 .st-modal { width: min(860px, 94vw); max-height: 88vh; display: flex; flex-direction: column; }
 .st-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 0 0 8px; border-bottom: 1px solid var(--line); }
