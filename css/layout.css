@@ -426,6 +426,9 @@
 }
 .modal-corner-btn:hover { border-color: var(--accent); color: var(--accent); }
 .modal-corner-btn:disabled { opacity: .4; cursor: default; }
+.about-modal-body { font-size: .82rem; line-height: 1.6; color: var(--ink-dim); text-align: justify; }
+.about-modal-body p { margin: 0 0 10px; }
+.about-modal-body p:last-child { margin-bottom: 0; }
 @keyframes nd-spin { to { transform: rotate(360deg); } }
 .nd-spin { animation: nd-spin .8s linear infinite; }
 
