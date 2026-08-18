@@ -195,7 +195,7 @@
 .tl-left .panel-head, .tl-right-side .panel-head, .tl-right-side .sticky-toolbar, .tl-right-side .article-filter-row, .tl-right-side #articleStatusBox, .tl-left .tl-filter-bar, .tl-left #statusBox, .tl-left #feedMeta, .btn-load { flex-shrink: 0; }
 .tl-left .panel-head, .tl-right-side .panel-head { padding: 8px 10px; margin: 0; }
 .tl-left .panel-head { justify-content: center; }
-#articleList { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; flex: 1; min-height: 0; overflow-y: auto; padding: 6px 10px; }
+#articleList { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; flex: 1; min-height: 0; overflow-y: auto; padding: 6px 10px; }
 #eventList { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 10px; }
 .tl-left #feedMeta { margin-left: auto; }
 .tl-left .btn-load { margin-top: auto; }
