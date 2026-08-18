@@ -328,7 +328,7 @@ function bindAll() {
   });
 
   // Rooster link
-  document.getElementById("roosterBtn")?.addEventListener("click",()=>{
+  document.getElementById("roosterLink")?.addEventListener("click",()=>{
     window.open("https://app.warera.io/article/6a2412d3ab0324053f192413", "_blank");
   });
 
