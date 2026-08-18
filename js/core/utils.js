@@ -53,6 +53,7 @@ const SANITIZE_TAGS = new Set([
   "SPAN","DIV","FIGURE","FIGCAPTION","HEADER","FOOTER","SECTION","ARTICLE",
 ]);
 const SANITIZE_HREF_OK = /^(https?:|mailto:|tel:|#)/i;
+const SANITIZE_IFRAME_OK = /^https?:\/\/(www\.)?(youtube\.com|youtube-nocookie\.com|youtu\.be)\//i;
 
 // Article rich-text carries its layout as inline styles (alignment, font).
 // Keep only typographic/layout declarations that are safe — no URLs, no JS,
@@ -96,8 +97,9 @@ export function sanitizeHtml(html) {
     if (node.nodeType === 3) return;
     if (node.nodeType !== 1) { node.remove(); return; }
     const tag = node.tagName.toUpperCase();
-    if (!SANITIZE_TAGS.has(tag) || tag === "IMG") {
-      if (tag === "IMG" && SANITIZE_HREF_OK.test(node.getAttribute("src") || "")) {
+    if (!SANITIZE_TAGS.has(tag) || tag === "IMG" || tag === "IFRAME") {
+      if ((tag === "IMG" && SANITIZE_HREF_OK.test(node.getAttribute("src") || "")) ||
+          (tag === "IFRAME" && SANITIZE_IFRAME_OK.test(node.getAttribute("src") || ""))) {
         node.removeAttribute("onerror"); node.removeAttribute("onload");
         for (const attr of [...node.attributes]) {
           if (/^on/i.test(attr.name)) node.removeAttribute(attr.name);

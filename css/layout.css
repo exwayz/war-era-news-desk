@@ -527,6 +527,7 @@
 .reader-bullet { color: var(--line); margin: 0 3px; }
 .reader-body { flex: 1; overflow-y: auto; padding: 20px 24px; line-height: 1.75; font-size: calc(.92rem * var(--reader-zoom, 1)); font-family: var(--font-article); color: var(--ink); }
 .reader-body img { max-width: 100%; height: auto; cursor: zoom-in; }
+.reader-body iframe { max-width: 100%; border: none; border-radius: 6px; aspect-ratio: 16/9; width: 100%; }
 .reader-body blockquote {
   margin: 1.25em 0;
   padding: 14px 18px;
