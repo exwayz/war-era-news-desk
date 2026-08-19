@@ -525,7 +525,7 @@ function renderOverview(el) {
   const fTotalViews = fa.reduce((s, a) => s + a.views, 0);
   const fTippedArticles = fa.filter(a => (a.tips + a.gemTips) > 0).length;
   const fTotalTips = Math.max(0, fa.reduce((s, a) => s + a.tips, 0) * TIP_VALUE - fTippedArticles * TIP_FEE);
-  const fTotalGem = Math.max(0, fa.reduce((s, a) => s + a.gemTips, 0) * TIP_VALUE - fTippedArticles * TIP_FEE);
+  const fTotalGem = fa.reduce((s, a) => s + a.gemTips, 0) * TIP_VALUE;
   const fEng = fa.length ? fa.reduce((s, a) => s + a.engagementRate, 0) / fa.length : 0;
 
   el.innerHTML = `
