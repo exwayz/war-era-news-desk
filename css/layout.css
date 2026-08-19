@@ -708,15 +708,15 @@ mark.reader-highlight {
   border-radius: 10px; box-shadow: 0 0 20px var(--st-cyan-dim), 0 0 50px rgba(34,211,238,.12), 0 8px 32px rgba(0,0,0,.4);
 }
 #studioModal .st-head { display: flex; align-items: center; justify-content: center; position: relative;
-  padding: 16px 16px 12px; border-bottom: 1px solid var(--st-line); }
+  padding: 8px 16px 6px; border-bottom: 1px solid var(--st-line); }
 #studioModal .st-head .st-title { text-align: center; }
-#studioModal .st-head .st-title h2 { margin: 0; font-size: 1.1rem; font-weight: 700; font-family: 'Kode Mono', monospace; color: var(--st-cyan); letter-spacing: .02em; }
+#studioModal .st-head .st-title h2 { margin: 0; font-size: 1.3rem; font-weight: 700; font-family: 'Kode Mono', monospace; color: var(--st-cyan); letter-spacing: .02em; }
 #studioModal .st-head .st-title .st-subtitle { font-size: .72rem; font-weight: 600; color: var(--st-mustard); margin-top: 2px; }
-#studioModal #closeStudioBtn { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--st-ink-dim); background: none; border: none; cursor: pointer; padding: 4px; font-size: 1.1rem; transition: color .15s; }
-#studioModal #closeStudioBtn:hover { color: var(--st-cyan); }
+#studioModal #closeStudioBtn { position: absolute; top: 4px; right: 4px; color: var(--st-ink-dim); background: none; border: none; cursor: pointer; padding: 4px; font-size: 1.1rem; transition: color .15s, text-shadow .15s; }
+#studioModal #closeStudioBtn:hover { color: var(--st-red); text-shadow: 0 0 10px var(--st-red); }
 
 /* Studio Tabs */
-#studioModal .st-tabs { display: flex; gap: 4px; padding: 8px 12px; overflow-x: auto; flex-shrink: 0; border-bottom: 1px solid var(--st-line); }
+#studioModal .st-tabs { display: flex; gap: 4px; padding: 4px 12px; overflow-x: auto; flex-shrink: 0; border-bottom: 1px solid var(--st-line); }
 #studioModal .st-tabs .pill-btn { white-space: nowrap; font-size: .72rem; background: var(--st-surface); color: var(--st-ink-dim); border: 1px solid var(--st-line); border-radius: 4px; padding: 4px 10px; cursor: pointer; transition: all .15s; }
 #studioModal .st-tabs .pill-btn:hover { border-color: var(--st-cyan); color: var(--st-ink); box-shadow: 0 0 8px var(--st-cyan-dim); }
 #studioModal .st-tabs .pill-btn.active { background: var(--st-cyan-dim); border-color: var(--st-cyan); color: var(--st-cyan); font-weight: 700; }
