@@ -16,7 +16,7 @@ const TIP_VALUE = 5;
 const TIP_FEE = 3;
 
 function articleBtcRev(a) { return (a.tips || 0) * TIP_VALUE - ((a.tips || 0) > 0 ? TIP_FEE : 0); }
-function articleGemRev(a) { return (a.gemTips || 0) * TIP_VALUE - ((a.gemTips || 0) > 0 ? TIP_FEE : 0); }
+function articleGemRev(a) { return (a.gemTips || 0) * TIP_VALUE; }
 
 let _data = null;
 let _section = "overview";
