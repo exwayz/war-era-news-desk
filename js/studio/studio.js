@@ -267,7 +267,7 @@ function computeMetrics(articles, profile) {
 
   const tippedArticles = articleMetrics.filter(a => (a.tips + a.gemTips) > 0).length;
   const totalBtcRev = Math.max(0, totalTips * TIP_VALUE - tippedArticles * TIP_FEE);
-  const totalGemRev = Math.max(0, totalGemTips * TIP_VALUE - tippedArticles * TIP_FEE);
+  const totalGemRev = totalGemTips * TIP_VALUE;
 
   return {
     articles: sorted, articleMetrics, totalArticles: n,
