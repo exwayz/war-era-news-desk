@@ -287,14 +287,14 @@ function generateInsights(m) {
   if (!m || m.totalArticles < 2) return [];
   const ins = [];
   const topView = [...m.articleMetrics].sort((a, b) => b.views - a.views)[0];
-  if (topView?.views > 0) ins.push({ icon: "mdi:eye-outline", text: `"${topView.title}" generated the highest views (${fmtN(topView.views)}).` });
+  if (topView?.views > 0) ins.push({ icon: "mdi:eye-outline", color: "st-ic-yellow", text: `"${topView.title}" generated the highest views (${fmtN(topView.views)}).` });
   const topEng = [...m.articleMetrics].sort((a, b) => b.engagementRate - a.engagementRate)[0];
-  if (topEng?.engagementRate > 0) ins.push({ icon: "mdi:comment-processing-outline", text: `"${topEng.title}" had the strongest engagement rate (${topEng.engagementRate.toFixed(1)}%).` });
+  if (topEng?.engagementRate > 0) ins.push({ icon: "mdi:comment-processing-outline", color: "st-ic-red", text: `"${topEng.title}" had the strongest engagement rate (${topEng.engagementRate.toFixed(1)}%).` });
   const topTip = [...m.articleMetrics].sort((a, b) => (b.tips + b.gemTips) - (a.tips + a.gemTips))[0];
-  if (topTip && (topTip.tips + topTip.gemTips) > 0) ins.push({ icon: "mdi:currency-btc", text: `"${topTip.title}" generated the most tips (${fmtN(articleBtcRev(topTip) + articleGemRev(topTip))} units).` });
+  if (topTip && (topTip.tips + topTip.gemTips) > 0) ins.push({ icon: "boxicons:coin-filled", color: "st-ic-gold", text: `"${topTip.title}" generated the most tips (${fmtN(articleBtcRev(topTip) + articleGemRev(topTip))} units).` });
   const topCom = [...m.articleMetrics].sort((a, b) => b.comments - a.comments)[0];
-  if (topCom?.comments > 0) ins.push({ icon: "mdi:forum-outline", text: `"${topCom.title}" generated the most discussion (${topCom.comments} comments).` });
-  if (m.publishing.articlesPerWeek > 0) ins.push({ icon: "mdi:calendar-clock", text: `Publishing at ${m.publishing.articlesPerWeek.toFixed(1)} articles per week.` });
+  if (topCom?.comments > 0) ins.push({ icon: "mdi:forum-outline", color: "st-ic-cyan", text: `"${topCom.title}" generated the most discussion (${topCom.comments} comments).` });
+  if (m.publishing.articlesPerWeek > 0) ins.push({ icon: "mdi:calendar-clock", color: "st-ic-orange", text: `Publishing at ${m.publishing.articlesPerWeek.toFixed(1)} articles per week.` });
   return ins;
 }
 
@@ -310,18 +310,20 @@ function computeHealth(m) {
   return { score: total, level, eng: Math.round(engScore / 0.25), reach: Math.round(reachScore / 0.25), pub: Math.round(pubScore / 0.25), rev: Math.round(revScore / 0.25) };
 }
 
+function healthColor(pct) { return pct >= 75 ? "var(--st-green)" : pct >= 35 ? "var(--st-yellow)" : "var(--st-red)"; }
+
 /* ── Rendering Helpers ────────────────────────────────── */
 
-function mCard(label, value, icon) {
-  return `<div class="st-metric"><div class="st-metric-label"><iconify-icon icon="${icon}" class="lu"></iconify-icon> ${label}</div><div class="st-metric-value">${value}</div></div>`;
+function mCard(label, value, icon, colorClass = "") {
+  return `<div class="st-metric"><div class="st-metric-label"><iconify-icon icon="${icon}" class="lu${colorClass ? " " + colorClass : ""}"></iconify-icon> ${label}</div><div class="st-metric-value">${value}</div></div>`;
 }
 
 function barChart(data) {
-  if (!data.length) return `<p style="color:var(--ink-dim);padding:20px;text-align:center">No data.</p>`;
+  if (!data.length) return `<p style="color:var(--st-ink-dim);padding:20px;text-align:center">No data.</p>`;
   const vals = data.map(d => Number(d.value) || 0);
   const max = Math.max(...vals, 1);
   const hasNonZero = vals.some(v => v > 0);
-  if (!hasNonZero) return `<p style="color:var(--ink-dim);padding:20px;text-align:center">All values are zero for this period.</p>`;
+  if (!hasNonZero) return `<p style="color:var(--st-ink-dim);padding:20px;text-align:center">All values are zero for this period.</p>`;
   return `<div class="st-bar-chart">${data.map((d, i) => {
     const v = vals[i];
     const pct = max > 0 ? Math.max(2, (v / max) * 100) : 2;
@@ -330,7 +332,7 @@ function barChart(data) {
 }
 
 function areaChart(articles) {
-  if (!articles.length) return `<p style="color:var(--ink-dim);padding:20px;text-align:center">No data.</p>`;
+  if (!articles.length) return `<p style="color:var(--st-ink-dim);padding:20px;text-align:center">No data.</p>`;
 
   const weekMap = new Map();
   for (const a of articles) {
@@ -349,7 +351,7 @@ function areaChart(articles) {
   }
 
   const weeks = [...weekMap.values()].sort((a, b) => a.date - b.date);
-  if (!weeks.length) return `<p style="color:var(--ink-dim);padding:20px;text-align:center">No date data available.</p>`;
+  if (!weeks.length) return `<p style="color:var(--st-ink-dim);padding:20px;text-align:center">No date data available.</p>`;
 
   const W = 600, H = 200, PAD_L = 45, PAD_B = 28, PAD_T = 30, PAD_R = 10;
   const cW = W - PAD_L - PAD_R;
@@ -371,8 +373,8 @@ function areaChart(articles) {
   for (let i = 0; i <= yTicks; i++) {
     const val = Math.round((maxVal / yTicks) * i);
     const y = PAD_T + cH - (val / maxVal) * cH;
-    yLines.push(`<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${W - PAD_R}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="0.5" opacity="0.4"/>`);
-    yLabels.push(`<text x="${PAD_L - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" fill="var(--ink-dim)" font-size="9">${fmtN(val)}</text>`);
+    yLines.push(`<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${W - PAD_R}" y2="${y.toFixed(1)}" stroke="var(--st-line)" stroke-width="0.5" opacity="0.4"/>`);
+    yLabels.push(`<text x="${PAD_L - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" fill="var(--st-ink-dim)" font-size="9">${fmtN(val)}</text>`);
   }
 
   const xLabels = [];
@@ -381,12 +383,12 @@ function areaChart(articles) {
   for (let i = 0; i < points.length; i += step) {
     const p = points[i];
     const lbl = p.date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    xLabels.push(`<text x="${p.x.toFixed(1)}" y="${H - 4}" text-anchor="middle" fill="var(--ink-dim)" font-size="8">${lbl}</text>`);
+    xLabels.push(`<text x="${p.x.toFixed(1)}" y="${H - 4}" text-anchor="middle" fill="var(--st-ink-dim)" font-size="8">${lbl}</text>`);
   }
   if (points.length > 1 && (points.length - 1) % step !== 0) {
     const p = points[points.length - 1];
     const lbl = p.date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    xLabels.push(`<text x="${p.x.toFixed(1)}" y="${H - 4}" text-anchor="middle" fill="var(--ink-dim)" font-size="8">${lbl}</text>`);
+    xLabels.push(`<text x="${p.x.toFixed(1)}" y="${H - 4}" text-anchor="middle" fill="var(--st-ink-dim)" font-size="8">${lbl}</text>`);
   }
 
   const ptsJson = esc(JSON.stringify(points.map(p => ({ x: p.x, y: p.y, views: p.views, tips: p.tips, count: p.count, engagement: p.engagement, date: p.date.toISOString() }))));
@@ -395,15 +397,15 @@ function areaChart(articles) {
     <svg viewBox="0 0 ${W} ${H}" class="st-area-chart" preserveAspectRatio="xMidYMid meet" data-points='${ptsJson}'>
       <defs>
         <linearGradient id="stAreaGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.3"/>
-          <stop offset="100%" stop-color="var(--accent)" stop-opacity="0.02"/>
+          <stop offset="0%" stop-color="var(--st-cyan)" stop-opacity="0.3"/>
+          <stop offset="100%" stop-color="var(--st-cyan)" stop-opacity="0.02"/>
         </linearGradient>
       </defs>
       ${yLines.join("")}${yLabels.join("")}${xLabels.join("")}
       <path d="${area}" fill="url(#stAreaGrad)"/>
-      <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>
-      <line class="st-crosshair" x1="0" y1="${PAD_T}" x2="0" y2="${PAD_T + cH}" stroke="var(--ink-dim)" stroke-width="1" stroke-dasharray="3,3" opacity="0"/>
-      <circle class="st-crossdot" cx="0" cy="0" r="5" fill="var(--accent)" stroke="var(--bg)" stroke-width="2" opacity="0"/>
+      <path d="${line}" fill="none" stroke="var(--st-cyan)" stroke-width="2" stroke-linejoin="round"/>
+      <line class="st-crosshair" x1="0" y1="${PAD_T}" x2="0" y2="${PAD_T + cH}" stroke="var(--st-ink-dim)" stroke-width="1" stroke-dasharray="3,3" opacity="0"/>
+      <circle class="st-crossdot" cx="0" cy="0" r="5" fill="var(--st-cyan)" stroke="var(--st-bg)" stroke-width="2" opacity="0"/>
       <rect x="${PAD_L}" y="${PAD_T}" width="${cW}" height="${cH}" fill="transparent" class="st-chart-hover-area"/>
     </svg>
     <div class="st-cross-label" style="display:none"></div>
@@ -438,7 +440,7 @@ function initChartTooltips(container) {
   if (!_chartTooltip) {
     _chartTooltip = document.createElement("div");
     _chartTooltip.className = "st-chart-tip";
-    _chartTooltip.style.cssText = "display:none;position:fixed;z-index:100003;padding:6px 10px;border-radius:6px;background:var(--surface-hi);border:1px solid var(--line);color:var(--ink);font-size:.72rem;line-height:1.5;pointer-events:none;white-space:pre-wrap;max-width:240px;box-shadow:0 4px 12px rgba(0,0,0,.15)";
+    _chartTooltip.style.cssText = "display:none;position:fixed;z-index:100003;padding:6px 10px;border-radius:6px;background:var(--st-surface-hi);border:1px solid var(--st-line);color:var(--st-ink);font-size:.72rem;line-height:1.5;pointer-events:none;white-space:pre-wrap;max-width:240px;box-shadow:0 4px 12px rgba(0,0,0,.25)";
     document.body.appendChild(_chartTooltip);
   }
 
@@ -512,10 +514,38 @@ function initChartTooltips(container) {
   hoverArea.addEventListener("mouseleave", hideCrosshair);
 }
 
+/* ── Calendar Tooltips ───────────────────────────────── */
+
+let _calTip = null;
+
+function initCalendarTooltips(container) {
+  const cells = container.querySelectorAll(".st-cal-cell[data-tip]");
+  if (!cells.length) return;
+
+  if (!_calTip) {
+    _calTip = document.createElement("div");
+    _calTip.className = "st-cal-tip";
+    _calTip.style.display = "none";
+    document.body.appendChild(_calTip);
+  }
+
+  cells.forEach(cell => {
+    cell.addEventListener("mouseenter", e => {
+      _calTip.textContent = cell.dataset.tip;
+      _calTip.style.display = "block";
+      const r = cell.getBoundingClientRect();
+      _calTip.style.left = (r.left + r.width / 2) + "px";
+      _calTip.style.top = (r.top - 6) + "px";
+    });
+    cell.addEventListener("mouseleave", () => { _calTip.style.display = "none"; });
+  });
+}
+
 /* ── Section Renderers ────────────────────────────────── */
 
 function renderOverview(el) {
   const m = _data.metrics;
+  const p = _data.profile;
   const health = computeHealth(m);
   const insights = generateInsights(m);
   const now = Date.now();
@@ -528,16 +558,30 @@ function renderOverview(el) {
   const fTotalGem = fa.reduce((s, a) => s + a.gemTips, 0) * TIP_VALUE;
   const fEng = fa.length ? fa.reduce((s, a) => s + a.engagementRate, 0) / fa.length : 0;
 
+  const healthScoreColor = health ? (health.score >= 70 ? "var(--st-green)" : health.score >= 35 ? "var(--st-yellow)" : "var(--st-red)") : "var(--st-ink-dim)";
+  const healthStrokeColor = health ? (health.score >= 70 ? "#16a34a" : health.score >= 35 ? "#ca8a04" : "#dc2626") : "rgba(0,0,0,.35)";
+  const profileUsername = p?.username || "Unknown";
+  const profileUrl = p?.userId ? `https://app.warera.io/user/${esc(p.userId)}` : "#";
+
   el.innerHTML = `
+    <div class="st-profile">
+      <div class="st-profile-avatar-wrap">
+        ${p?.avatarUrl
+          ? `<img class="st-profile-avatar" src="${esc(p.avatarUrl)}" alt="" loading="lazy">`
+          : `<div class="st-profile-avatar-placeholder">${profileUsername.charAt(0).toUpperCase()}</div>`}
+        ${health ? `<div class="st-profile-rate-badge" style="color:${healthScoreColor};--st-badge-stroke:${healthStrokeColor}">${health.score}</div>` : ""}
+      </div>
+      <a class="st-profile-username" href="${profileUrl}" target="_blank" rel="noopener" style="color:${healthScoreColor}">${esc(profileUsername)}</a>
+    </div>
     <div class="st-grid st-grid-4">
-      ${mCard("Total Articles", fa.length, "mdi:newspaper-variant-outline")}
-      ${mCard("Total Views", fmtN(fTotalViews), "mdi:eye-outline")}
-      ${mCard("Avg Views / Article", fmtN(fa.length ? fTotalViews / fa.length : 0), "mdi:chart-line")}
-      ${mCard("Engagement Rate", fEng.toFixed(1) + "%", "mdi:heart-outline")}
-      ${mCard("Subscribers", fmtN(m.subscriberCount), "mdi:account-group-outline")}
-      ${mCard("BTC Tips", fmtN(fTotalTips), "mdi:currency-btc")}
-      ${mCard("Gem Tips", fmtN(fTotalGem), "mdi:gem-outline")}
-      ${mCard("Publishing Freq", m.publishing.articlesPerWeek.toFixed(1) + "/wk", "mdi:calendar-clock")}
+      ${mCard("Total Articles", fa.length, "mdi:newspaper-variant-outline", "st-ic-cyan")}
+      ${mCard("Total Views", fmtN(fTotalViews), "mdi:eye-outline", "st-ic-yellow")}
+      ${mCard("Avg Views / Article", fmtN(fa.length ? fTotalViews / fa.length : 0), "mdi:chart-line", "st-ic-green")}
+      ${mCard("Engagement Rate", fEng.toFixed(1) + "%", "mdi:heart-outline", "st-ic-red")}
+      ${mCard("Subscribers", fmtN(m.subscriberCount), "mdi:signal-variant", "st-ic-lime")}
+      ${mCard("BTC Tips", fmtN(fTotalTips), "boxicons:coin-filled", "st-ic-gold")}
+      ${mCard("Gem Tips", fmtN(fTotalGem), "mage:gem-a", "st-ic-indigo")}
+      ${mCard("Publishing Freq", m.publishing.articlesPerWeek.toFixed(1) + "/wk", "mdi:calendar-clock", "st-ic-orange")}
     </div>
     <div class="st-section-head">Performance
       <div class="st-timeframe">${["7d","30d","90d","1y","all"].map(tf =>
@@ -546,19 +590,19 @@ function renderOverview(el) {
     </div>
     <div class="st-chart-area">${areaChart(fa)}</div>
     ${health ? `<div class="st-health">
-      <div class="st-health-score" style="color:${health.score >= 70 ? "var(--green)" : health.score >= 50 ? "var(--yellow)" : "var(--red)"}">
+      <div class="st-health-score" style="color:${health.score >= 70 ? "var(--st-green)" : health.score >= 35 ? "var(--st-yellow)" : "var(--st-red)"}">
         <span class="st-health-num">${health.score}</span><span class="st-health-label">${health.level}</span>
       </div>
       <div class="st-health-bars">
-        <div class="st-hbar-row"><span>Engagement</span><div class="st-hbar"><div style="width:${health.eng}%"></div></div><span>${health.eng}</span></div>
-        <div class="st-hbar-row"><span>Reach</span><div class="st-hbar"><div style="width:${health.reach}%"></div></div><span>${health.reach}</span></div>
-        <div class="st-hbar-row"><span>Consistency</span><div class="st-hbar"><div style="width:${health.pub}%"></div></div><span>${health.pub}</span></div>
-        <div class="st-hbar-row"><span>Revenue</span><div class="st-hbar"><div style="width:${health.rev}%"></div></div><span>${health.rev}</span></div>
+        <div class="st-hbar-row"><span>Engagement</span><div class="st-hbar"><div style="width:${health.eng}%;background:${healthColor(health.eng)}"></div></div><span>${health.eng}</span></div>
+        <div class="st-hbar-row"><span>Reach</span><div class="st-hbar"><div style="width:${health.reach}%;background:${healthColor(health.reach)}"></div></div><span>${health.reach}</span></div>
+        <div class="st-hbar-row"><span>Consistency</span><div class="st-hbar"><div style="width:${health.pub}%;background:${healthColor(health.pub)}"></div></div><span>${health.pub}</span></div>
+        <div class="st-hbar-row"><span>Revenue</span><div class="st-hbar"><div style="width:${health.rev}%;background:${healthColor(health.rev)}"></div></div><span>${health.rev}</span></div>
       </div>
       <div class="st-health-tip">Composite indicator based on engagement, reach, publishing consistency, and revenue. Not an official War Era statistic.</div>
     </div>` : ""}
     ${insights.length ? `<div class="st-section-head">Insights</div><div class="st-insights">${insights.map(i =>
-      `<div class="st-insight"><iconify-icon icon="${i.icon}" class="st-insight-icon"></iconify-icon> ${i.text}</div>`
+      `<div class="st-insight"><iconify-icon icon="${i.icon}" class="st-insight-icon${i.color ? " " + i.color : ""}"></iconify-icon> ${i.text}</div>`
     ).join("")}</div>` : ""}
   `;
   el.querySelectorAll("[data-tf]").forEach(b => b.addEventListener("click", () => { _timeframe = b.dataset.tf; renderSection(); }));
@@ -626,18 +670,18 @@ function renderDetail(el) {
     <button class="btn-secondary st-back" id="stDetailBack">\u2190 Back to Articles</button>
     <h3 class="st-detail-title">${esc(a.title || "Untitled")}</h3>
     <div class="st-grid st-grid-4">
-      ${mCard("Views", fmtN(a.views), "mdi:eye-outline")}
-      ${mCard("Likes", fmtN(a.likes), "mdi:thumb-up-outline")}
-      ${mCard("Dislikes", fmtN(a.dislikes), "mdi:thumb-down-outline")}
-      ${mCard("Score", fmtN(a.score), "mdi:star-outline")}
-      ${mCard("Comments", fmtN(a.comments), "mdi:comment-outline")}
-      ${mCard("BTC Revenue", fmtN(articleBtcRev(a)), "mdi:currency-btc")}
-      ${mCard("Gem Revenue", fmtN(articleGemRev(a)), "mdi:gem-outline")}
-      ${mCard("Engagement Rate", a.engagementRate.toFixed(1) + "%", "mdi:chart-line")}
-      ${mCard("Reaction Rate", a.reactionRate.toFixed(1) + "%", "mdi:heart-outline")}
-      ${mCard("Comment Rate", a.commentRate.toFixed(1) + "%", "mdi:forum-outline")}
-      ${mCard("Published", fmtDate(a.publishedAt || a.createdAt), "mdi:calendar")}
-      ${mCard("Subscribers", fmtN(a.subs || 0), "mdi:account-group-outline")}
+      ${mCard("Views", fmtN(a.views), "mdi:eye-outline", "st-ic-yellow")}
+      ${mCard("Likes", fmtN(a.likes), "mdi:thumb-up-outline", "st-ic-green")}
+      ${mCard("Dislikes", fmtN(a.dislikes), "mdi:thumb-down-outline", "st-ic-red")}
+      ${mCard("Score", fmtN(a.score), "mdi:star-outline", "st-ic-gold")}
+      ${mCard("Comments", fmtN(a.comments), "mdi:comment-outline", "st-ic-cyan")}
+      ${mCard("BTC Revenue", fmtN(articleBtcRev(a)), "boxicons:coin-filled", "st-ic-gold")}
+      ${mCard("Gem Revenue", fmtN(articleGemRev(a)), "mage:gem-a", "st-ic-indigo")}
+      ${mCard("Engagement Rate", a.engagementRate.toFixed(1) + "%", "mdi:chart-line", "st-ic-red")}
+      ${mCard("Reaction Rate", a.reactionRate.toFixed(1) + "%", "mdi:heart-outline", "st-ic-red")}
+      ${mCard("Comment Rate", a.commentRate.toFixed(1) + "%", "mdi:forum-outline", "st-ic-cyan")}
+      ${mCard("Published", fmtDate(a.publishedAt || a.createdAt), "mdi:calendar", "st-ic-orange")}
+      ${mCard("Subscribers", fmtN(a.subs || 0), "mdi:signal-variant", "st-ic-lime")}
     </div>
     ${a.classifications?.length ? `<div class="st-badges">${a.classifications.map(c => `<span class="st-badge">${c}</span>`).join("")}</div>` : ""}
     <button class="btn-primary st-read-btn" id="stReadArticle"><iconify-icon icon="mdi:book-open-page-variant-outline"></iconify-icon> Read Article</button>
@@ -666,15 +710,15 @@ function renderAudience(el) {
   const m = _data.metrics;
   el.innerHTML = `
     <div class="st-grid st-grid-3">
-      ${mCard("Total Subscribers", fmtN(m.subscriberCount), "mdi:account-group-outline")}
-      ${mCard("Subscriber Rank", m.subscriberRank ? "#" + m.subscriberRank : "\u2014", "mdi:trophy-outline")}
-      ${mCard("Subscriber Tier", m.subscriberTier ? m.subscriberTier.charAt(0).toUpperCase() + m.subscriberTier.slice(1) : "\u2014", "mdi:medal-outline")}
+      ${mCard("Total Subscribers", fmtN(m.subscriberCount), "mdi:signal-variant", "st-ic-lime")}
+      ${mCard("Subscriber Rank", m.subscriberRank ? "#" + m.subscriberRank : "\u2014", "mdi:trophy-outline", "st-ic-gold")}
+      ${mCard("Subscriber Tier", m.subscriberTier ? m.subscriberTier.charAt(0).toUpperCase() + m.subscriberTier.slice(1) : "\u2014", "mdi:medal-outline", "st-ic-indigo")}
     </div>
     <div class="st-section-head">Subscriber Performance</div>
     <div class="st-grid st-grid-3">
-      ${mCard("Total Articles", m.totalArticles, "mdi:newspaper-variant-outline")}
-      ${mCard("Avg Views / Article", fmtN(m.avgViews), "mdi:eye-outline")}
-      ${mCard("Avg Comments / Article", m.avgComments.toFixed(1), "mdi:comment-outline")}
+      ${mCard("Total Articles", m.totalArticles, "mdi:newspaper-variant-outline", "st-ic-cyan")}
+      ${mCard("Avg Views / Article", fmtN(m.avgViews), "mdi:eye-outline", "st-ic-yellow")}
+      ${mCard("Avg Comments / Article", m.avgComments.toFixed(1), "mdi:comment-outline", "st-ic-green")}
     </div>
     <div class="st-section-head">Top Articles by Views</div>
     <div class="st-list">${[...m.articleMetrics].sort((a, b) => b.views - a.views).slice(0, 10).map((a, i) =>
@@ -687,15 +731,15 @@ function renderRevenue(el) {
   const m = _data.metrics;
   el.innerHTML = `
     <div class="st-grid st-grid-3">
-      ${mCard("Total BTC Revenue", fmtN(m.totalBtcRevenue), "mdi:currency-btc")}
-      ${mCard("Total Gem Revenue", fmtN(m.totalGemRevenue), "mdi:gem-outline")}
-      ${mCard("Avg Revenue / Article", fmtN(m.avgBtcRevenue + m.avgGemRevenue), "mdi:chart-line")}
+      ${mCard("Total BTC Revenue", fmtN(m.totalBtcRevenue), "boxicons:coin-filled", "st-ic-gold")}
+      ${mCard("Total Gem Revenue", fmtN(m.totalGemRevenue), "mage:gem-a", "st-ic-indigo")}
+      ${mCard("Avg Revenue / Article", fmtN(m.avgBtcRevenue + m.avgGemRevenue), "mdi:chart-line", "st-ic-green")}
     </div>
     <div class="st-section-head">Top Earning Articles</div>
     <div class="st-list">${[...m.articleMetrics].sort((a, b) => (articleBtcRev(b) + articleGemRev(b)) - (articleBtcRev(a) + articleGemRev(a))).filter(a => (a.tips + a.gemTips) > 0).slice(0, 10).map((a, i) =>
       `<div class="st-list-item"><span class="st-list-rank">#${i + 1}</span><span class="st-list-title">${esc(a.title || "Untitled")}</span><span class="st-list-val">${fmtN(articleBtcRev(a))} BTC \u00B7 ${fmtN(articleGemRev(a))} Gem</span></div>`
     ).join("")}</div>
-    ${m.totalBtcRevenue === 0 && m.totalGemRevenue === 0 ? `<p style="color:var(--ink-dim);padding:20px;text-align:center">No tips recorded for this journalist.</p>` : ""}
+    ${m.totalBtcRevenue === 0 && m.totalGemRevenue === 0 ? `<p style="color:var(--st-ink-dim);padding:20px;text-align:center">No tips recorded for this journalist.</p>` : ""}
   `;
 }
 
@@ -703,25 +747,26 @@ function renderPublishing(el) {
   const m = _data.metrics;
   el.innerHTML = `
     <div class="st-grid st-grid-3">
-      ${mCard("Total Articles", m.totalArticles, "mdi:newspaper-variant-outline")}
-      ${mCard("Articles / Week", m.publishing.articlesPerWeek.toFixed(1), "mdi:calendar-week")}
-      ${mCard("Articles / Month", m.publishing.articlesPerMonth.toFixed(1), "mdi:calendar-month")}
+      ${mCard("Total Articles", m.totalArticles, "mdi:newspaper-variant-outline", "st-ic-cyan")}
+      ${mCard("Articles / Week", m.publishing.articlesPerWeek.toFixed(1), "mdi:calendar-week", "st-ic-orange")}
+      ${mCard("Articles / Month", m.publishing.articlesPerMonth.toFixed(1), "mdi:calendar-month", "st-ic-orange")}
     </div>
     ${m.publishing.avgGap != null ? `<div class="st-grid st-grid-2" style="margin-top:8px">
-      ${mCard("Avg Publishing Gap", fmtDays(m.publishing.avgGap), "mdi:timer-sand")}
+      ${mCard("Avg Publishing Gap", fmtDays(m.publishing.avgGap), "mdi:timer-sand", "st-ic-yellow")}
     </div>` : ""}
     <div class="st-section-head">Publishing Activity (Last 52 Weeks)</div>
     <div class="st-calendar">${m.publishing.weeklyData.map(w => {
       const maxC = Math.max(...m.publishing.weeklyData.map(x => x.count), 1);
       const intensity = w.count / maxC;
-      const bg = w.count === 0 ? "var(--surface-hi)" : `color-mix(in srgb, var(--accent) ${Math.round(20 + intensity * 80)}%, transparent)`;
-      return `<div class="st-cal-cell" style="background:${bg}" title="${w.count} article${w.count !== 1 ? "s" : ""}"></div>`;
+      const bg = w.count === 0 ? "var(--st-surface-hi)" : `color-mix(in srgb, var(--st-cyan) ${Math.round(20 + intensity * 80)}%, transparent)`;
+      return `<div class="st-cal-cell" style="background:${bg}" data-tip="${w.count} article${w.count !== 1 ? "s" : ""}"></div>`;
     }).join("")}</div>
     <div class="st-section-head">Recent Articles</div>
     <div class="st-list">${m.articles.slice(-10).reverse().map(a =>
       `<div class="st-list-item"><span class="st-list-title">${esc(a.title || "Untitled")}</span><span class="st-list-val">${fmtDate(a.publishedAt || a.createdAt)}</span></div>`
     ).join("")}</div>
   `;
+  initCalendarTooltips(el);
 }
 
 /* ── Main Render ──────────────────────────────────────── */
@@ -755,6 +800,7 @@ export function initStudio() {
 function closeStudio() {
   document.getElementById("studioModal")?.classList.add("hidden");
   if (_chartTooltip) _chartTooltip.style.display = "none";
+  if (_calTip) _calTip.style.display = "none";
   const orphan = document.querySelector(".st-cross-label");
   if (orphan) orphan.style.display = "none";
   _section = "overview";
@@ -764,22 +810,7 @@ function closeStudio() {
 export async function openStudio(userId, profileData) {
   const modal = document.getElementById("studioModal");
   const content = document.getElementById("studioContent");
-  const headerInfo = document.getElementById("studioHeaderInfo");
   if (!modal || !content) return;
-
-  if (headerInfo) {
-    const avatarHtml = profileData?.avatarUrl
-      ? `<img src="${esc(profileData.avatarUrl)}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--accent)">`
-      : `<span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;border:2px solid var(--accent);font-weight:800;font-size:1.1rem">${(profileData?.username || "?").charAt(0).toUpperCase()}</span>`;
-    headerInfo.innerHTML = `
-      <div style="display:flex;align-items:center;gap:10px">
-        ${avatarHtml}
-        <div><h2 style="margin:0">Newsroom Studio</h2>
-        <div style="font-size:.88rem;font-weight:800;color:var(--accent)">${esc(profileData?.username || "Unknown")}</div>
-        <div style="font-size:.72rem;color:var(--ink-dim)">Journalist Analytics</div></div>
-      </div>
-    `;
-  }
 
   _section = "overview";
   _timeframe = "all";
