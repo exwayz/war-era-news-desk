@@ -362,4 +362,7 @@
   .pol-country-grid { grid-template-columns: 1fr; }
   .tab-bar button { min-height: 46px; font-size: .52rem; }
   .tab-bar button iconify-icon { font-size: 1.05rem; }
+  .toc-sidebar { width: 200px; }
+  .toc-sidebar.toc-collapsed { width: 28px; }
+  .pinned-guide-title { font-size: .76rem; }
 }

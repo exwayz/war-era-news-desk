@@ -528,8 +528,8 @@
 .reader-stat .lu { font-size: .85em; }
 .reader-sep { color: var(--line); margin: 0 2px; }
 .reader-bullet { color: var(--line); margin: 0 3px; }
-.reader-body { flex: 1; overflow-y: auto; padding: 20px 24px; line-height: 1.75; font-size: calc(.92rem * var(--reader-zoom, 1)); font-family: var(--font-article); color: var(--ink); }
-.reader-body img { max-width: 100%; height: auto; cursor: zoom-in; }
+.reader-body { flex: 1; min-width: 0; overflow-y: auto; padding: 20px 24px; line-height: 1.75; font-size: calc(.92rem * var(--reader-zoom, 1)); font-family: var(--font-article); color: var(--ink); }
+.reader-body img { display: block; margin: 0 auto; max-width: 100%; height: auto; cursor: zoom-in; }
 .reader-body iframe { max-width: 100%; border: none; border-radius: 6px; aspect-ratio: 16/9; width: 100%; }
 .reader-body blockquote {
   margin: 1.25em 0;
@@ -1445,3 +1445,90 @@ mark.reader-highlight {
 .team-popover-empty {
   padding: 8px 12px; color: var(--ink-dim); font-size: .7rem; text-align: center;
 }
+
+/* ── PINNED GUIDE CARD ──────────────────────────────── */
+.pinned-guide-wrap {
+  grid-column: 1 / -1;
+}
+.pinned-guide-card {
+  display: flex; align-items: center;
+  height: 38px; padding: 0 12px;
+  border: 1px solid #e1ad01 !important;
+  border-radius: 0;
+  cursor: pointer;
+  transition: box-shadow .2s ease, border-color .2s ease;
+  overflow: hidden;
+}
+.pinned-guide-card:hover {
+  box-shadow: 0 0 10px rgba(225, 173, 1, .45), 0 0 20px rgba(225, 173, 1, .2);
+}
+.pinned-guide-title {
+  margin: 0; font-size: .82rem; font-weight: 700; line-height: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: var(--ink);
+}
+
+/* ── READER BODY WRAP (holds reader + ToC side by side) */
+.reader-body-wrap {
+  display: flex; flex: 1; min-height: 0; position: relative;
+}
+
+/* ── TABLE OF CONTENTS SIDEBAR ──────────────────────── */
+.toc-sidebar {
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: 260px; z-index: 10;
+  background: var(--surface); border-left: 1px solid var(--line);
+  display: flex; flex-direction: column;
+  transition: width .2s ease;
+}
+.toc-sidebar.hidden { display: none; }
+.toc-sidebar.toc-collapsed {
+  width: 28px; background: transparent; border-left: none;
+}
+.toc-sidebar.toc-collapsed .toc-body { display: none; }
+.toc-sidebar.toc-collapsed .toc-head-title { display: none; }
+.toc-sidebar.toc-collapsed .toc-head {
+  border-bottom: none; padding: 4px 0; justify-content: center;
+  background: var(--surface); border: 1px solid var(--line); border-right: none;
+  border-radius: 4px 0 0 4px;
+}
+.toc-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 10px; border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.toc-head-title {
+  font-size: .78rem; font-weight: 700; font-family: var(--font-ui);
+  display: flex; align-items: center; gap: 4px;
+}
+.toc-body {
+  flex: 1; overflow-y: auto; padding: 8px 0;
+}
+.toc-list {
+  display: flex; flex-direction: column;
+}
+.toc-item {
+  display: block; width: 100%; text-align: left;
+  padding: 6px 12px; border: none; background: none;
+  font-size: .76rem; color: var(--ink); cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+  line-height: 1.4;
+}
+.toc-item:hover { background: var(--surface-hi); color: var(--accent); }
+.toc-l1 { font-weight: 700; padding-left: 12px; }
+.toc-l2 { font-weight: 500; padding-left: 28px; font-size: .72rem; }
+.toc-l3 { font-weight: 400; padding-left: 42px; font-size: .68rem; color: var(--ink-dim); }
+
+/* ── READER BACK-TO-TOP ─────────────────────────────── */
+.reader-btt {
+  position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--line) 75%, transparent);
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  color: var(--ink); cursor: pointer; z-index: 6;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+  transition: opacity .2s ease, background .15s ease;
+}
+.reader-btt:hover { background: var(--accent); color: #fff; }
+.reader-btt.hidden { display: none; }

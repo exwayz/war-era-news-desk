@@ -223,7 +223,9 @@
                 <select id="articleCatFilter" class="filter-select"><option value="">All categories</option></select>
               </div>
               <div id="articleStatusBox" class="status-msg" hidden></div>
-              <div id="articleList" class="card-list"></div>
+              <div id="articleList" class="card-list">
+                <div id="pinnedGuideCard" class="pinned-guide-wrap"></div>
+              </div>
               <button id="loadMoreArticlesButton" class="btn-load" hidden>Load More</button>
             </div>
           </div>
@@ -637,7 +639,16 @@
       <button id="readerBackBtn" class="btn-icon-sm reader-head-close hidden" title="Back to previous article"><iconify-icon icon="mdi:arrow-left" class="lu"></iconify-icon></button>
       <button id="closeReader" class="btn-icon-sm reader-head-close" title="Close"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
     </div>
-    <div id="readerContent" class="reader-body"></div>
+    <div class="reader-body-wrap">
+      <div id="readerContent" class="reader-body"></div>
+      <div id="tocModal" class="toc-sidebar hidden">
+        <div class="toc-head">
+          <span class="toc-head-title"><iconify-icon icon="mdi:table-of-contents" class="lu"></iconify-icon> Contents</span>
+          <button id="tocToggleBtn" class="btn-icon-sm" title="Table of Contents"><iconify-icon icon="mdi:chevron-left" class="lu"></iconify-icon></button>
+        </div>
+        <div id="tocModalBody" class="toc-body"></div>
+      </div>
+    </div>
     <div class="reader-highlight-fab" id="readerHighlightFab">
       <div class="reader-highlight-palette" id="readerHighlightPalette"></div>
       <button id="readerHighlightBtn" class="fab-btn" title="Highlight text"><iconify-icon icon="boxicons:highlight-filled" class="lu"></iconify-icon></button>
@@ -647,6 +658,7 @@
       <button id="readerZoomPct" class="fab-pct" title="Reset text size to 100%">100%</button>
       <button id="readerZoomOut" class="fab-btn" title="Decrease text size">−</button>
     </div>
+    <button id="readerBackToTop" class="reader-btt hidden" title="Back to top"><iconify-icon icon="mdi:chevron-up" class="lu"></iconify-icon></button>
   </div>
 </div>
 

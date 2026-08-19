@@ -4,6 +4,7 @@ import { resolveEntityByType, resolveContentLinks } from "../core/resolver.js";
 import { apiKey } from "../core/api.js";
 import { playRead } from "../audio/audio.js";
 import { loadHighlightsForArticle } from "./readerHighlight.js";
+import { parseTocFromContent, injectTocIdsIntoDom, showToc, hideToc } from "../pinned/guideArticle.js";
 
 const _stack = [];
 const _scrollPositions = [];
@@ -20,6 +21,8 @@ function renderArticleInReader(a, restoreScrollTop) {
   E.readerContent.innerHTML = sanitizeHtml(a.content) || "<p>No content available.</p>";
   E.readerContent.querySelectorAll("a").forEach(l => { l.target = "_blank"; l.rel = "noopener noreferrer"; });
   E.readerContent.querySelectorAll("iframe").forEach(f => { f.style.width = "100%"; f.style.aspectRatio = "16/9"; f.style.height = "auto"; });
+  const entries = parseTocFromContent(a.content || "");
+  if (entries.length) injectTocIdsIntoDom(E.readerContent, entries);
   const openBtn = document.getElementById("openArticleBtn");
   if (openBtn) openBtn.dataset.id = a._id || a.id;
   E.readerContent.scrollTop = restoreScrollTop || 0;
@@ -69,6 +72,7 @@ export function openMentionArticle(a) {
   _scrollPositions.push(0);
   renderArticleInReader(a);
   updateReaderNavUI();
+  showToc(a);
   E.readerModal.classList.remove("hidden");
   loadHighlightsForArticle(E.readerContent);
   playRead();
@@ -81,6 +85,7 @@ export function openRootArticle(a) {
   _rootArticle = a;
   renderArticleInReader(a);
   updateReaderNavUI();
+  showToc(a);
 }
 
 export function navigateBack() {
@@ -93,6 +98,7 @@ export function navigateBack() {
     renderArticleInReader(prev, savedScroll);
     updateReaderNavUI();
     loadHighlightsForArticle(E.readerContent);
+    showToc(prev);
     return true;
   }
 
@@ -100,6 +106,7 @@ export function navigateBack() {
     renderArticleInReader(_rootArticle, _rootScrollTop);
     updateReaderNavUI();
     loadHighlightsForArticle(E.readerContent);
+    showToc(_rootArticle);
     _rootScrollTop = 0;
     return true;
   }
@@ -114,4 +121,5 @@ export function closeReaderNav() {
   _rootScrollTop = 0;
   _rootArticle = null;
   updateReaderNavUI();
+  hideToc();
 }

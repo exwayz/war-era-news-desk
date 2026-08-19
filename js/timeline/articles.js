@@ -189,7 +189,7 @@ export function renderArticles() {
     }
     return new Date(b.createdAt).getTime()-new Date(a.createdAt).getTime();
   });
-  E.articleList.innerHTML="";
+  E.articleList.querySelectorAll(".article-card:not(.pinned-guide-card)").forEach(n => n.remove());
   for(const a of arts) {
     const node=E.tplArticle.content.firstElementChild.cloneNode(true);
     const stats = a.stats || {};

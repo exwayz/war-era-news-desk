@@ -35,6 +35,7 @@ import { openReaderFromMention, navigateBack, closeReaderNav } from "./ui/reader
 import { initImageViewer } from "./ui/imageViewer.js";
 import { openChangelog, closeChangelog } from "./ui/changelog.js";
 import { initStudio, openStudio } from "./studio/studio.js";
+import { fetchGuideArticle, renderPinnedCard, hideToc } from "./pinned/guideArticle.js";
 
 function escHtml(s) {
   const d = document.createElement("div");
@@ -106,6 +107,8 @@ function bootData() {
   loadMarketFull(false);
   loadJobs();
   loadFeatured();
+  const k = apiKey();
+  if (k) fetchGuideArticle(k).then(a => { if (a) renderPinnedCard(document.getElementById("pinnedGuideCard")); });
 }
 
 function bindAll() {
@@ -243,7 +246,7 @@ function bindAll() {
     localStorage.setItem(STORE.apiKey,key);
     E.globalEventsTitle.classList.add("live");
     E.apiKeyModal.classList.add("hidden");
-    if(key){ resetTxCaches(); S.lookupsKey=""; loadEvents(true); loadArticles(true); startAutoRefresh(); loadMarketStats(); playApiSaved(); ensureLibraryIndex(); }
+    if(key){ resetTxCaches(); S.lookupsKey=""; loadEvents(true); loadArticles(true); startAutoRefresh(); loadMarketStats(); playApiSaved(); ensureLibraryIndex(); fetchGuideArticle(key).then(a => { if (a) renderPinnedCard(document.getElementById("pinnedGuideCard")); }); }
   });
   E.apiKeyModal?.addEventListener("click",e=>{ if(e.target===E.apiKeyModal) E.apiKeyModal.classList.add("hidden"); });
 
@@ -520,6 +523,14 @@ function bindAll() {
   });
   initReaderZoom();
   initReaderHighlight();
+  const backToTopBtn = document.getElementById("readerBackToTop");
+  E.readerContent?.addEventListener("scroll", () => {
+    if (!backToTopBtn) return;
+    backToTopBtn.classList.toggle("hidden", E.readerContent.scrollTop < 300);
+  });
+  backToTopBtn?.addEventListener("click", () => {
+    E.readerContent?.scrollTo({ top: 0, behavior: "smooth" });
+  });
   // Restore article highlights whenever the reader opens
   const readerMo = new MutationObserver(() => {
     if (!E.readerModal?.classList.contains("hidden")) loadHighlightsForArticle(E.readerContent);
@@ -641,6 +652,7 @@ function bindAll() {
       E.readerModal.classList.add("hidden");
       return;
     }
+    hideToc();
     document.querySelectorAll(".overlay").forEach(m=>m.classList.add("hidden"));
   });
 
