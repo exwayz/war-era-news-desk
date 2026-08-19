@@ -6,6 +6,57 @@ The format is inspired by Keep a Changelog and follows Semantic Versioning princ
 
 ---
 
+## [2.0.0] - 2026-08-19
+
+### Added
+
+*Newsroom Studio — full journalist analytics dashboard with per-article subscriber counts, BTC and gem revenue breakdowns, area charts with crosshair hover, and localStorage-cached analytics (30-minute TTL) for instant repeat opens.
+*News Desk Guide — pinned gold-outline card at the top of the article grid, fetched fresh from the API on every boot, spanning both article columns with a white-on-dark editorial look.
+*Universal Table of Contents — collapsible right-side sidebar inside the article reader that auto-detects h1/h2/h3 headings in any article, with DOM-based ID injection and smooth-scroll navigation.
+*Back-to-top floating button in the article reader, appearing after 300px of scroll.
+*Reader article navigation — full navigation stack with `openRootArticle()`, `openMentionArticle()`, `navigateBack()`, scroll position save/restore, back button, and Escape handling.
+*Team emblem icons on tournament battles — swords-emblem SVG colored by country `colorScheme`, clickable country list popover with scrollable entries.
+*YouTube embed support in the article reader — `<iframe>` elements preserved through sanitization with responsive 16:9 aspect ratio.
+
+### Improved
+
+*Revenue calculations now apply a 3 BTC per-article system fee — `articleBtcRev()` and `articleGemRev()` helpers subtract the fee per tipped article (revenue = tips × 5 − 3).
+*Article subscriber counts read from `stats.subs` per article and `profile.subscribers` flat field (not nested `rankings.userSubscribers`).
+*About modal polished — Hattorius credit with clickable profile links, justified paragraph text, proper paragraph spacing, and expanded About button (60:40 split with Done).
+*Settings panel rebranded — "by roostre" text replaces the rooster avatar button, About button now shows icon and text.
+*Article grid layout fixed to proper 60:40 split using `repeat(2, minmax(0, 1fr))`.
+*Newsroom Studio button styled with cyan glow and shine animation.
+*News Desk Guide author resolved via `resolveUsers()` for correct byline display.
+*Political summary copy button fixed with fallback selector.
+*Image centering in the article reader (`display: block; margin: 0 auto`).
+
+### Fixed
+
+*Highlight color persistence — selections now correctly remember their assigned color across sessions.
+*YouTube embeds no longer stripped by the HTML sanitizer — `SANITIZE_IFRAME_OK` regex allows trusted `<iframe>` elements.
+*Article subscriber count in Studio detail view now correctly reads from article metrics.
+*CI workflow — added `git pull --rebase` before push in `refresh-lookups.yml` to prevent push rejections.
+*Redundant redeploy step removed from `refresh-lookups.yml` (push to main already triggers deploy via `deploy.yml`).
+
+### Technical
+
+*AI server model switched from `llama-3.3-70b-versatile` to `qwen/qwen3.6-27b` with `reasoning_format: "hidden"`, `stripThinking` regex, and `max_tokens: 4096`.
+*Library cache (`libraryStore.js` `loadAll()`) used as primary data source for Studio analytics instead of broken API `author` filter.
+*`readerNav.js` module — navigation stack, scroll save/restore, back button, Escape handling.
+*`guideArticle.js` module — Guide article fetch/cache, pinned card render, universal ToC parser (`parseTocFromContent`), DOM-based ID injection (`injectTocIdsIntoDom`), collapsible ToC sidebar.
+*SVG area chart with crosshair hover for Studio analytics.
+*Offline lookups refreshed (2 scheduled refreshes).
+
+### UX
+
+*The News Desk now has a full journalist analytics studio — click the cyan-glowing Newsroom Studio button to see per-article performance, subscriber counts, BTC/gem revenue, and area charts.
+*Any article with headings gets a collapsible Table of Contents sidebar in the reader — click the ToC trigger button to toggle it.
+*The News Desk Guide is always pinned at the top of the article grid as a gold-accented card.
+*Reader navigation preserves your scroll position when following mention links and returning.
+*YouTube videos now embed correctly in articles.
+
+---
+
 ## [1.1.0] - 2026-08-14
 
 ### Added
