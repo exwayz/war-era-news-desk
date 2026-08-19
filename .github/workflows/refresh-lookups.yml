@@ -45,8 +45,4 @@ jobs:
             git push origin main
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
-      - name: Redeploy Pages with fresh data
-        if: steps.commit.outputs.changed == 'true'
-        run: gh workflow run deploy.yml --ref main
-        env:
-          GH_TOKEN: ${{ github.token }}
+
