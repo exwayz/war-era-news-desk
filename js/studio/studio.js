@@ -254,7 +254,7 @@ function computeMetrics(articles, profile) {
     const score = s.score || (likes - dislikes);
     const rx = likes + dislikes;
     return {
-      ...a, views, likes, dislikes, score, comments, tips, gemTips, reactions: rx,
+      ...a, views, likes, dislikes, score, comments, tips, gemTips, reactions: rx, subs: s.subs || 0,
       engagementRate: views ? (rx + comments) / views * 100 : 0,
       reactionRate: views ? rx / views * 100 : 0,
       commentRate: views ? comments / views * 100 : 0,
