@@ -3,6 +3,7 @@ const ATTR = "data-tip";
 
 function convertTitles(root) {
   root.querySelectorAll("[title]").forEach(el => {
+    if (el.closest("#studioModal")) return;
     const t = el.getAttribute("title");
     if (t != null && t !== "") {
       el.setAttribute(ATTR, t);
@@ -11,7 +12,7 @@ function convertTitles(root) {
   });
 }
 
-function show(el) {
+function show(el, cx, cy) {
   const text = el.getAttribute(ATTR);
   if (!text) return;
   if (!_tip) {
@@ -21,14 +22,13 @@ function show(el) {
   }
   _tip.textContent = text;
   _tip.style.display = "block";
-  const r = el.getBoundingClientRect();
   const tw = _tip.offsetWidth;
   const th = _tip.offsetHeight;
-  let left = r.left + r.width / 2 - tw / 2;
-  let top = r.top - th - 6;
+  let left = cx - tw / 2;
+  let top = cy + 16;
   if (left < 4) left = 4;
   if (left + tw > window.innerWidth - 4) left = window.innerWidth - tw - 4;
-  if (top < 4) top = r.bottom + 6;
+  if (top + th > window.innerHeight - 4) top = cy - th - 8;
   _tip.style.left = left + "px";
   _tip.style.top = top + "px";
 }
@@ -49,19 +49,22 @@ export function initTooltips() {
   });
   obs.observe(document.body, { childList: true, subtree: true });
 
-  document.addEventListener("mouseenter", e => {
+  document.addEventListener("mouseover", e => {
     const el = e.target.closest?.("[data-tip]");
-    if (el) show(el);
+    if (el && !el.closest("#studioModal")) show(el, e.clientX, e.clientY);
   }, true);
 
-  document.addEventListener("mouseleave", e => {
+  document.addEventListener("mouseout", e => {
     const el = e.target.closest?.("[data-tip]");
     if (el) hide();
   }, true);
 
   document.addEventListener("focusin", e => {
     const el = e.target.closest?.("[data-tip]");
-    if (el) show(el);
+    if (el && !el.closest("#studioModal")) {
+      const r = el.getBoundingClientRect();
+      show(el, r.left + r.width / 2, r.top + r.height);
+    }
   });
 
   document.addEventListener("focusout", () => hide());
