@@ -66,7 +66,7 @@ self.addEventListener("fetch", (event) => {
     caches.match(request).then((cached) => {
       const network = fetch(request)
         .then((response) => {
-          if (response && response.ok) {
+          if (response && response.status === 200) {
             const clone = response.clone();
             caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, clone));
           }

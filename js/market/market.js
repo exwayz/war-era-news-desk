@@ -9,7 +9,7 @@ import { calculateAnalytics, updateHistories } from "./analytics.js";
 import { renderExecutiveDashboard } from "./renderAnalytics.js";
 import { renderPredictionDashboard } from "./renderPredictions.js";
 import { computePredictions } from "./predictions.js";
-import { storeMarketSnapshot, loadSupabaseHistory, loadWeeklyMVI } from "./marketHistory.js";
+import { storeMarketSnapshot, loadWeeklyMVI } from "./marketHistory.js";
 import { computeProduction } from "./production.js";
 import { renderProductionStudio, renderWorkerYield } from "./renderStudio.js";
 import { renderSignalsView, refreshSignals } from "./renderSignals.js";
@@ -315,10 +315,6 @@ export async function loadMarketFull(showLoading=true) {
     panel.classList.add("view-" + _marketView);
   }
   storeMarketSnapshot();
-  // Once the stored snapshots arrive, push freshly-derived velocity /
-  // acceleration into the prediction view automatically (no manual toggling).
-  loadSupabaseHistory().then(() => syncPredictionView());
-  loadWeeklyMVI();
   refreshSignals();
 
   if (!S.market._prodData) {

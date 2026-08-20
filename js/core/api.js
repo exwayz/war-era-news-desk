@@ -1,4 +1,4 @@
-import { TRPC_BASE, API2_BASE, API5_BASE, MARKET_SERVER_URL, MARKET_DATA_URL, AI_SERVER_URL } from "./constants.js";
+import { TRPC_BASE, API2_BASE, API5_BASE, MARKET_DATA_URL, AI_SERVER_URL } from "./constants.js";
 import { STORE } from "./storage.js";
 import { E } from "./dom.js";
 
@@ -204,20 +204,6 @@ export async function fetchTournamentTeams(tournamentId, k) {
     const data = unwrap(r);
     return Array.isArray(data) ? data : [];
   } catch { return []; }
-}
-
-/** Fetch from Belmo cache first, fall back to direct API on miss/stale */
-export async function fetchCached(key, directFetcher) {
-  if (MARKET_SERVER_URL) {
-    try {
-      const r = await fetch(`${MARKET_SERVER_URL}/api/cache/${key}`, { signal: AbortSignal.timeout(3000) });
-      if (r.ok) {
-        const data = await r.json();
-        if (data?.items?.length) return data.items;
-      }
-    } catch {}
-  }
-  return directFetcher ? await directFetcher() : [];
 }
 
 /** Fetch tx data directly from game API with configurable pagination (bypasses server proxies) */
