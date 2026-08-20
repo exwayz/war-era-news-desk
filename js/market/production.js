@@ -1,4 +1,4 @@
-import { fetchTrpc, unwrap } from "../core/api.js";
+import { fetchTrpc, fetchTrpcApi5, unwrap } from "../core/api.js";
 import { apiKey } from "../core/api.js";
 import { S } from "../core/state.js";
 
@@ -177,7 +177,7 @@ async function _doCompute() {
   const partyNameById = {};
   const partyIds = [...uniqueParties];
   const partyResults = await Promise.allSettled(
-    partyIds.map(pid => fetchTrpc("party.getById", { partyId: pid }, k))
+    partyIds.map(pid => fetchTrpcApi5("party.getById", { partyId: pid }, k))
   );
   for (let i = 0; i < partyIds.length; i++) {
     if (partyResults[i].status === "fulfilled") {
