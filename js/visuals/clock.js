@@ -32,7 +32,7 @@ export function updateInfobar() {
     const arrow = item.trend === 1 ? "▲" : item.trend === -1 ? "▼" : "";
     const pct = item.trend !== 0 && item.changePct != null ? `${arrow}${item.changePct >= 0 ? "+" : ""}${item.changePct.toFixed(1)}%` : "";
     const trendCls = item.trend === 1 ? "infobar-pill-up" : item.trend === -1 ? "infobar-pill-down" : "";
-    return `<span class="infobar-pill"><span class="infobar-name">${escapeHtml(item.item)}</span> <span class="infobar-value ${trendCls}">${fmtMoney(item.value)}${pct ? ` ${pct}` : ""}</span></span>`;
+    return `<span class="infobar-pill"><span class="infobar-name">${escapeHtml(item.item)}</span> <span class="infobar-value ${trendCls}">${pct || "\u2014"}</span></span>`;
   }
   let track = scroll.querySelector(".infobar-track");
   if (!track) {
@@ -49,11 +49,11 @@ export function updateInfobar() {
     let nameEl = el.querySelector(".infobar-name");
     let valueEl = el.querySelector(".infobar-value");
     if (!nameEl) {
-      el.innerHTML = `<span class="infobar-name">${escapeHtml(item.item)}</span> <span class="infobar-value ${trendCls}">${fmtMoney(item.value)}${pct ? ` ${pct}` : ""}</span>`;
+      el.innerHTML = `<span class="infobar-name">${escapeHtml(item.item)}</span> <span class="infobar-value ${trendCls}">${pct || "\u2014"}</span>`;
     } else {
       nameEl.textContent = item.item;
       valueEl.className = `infobar-value ${trendCls}`;
-      valueEl.textContent = `${fmtMoney(item.value)}${pct ? ` ${pct}` : ""}`;
+      valueEl.textContent = pct || "\u2014";
     }
   }
 }
