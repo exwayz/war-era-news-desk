@@ -690,6 +690,19 @@ mark.reader-highlight {
   85% { left: 120%; }
 }
 
+/* ── GLOBAL TOOLTIP ──────────────────────────────── */
+.nd-tooltip {
+  position: fixed; z-index: 100100; display: none;
+  padding: 4px 10px; max-width: 260px; white-space: pre-wrap; word-break: break-word;
+  font-family: "Atkinson Hyperlegible", Arial, sans-serif; font-size: .72rem; font-weight: 600;
+  background: #1e293b; color: #e2e8f0; border: 1px solid #334155;
+  box-shadow: 0 4px 12px rgba(0,0,0,.3); pointer-events: none;
+  line-height: 1.4; text-align: left;
+}
+@media (prefers-color-scheme: light) {
+  .nd-tooltip { background: #1e293b; color: #e2e8f0; border-color: #475569; }
+}
+
 /* ── NEWSROOM STUDIO ──────────────────────────────── */
 #studioModal *, #studioModal *::before, #studioModal *::after { border-radius: 0 !important; }
 #studioModal { --st-cyan: #22d3ee; --st-cyan-dim: rgba(34,211,238,.15); --st-cyan-glow: rgba(34,211,238,.5);
@@ -837,8 +850,6 @@ mark.reader-highlight {
 #studioModal .st-cal-cell { aspect-ratio: 1; border-radius: 2px; cursor: default; position: relative; }
 #studioModal .st-cal-cell:hover { outline: 1.5px solid var(--st-cyan); outline-offset: 0; z-index: 1; }
 
-/* Calendar Tooltip */
-.st-cal-tip { position: fixed; z-index: 100004; padding: 4px 8px; border-radius: 4px; background: var(--st-surface-hi, #253347); border: 1px solid var(--st-line, #334155); color: var(--st-ink, #e2e8f0); font-size: .7rem; font-weight: 600; pointer-events: none; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,.25); transform: translate(-50%, -100%); margin-top: -6px; }
 
 /* Loading / Empty */
 #studioModal .st-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 16px; color: var(--st-ink-dim); gap: 8px; text-align: center; }

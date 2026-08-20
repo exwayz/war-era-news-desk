@@ -33,6 +33,7 @@ import { initReaderZoom } from "./ui/readerZoom.js";
 import { initReaderHighlight, loadHighlightsForArticle } from "./ui/readerHighlight.js";
 import { openReaderFromMention, navigateBack, closeReaderNav } from "./ui/readerNav.js";
 import { initImageViewer } from "./ui/imageViewer.js";
+import { initTooltips } from "./ui/tooltip.js";
 import { openChangelog, closeChangelog } from "./ui/changelog.js";
 import { initStudio, openStudio } from "./studio/studio.js";
 import { fetchGuideArticle, renderPinnedCard, hideToc } from "./pinned/guideArticle.js";
@@ -537,6 +538,7 @@ function bindAll() {
   });
   if (E.readerModal) readerMo.observe(E.readerModal, { attributes: true, attributeFilter: ["class"] });
   initImageViewer();
+  initTooltips();
   initStudio();
   document.getElementById("openArticleBtn")?.addEventListener("click",()=>{
     const id = document.getElementById("openArticleBtn").dataset.id;

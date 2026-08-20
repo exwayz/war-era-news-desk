@@ -514,33 +514,6 @@ function initChartTooltips(container) {
   hoverArea.addEventListener("mouseleave", hideCrosshair);
 }
 
-/* ── Calendar Tooltips ───────────────────────────────── */
-
-let _calTip = null;
-
-function initCalendarTooltips(container) {
-  const cells = container.querySelectorAll(".st-cal-cell[data-tip]");
-  if (!cells.length) return;
-
-  if (!_calTip) {
-    _calTip = document.createElement("div");
-    _calTip.className = "st-cal-tip";
-    _calTip.style.display = "none";
-    document.body.appendChild(_calTip);
-  }
-
-  cells.forEach(cell => {
-    cell.addEventListener("mouseenter", e => {
-      _calTip.textContent = cell.dataset.tip;
-      _calTip.style.display = "block";
-      const r = cell.getBoundingClientRect();
-      _calTip.style.left = (r.left + r.width / 2) + "px";
-      _calTip.style.top = (r.top - 6) + "px";
-    });
-    cell.addEventListener("mouseleave", () => { _calTip.style.display = "none"; });
-  });
-}
-
 /* ── Section Renderers ────────────────────────────────── */
 
 function renderOverview(el) {
@@ -766,7 +739,6 @@ function renderPublishing(el) {
       `<div class="st-list-item"><span class="st-list-title">${esc(a.title || "Untitled")}</span><span class="st-list-val">${fmtDate(a.publishedAt || a.createdAt)}</span></div>`
     ).join("")}</div>
   `;
-  initCalendarTooltips(el);
 }
 
 /* ── Main Render ──────────────────────────────────────── */
@@ -800,7 +772,6 @@ export function initStudio() {
 function closeStudio() {
   document.getElementById("studioModal")?.classList.add("hidden");
   if (_chartTooltip) _chartTooltip.style.display = "none";
-  if (_calTip) _calTip.style.display = "none";
   const orphan = document.querySelector(".st-cross-label");
   if (orphan) orphan.style.display = "none";
   _section = "overview";
