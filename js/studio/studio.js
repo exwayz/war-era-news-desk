@@ -173,7 +173,10 @@ async function fetchFreshProfile(userId, k) {
   try {
     const r = await fetchTrpcApi2("user.getUserLite", { userId }, k);
     const u = unwrap(r);
-    if (u) return { subscribers: u.subscribers ?? u.subscriberCount ?? 0, subscriberRank: u.subscriberRank ?? null, subscriberTier: u.subscriberTier ?? null, username: u.username || u.name, avatarUrl: u.avatarUrl || u.avatar };
+    if (u) {
+      const sub = u.rankings?.userSubscribers || {};
+      return { subscribers: sub.value ?? 0, subscriberRank: sub.rank ?? null, subscriberTier: sub.tier ?? null, username: u.username || u.name, avatarUrl: u.avatarUrl || u.avatar };
+    }
   } catch {}
   return null;
 }
