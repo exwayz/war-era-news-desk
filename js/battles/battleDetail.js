@@ -244,7 +244,7 @@ export async function loadBattleDetail(battle, bid, silent=false) {
       // Fetch tournament doc if not cached
       if (!S.lookups.tournamentsById.has(bdDetail.tournament)) {
         try {
-          const tRes = await fetchTrpc("tournament.getById", { tournamentId: bdDetail.tournament }, k);
+          const tRes = await fetchTrpcApi2("tournament.getById", { tournamentId: bdDetail.tournament }, k);
           const tData = unwrap(tRes);
           if (tData) S.lookups.tournamentsById.set(bdDetail.tournament, tData);
         } catch {}

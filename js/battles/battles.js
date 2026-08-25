@@ -67,7 +67,7 @@ async function resolveTournamentData(k) {
   if (tournamentIds.size) {
     await Promise.all([...tournamentIds].map(async tid => {
       try {
-        const r = await fetchTrpc("tournament.getById", { tournamentId: tid }, k);
+        const r = await fetchTrpcApi2("tournament.getById", { tournamentId: tid }, k);
         const t = unwrap(r);
         if (t) S.lookups.tournamentsById.set(tid, t);
       } catch {}
