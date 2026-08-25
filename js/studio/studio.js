@@ -25,6 +25,7 @@ let _sortAsc = false;
 let _detailId = null;
 let _articlePage = 0;
 let _timeframe = "all";
+let _autoRefreshTimer = null;
 
 function fmtN(v) {
   if (v == null || !isFinite(v)) return "—";
@@ -166,6 +167,15 @@ async function fetchAllArticles(userId, k, onProgress) {
     articles = await backfillStats(articles, k, onProgress);
   }
   return articles;
+}
+
+async function fetchFreshProfile(userId, k) {
+  try {
+    const r = await fetchTrpcApi2("user.getUserLite", { userId }, k);
+    const u = unwrap(r);
+    if (u) return { subscribers: u.subscribers ?? u.subscriberCount ?? 0, subscriberRank: u.subscriberRank ?? null, subscriberTier: u.subscriberTier ?? null, username: u.username || u.name, avatarUrl: u.avatarUrl || u.avatar };
+  } catch {}
+  return null;
 }
 
 /* ── Analytics ────────────────────────────────────────── */
@@ -803,8 +813,24 @@ function closeStudio() {
   if (_calTip) _calTip.style.display = "none";
   const orphan = document.querySelector(".st-cross-label");
   if (orphan) orphan.style.display = "none";
+  if (_autoRefreshTimer) { clearInterval(_autoRefreshTimer); _autoRefreshTimer = null; }
   _section = "overview";
   _detailId = null;
+}
+
+const REFRESH_INTERVAL = 5 * 60 * 1000;
+
+function updateRefreshTimestamp() {
+  const el = document.getElementById("studioLastRefresh");
+  if (el) el.textContent = "Updated " + new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+}
+
+function startAutoRefresh(userId, profileData, k, modal, content) {
+  if (_autoRefreshTimer) clearInterval(_autoRefreshTimer);
+  _autoRefreshTimer = setInterval(() => {
+    if (modal.classList.contains("hidden")) { clearInterval(_autoRefreshTimer); _autoRefreshTimer = null; return; }
+    refreshStudioData(userId, profileData, k, modal, content, true);
+  }, REFRESH_INTERVAL);
 }
 
 export async function openStudio(userId, profileData) {
@@ -826,46 +852,89 @@ export async function openStudio(userId, profileData) {
   _data = { userId, profile: profileData };
   const k = apiKey();
 
+  const head = modal.querySelector(".st-head");
+  let refreshBtn = head.querySelector("#studioRefreshBtn");
+  if (!refreshBtn) {
+    refreshBtn = document.createElement("button");
+    refreshBtn.id = "studioRefreshBtn";
+    refreshBtn.className = "btn-icon-sm";
+    refreshBtn.title = "Refresh data from API";
+    refreshBtn.innerHTML = `<iconify-icon icon="mdi:refresh" class="lu"></iconify-icon>`;
+    refreshBtn.style.cssText = "position:absolute;top:4px;left:4px;color:var(--st-ink-dim);background:none;border:none;cursor:pointer;padding:4px;font-size:1.1rem;transition:color .15s,text-shadow .15s;";
+    head.appendChild(refreshBtn);
+    refreshBtn.addEventListener("click", () => refreshStudioData(userId, profileData, k, modal, content, false));
+  }
+  let tsEl = head.querySelector("#studioLastRefresh");
+  if (!tsEl) {
+    tsEl = document.createElement("span");
+    tsEl.id = "studioLastRefresh";
+    tsEl.style.cssText = "position:absolute;top:8px;left:40px;font-size:.6rem;color:var(--st-ink-dim);";
+    head.appendChild(tsEl);
+  }
+  updateRefreshTimestamp();
+
   const { data: cachedAnalytics, stale } = loadCachedAnalytics(userId);
   if (cachedAnalytics) {
     _data.metrics = cachedAnalytics;
     renderSection();
-    if (stale) refreshStudioData(userId, profileData, k, modal, content);
+    if (stale) refreshStudioData(userId, profileData, k, modal, content, true);
+    startAutoRefresh(userId, profileData, k, modal, content);
     return;
   }
 
   await fetchAndRender(userId, profileData, k, content);
+  startAutoRefresh(userId, profileData, k, modal, content);
 }
 
-async function refreshStudioData(userId, profileData, k, modal, content) {
+async function refreshStudioData(userId, profileData, k, modal, content, silent) {
+  const refreshBtn = modal?.querySelector("#studioRefreshBtn");
+  if (refreshBtn) refreshBtn.classList.add("nd-spin");
   try {
-    const articles = await fetchAllArticles(userId, k);
+    const [articles, freshProfile] = await Promise.all([
+      fetchAllArticles(userId, k),
+      fetchFreshProfile(userId, k),
+    ]);
+    if (freshProfile) {
+      _data.profile = { ...(_data.profile || profileData), ...freshProfile };
+      Object.assign(profileData, freshProfile);
+    }
     if (articles.length) {
-      const newMetrics = computeMetrics(articles, profileData);
+      const newMetrics = computeMetrics(articles, _data.profile || profileData);
       if (newMetrics) {
         _data.metrics = newMetrics;
         saveCachedAnalytics(userId, newMetrics);
         renderSection();
       }
     }
+    updateRefreshTimestamp();
   } catch (e) {
     console.warn("[Studio] background refresh failed:", e);
+  } finally {
+    if (refreshBtn) refreshBtn.classList.remove("nd-spin");
   }
 }
 
 async function fetchAndRender(userId, profileData, k, content) {
   try {
     content.innerHTML = `<div class="st-loading"><iconify-icon icon="mdi:loading" class="nd-spin"></iconify-icon><p>Loading articles...</p></div>`;
-    const articles = await fetchAllArticles(userId, k, (_p, count, src) => {
-      if (src === "cache") {
-        content.innerHTML = `<div class="st-loading"><iconify-icon icon="mdi:database-outline" class="nd-spin"></iconify-icon><p>Loading from library cache...</p></div>`;
-      } else {
-        content.innerHTML = `<div class="st-loading"><iconify-icon icon="mdi:loading" class="nd-spin"></iconify-icon><p>Loading articles... (${count} found)</p></div>`;
-      }
-    });
+    const [articles, freshProfile] = await Promise.all([
+      fetchAllArticles(userId, k, (_p, count, src) => {
+        if (src === "cache") {
+          content.innerHTML = `<div class="st-loading"><iconify-icon icon="mdi:database-outline" class="nd-spin"></iconify-icon><p>Loading from library cache...</p></div>`;
+        } else {
+          content.innerHTML = `<div class="st-loading"><iconify-icon icon="mdi:loading" class="nd-spin"></iconify-icon><p>Loading articles... (${count} found)</p></div>`;
+        }
+      }),
+      fetchFreshProfile(userId, k),
+    ]);
+
+    if (freshProfile) {
+      _data.profile = { ...(_data.profile || profileData), ...freshProfile };
+      Object.assign(profileData, freshProfile);
+    }
 
     content.innerHTML = `<div class="st-loading"><iconify-icon icon="mdi:loading" class="nd-spin"></iconify-icon><p>Calculating statistics...</p></div>`;
-    _data.metrics = computeMetrics(articles, profileData);
+    _data.metrics = computeMetrics(articles, _data.profile || profileData);
 
     if (!_data.metrics) {
       content.innerHTML = `<div class="st-empty"><iconify-icon icon="mdi:newspaper-variant-outline" style="font-size:2rem"></iconify-icon><p>No articles found for this user.</p></div>`;
