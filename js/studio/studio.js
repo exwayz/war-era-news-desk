@@ -121,14 +121,13 @@ function hasStats(article) {
 }
 
 async function backfillStats(articles, k, onProgress) {
-  const needStats = articles.filter(a => !hasStats(a));
-  if (!needStats.length) return articles;
+  if (!articles.length) return articles;
   const enriched = [...articles];
   const map = new Map(enriched.map(a => [a._id, a]));
   const BATCH = 10;
-  for (let i = 0; i < needStats.length; i += BATCH) {
-    const batch = needStats.slice(i, i + BATCH);
-    if (onProgress) onProgress(i, needStats.length);
+  for (let i = 0; i < articles.length; i += BATCH) {
+    const batch = articles.slice(i, i + BATCH);
+    if (onProgress) onProgress(i, articles.length);
     const results = await Promise.allSettled(
       batch.map(a => fetchTrpcApi2("article.getArticleById", { articleId: a._id }, k).then(r => unwrap(r)))
     );
@@ -142,22 +141,20 @@ async function backfillStats(articles, k, onProgress) {
       }
     }
   }
-  if (needStats.length) {
-    try {
-      const backfilled = needStats.filter(a => hasStats(a)).map(a => {
-        const slim = { ...a };
-        delete slim.content;
-        return slim;
-      });
-      if (backfilled.length) await saveMany(backfilled);
-    } catch {}
-  }
+  try {
+    const toSave = enriched.filter(a => hasStats(a)).map(a => {
+      const slim = { ...a };
+      delete slim.content;
+      return slim;
+    });
+    if (toSave.length) await saveMany(toSave);
+  } catch {}
   return enriched;
 }
 
-async function fetchAllArticles(userId, k, onProgress) {
+async function fetchAllArticles(userId, k, onProgress, forceApi) {
   if (onProgress) onProgress(0, 0, "cache");
-  let articles = await fetchArticlesFromCache(userId);
+  let articles = forceApi ? [] : await fetchArticlesFromCache(userId);
 
   if (!articles.length) {
     articles = await fetchArticlesFromApi(userId, k, onProgress);
@@ -894,7 +891,7 @@ async function refreshStudioData(userId, profileData, k, modal, content, silent)
   if (refreshBtn) refreshBtn.classList.add("nd-spin");
   try {
     const [articles, freshProfile] = await Promise.all([
-      fetchAllArticles(userId, k),
+      fetchAllArticles(userId, k, null, true),
       fetchFreshProfile(userId, k),
     ]);
     if (freshProfile) {
