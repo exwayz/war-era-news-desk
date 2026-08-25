@@ -12,7 +12,7 @@ import { toggleTheme, applyTheme, applyTexture } from "./ui/theme.js";
 import { toast, setStatus } from "./ui/toast.js";
 import { evtData, evtTime, buildTitle, buildSummary } from "./timeline/events.js";
 import { initFeatured, loadFeatured } from "./timeline/featured.js";
-import { loadBattles, stopBattlePolling, updateBattleTabPills, clearBattleDetail, initBattleInfiniteScroll } from "./battles/battles.js";
+import { loadBattles, stopBattlePolling, updateBattleTabPills, resetBattleTypePills, clearBattleDetail, initBattleInfiniteScroll } from "./battles/battles.js";
 import { injectBattleSearchBar } from "./battles/companies.js";
 import { loadMarketFull, loadMarketStats, copyMarketReport, captureMarketReport, renderMarketOrders, initMarketView } from "./market/market.js";
 import { loadJobs, renderJobs, copyJobsReport, captureJobsReport, initJobViews } from "./jobs/jobs.js";
@@ -545,8 +545,8 @@ function bindAll() {
     if (id) window.open(`https://app.warera.io/article/${id}`, "_blank", "noopener");
   });
 
-  E.battleTabLive?.addEventListener("click",()=>{ S.battleMode="live"; stopBattlePolling(); loadBattles(true); updateBattleTabPills(); });
-  E.battleTabHistory?.addEventListener("click",()=>{ S.battleMode="history"; stopBattlePolling(); loadBattles(true); updateBattleTabPills(); });
+  E.battleTabLive?.addEventListener("click",()=>{ S.battleMode="live"; S.battleTypeFilter="all"; resetBattleTypePills(); stopBattlePolling(); loadBattles(true); updateBattleTabPills(); });
+  E.battleTabHistory?.addEventListener("click",()=>{ S.battleMode="history"; S.battleTypeFilter="all"; resetBattleTypePills(); stopBattlePolling(); loadBattles(true); updateBattleTabPills(); });
   E.battleRefreshBtn?.addEventListener("click",()=>loadBattles(true));
   injectBattleSearchBar();
   initBattleInfiniteScroll();

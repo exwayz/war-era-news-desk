@@ -230,6 +230,12 @@ export function injectBattleSearchBar() {
 <input type="date" id="battleDateTo" title="Ended to" disabled>
 <button id="resetBattleFiltersBtn" class="btn-icon-sm" title="Reset search, sort and filters"><iconify-icon icon="mdi:close-box" class="lu"></iconify-icon></button>
 <datalist id="battlesRegionOptions"></datalist>
+<div class="tab-pill-group battle-type-pills">
+  <button class="pill-btn active" data-btype="all">All</button>
+  <button class="pill-btn" data-btype="wars">Wars</button>
+  <button class="pill-btn" data-btype="mu-tournament">MU Tournaments</button>
+  <button class="pill-btn" data-btype="country-tournament">Country Tournaments</button>
+</div>
 `;
   panelHead.insertAdjacentElement("afterend", wrap);
   document.getElementById("battleLoadMini")?.addEventListener("click", () => {
@@ -300,6 +306,16 @@ export function injectBattleSearchBar() {
   }
   updateSortArrows();
 
+  const typePills = wrap.querySelectorAll("[data-btype]");
+  for (const btn of typePills) {
+    btn.addEventListener("click", () => {
+      typePills.forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      S.battleTypeFilter = btn.dataset.btype;
+      renderBattleList();
+    });
+  }
+
   const dFrom = document.getElementById("battleDateFrom");
   const dTo = document.getElementById("battleDateTo");
   // The "to" date only makes sense once "from" is set, so it starts disabled
@@ -338,6 +354,10 @@ export function injectBattleSearchBar() {
     const endedBtn = wrap.querySelector('[data-sort="ended"]');
     if (endedBtn) endedBtn.classList.add("active");
     updateSortArrows();
+    S.battleTypeFilter = "all";
+    typePills.forEach(b => b.classList.remove("active"));
+    const allPill = wrap.querySelector('[data-btype="all"]');
+    if (allPill) allPill.classList.add("active");
     loadBattles(true);
     inp.focus();
   });

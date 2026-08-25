@@ -125,6 +125,10 @@ export function updateBattleTabPills() {
   E.battleTabHistory?.classList.toggle("active", S.battleMode==="history");
 }
 
+export function resetBattleTypePills() {
+  document.querySelectorAll(".battle-type-pills .pill-btn").forEach(b => b.classList.toggle("active", b.dataset.btype === "all"));
+}
+
 // Auto load-more for the live battles feed: when the user scrolls near the
 // bottom of the list we page the next chunk of active battles. A busy flag
 // stops overlapping requests, and the pre-load scroll offset is restored after
@@ -706,6 +710,16 @@ export function renderBattleList() {
       const ms = new Date(e).getTime();
       if (isNaN(ms)) return true;
       return ms >= fromMs && ms <= toMs;
+    });
+  }
+  if (S.battleTypeFilter && S.battleTypeFilter !== "all") {
+    list = list.filter(b => {
+      const isTournament = b.type === "tournament";
+      if (S.battleTypeFilter === "wars") return !isTournament;
+      const tType = S.lookups.tournamentsById.get(b.tournament)?.type;
+      if (S.battleTypeFilter === "mu-tournament") return isTournament && tType === "mu";
+      if (S.battleTypeFilter === "country-tournament") return isTournament && tType === "country";
+      return true;
     });
   }
   const sortBy = S.battleSort||"ended";

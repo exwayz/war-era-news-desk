@@ -1315,6 +1315,8 @@ mark.reader-highlight {
 }
 .battle-toolbar .btn-load-mini:hover { border-color: var(--accent); }
 .battle-toolbar .btn-load-mini[hidden] { display: none; }
+.battle-type-pills { width: 100%; }
+.battle-type-pills .pill-btn { font-size: .66rem; padding: 2px 8px; }
 
 /* ── ARTICLE FILTER ROW ─────────────────────────────── */
 .article-filter-row { display: flex; gap: 4px; align-items: center; padding: 4px 10px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
