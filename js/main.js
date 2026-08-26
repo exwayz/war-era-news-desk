@@ -371,6 +371,10 @@ function bindAll() {
     openStudio(profile.userId, profile);
   });
 
+  document.getElementById("openOverseerBtn")?.addEventListener("click", () => {
+    window.open("https://overseer-warera.vercel.app/", "_blank");
+  });
+
   document.getElementById("deleteProfileBtn")?.addEventListener("click",()=>{
     if (!confirm("Delete your profile and all stored data?")) return;
     deleteProfile();

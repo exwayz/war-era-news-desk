@@ -690,6 +690,33 @@ mark.reader-highlight {
   85% { left: 120%; }
 }
 
+.btn-overseer {
+  width: 100%; position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 8px 14px; border: 1.5px solid rgba(225,173,1,.45); border-radius: 6px;
+  background: rgba(225,173,1,.08); color: #e1ad01; cursor: pointer;
+  font-family: var(--font-ui); font-size: .82rem; font-weight: 600;
+  transition: background .2s, border-color .2s, box-shadow .2s;
+}
+.btn-overseer::after {
+  content: ""; position: absolute; left: 0; top: -100%; width: 100%; height: 30%;
+  background: linear-gradient(180deg, transparent, rgba(225,173,1,.35), transparent);
+  animation: overseerScan 3s ease-in-out infinite;
+}
+.btn-overseer:hover {
+  background: rgba(225,173,1,.18); border-color: rgba(225,173,1,.8);
+  box-shadow: 0 0 14px rgba(225,173,1,.35), 0 0 28px rgba(225,173,1,.15);
+}
+@keyframes overseerScan {
+  0%, 100% { top: -30%; opacity: 0; }
+  10% { opacity: 1; }
+  45% { top: 100%; opacity: 1; }
+  55% { top: 100%; opacity: 0; }
+  56% { top: -30%; opacity: 0; }
+  65% { opacity: 1; }
+  95% { top: 100%; opacity: 1; }
+}
+
 /* ── GLOBAL TOOLTIP ──────────────────────────────── */
 .nd-tooltip {
   position: fixed; z-index: 100100; display: none;
