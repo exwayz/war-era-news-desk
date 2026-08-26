@@ -152,9 +152,9 @@ async function backfillStats(articles, k, onProgress) {
   return enriched;
 }
 
-async function fetchAllArticles(userId, k, onProgress, forceApi) {
+async function fetchAllArticles(userId, k, onProgress) {
   if (onProgress) onProgress(0, 0, "cache");
-  let articles = forceApi ? [] : await fetchArticlesFromCache(userId);
+  let articles = await fetchArticlesFromCache(userId);
 
   if (!articles.length) {
     articles = await fetchArticlesFromApi(userId, k, onProgress);
@@ -891,7 +891,7 @@ async function refreshStudioData(userId, profileData, k, modal, content, silent)
   if (refreshBtn) refreshBtn.classList.add("nd-spin");
   try {
     const [articles, freshProfile] = await Promise.all([
-      fetchAllArticles(userId, k, null, true),
+      fetchAllArticles(userId, k),
       fetchFreshProfile(userId, k),
     ]);
     if (freshProfile) {
