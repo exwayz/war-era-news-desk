@@ -671,7 +671,7 @@ mark.reader-highlight {
 .btn-studio {
   width: 100%; position: relative; overflow: hidden;
   display: flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 8px 14px; border: 1.5px solid rgba(0,229,255,.45); border-radius: 6px;
+  padding: 8px 14px; border: 1.5px solid rgba(0,229,255,.45); border-radius: 0;
   background: rgba(0,229,255,.08); color: #00e5ff; cursor: pointer;
   font-family: var(--font-ui); font-size: .82rem; font-weight: 600;
   transition: background .2s, border-color .2s, box-shadow .2s;
@@ -693,9 +693,9 @@ mark.reader-highlight {
 .btn-overseer {
   width: 100%; position: relative; overflow: hidden;
   display: flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 8px 14px; border: 1.5px solid rgba(225,173,1,.45); border-radius: 6px;
+  padding: 8px 14px; border: 1.5px solid rgba(225,173,1,.45); border-radius: 0;
   background: rgba(225,173,1,.08); color: #e1ad01; cursor: pointer;
-  font-family: var(--font-ui); font-size: .82rem; font-weight: 600;
+  font-family: 'Kode Mono', monospace; font-size: .82rem; font-weight: 600;
   transition: background .2s, border-color .2s, box-shadow .2s;
 }
 .btn-overseer::after {
