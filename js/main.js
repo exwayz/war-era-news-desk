@@ -28,7 +28,7 @@ import { initLibrary, ensureLibraryIndex, copyLibraryArticles } from "./library/
 import { initBookmarkButton, getCurrentArticle } from "./library/bookmarks.js";
 import { initTableMaker } from "./tablemaker/tablemaker.js";
 import { highlightUserData } from "./core/profileHighlighter.js";
-import { initClock, updateInfobar } from "./visuals/clock.js";
+import { initClock, updateInfobar, setClockMode } from "./visuals/clock.js";
 import { initReaderZoom } from "./ui/readerZoom.js";
 import { initReaderHighlight, loadHighlightsForArticle } from "./ui/readerHighlight.js";
 import { openReaderFromMention, navigateBack, closeReaderNav } from "./ui/readerNav.js";
@@ -234,6 +234,12 @@ function bindAll() {
   document.getElementById("userBtn")?.addEventListener("click", openProfileModal);
   document.getElementById("settingsBtn")?.addEventListener("click", openSettingsModal);
   updateUserButton();
+
+  document.getElementById("clockModeGroup")?.addEventListener("click", e => {
+    const btn = e.target.closest("[data-clock]");
+    if (!btn) return;
+    setClockMode(btn.dataset.clock);
+  });
 
   // API key modal — save triggers data load
   E.saveApiKeyButton?.addEventListener("click",()=>{

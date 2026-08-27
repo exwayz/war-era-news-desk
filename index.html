@@ -74,7 +74,7 @@
   <header class="topbar">
     <div class="topbar-left">
       <button class="menu-toggle" id="menuBtn" title="Menu" aria-label="Open menu"><iconify-icon icon="mdi:menu" class="lu"></iconify-icon></button>
-      <div class="clock" id="clockDisplay"><span class="clock-date" id="clockDate"></span><span id="clockTime">--:--:--</span></div>
+      <div class="clock" id="clockDisplay"><span class="clock-date" id="clockDate"></span><span id="clockTime">--:--:--</span><span id="clockGameBadge" class="clock-game-badge" style="display:none">GAME</span></div>
       <button class="theme-toggle" id="themeToggleBtn" title="Toggle theme" aria-label="Toggle theme"><span class="side-icon"><iconify-icon icon="mdi:weather-night" class="lu"></iconify-icon></span></button>
     </div>
     <div class="topbar-center">
@@ -536,6 +536,17 @@
     <div class="settings-group">
       <label>Audio</label>
       <label class="settings-toggle"><input type="checkbox" id="audioEnabledToggle"><span>Play UI sound effects</span></label>
+    </div>
+    <div class="settings-group">
+      <label>Clock</label>
+      <div class="tab-pill-group" id="clockModeGroup">
+        <button class="pill-btn active" data-clock="local">Local</button>
+        <button class="pill-btn" data-clock="game">Game Time</button>
+      </div>
+    </div>
+    <div class="settings-group" id="gameCountdownGroup" style="display:none">
+      <label>Game</label>
+      <div id="gameCountdowns" style="font-size:.68rem;color:var(--ink-dim);line-height:1.6"></div>
     </div>
     <div class="by-roostre">by <span class="roostre-name" id="roosterLink">roostre</span></div>
     <div style="display:flex;gap:6px">

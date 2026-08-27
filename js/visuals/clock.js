@@ -1,22 +1,98 @@
 import { S } from "../core/state.js";
+import { STORE } from "../core/storage.js";
+import { apiKey, fetchTrpcApi2, unwrap } from "../core/api.js";
 import { escapeHtml } from "../core/utils.js";
+
+let _clockMode = localStorage.getItem(STORE.clockMode) || "local";
+let _gameDates = null;
+let _gameDatesTimer = null;
+
+export function getClockMode() { return _clockMode; }
+export function setClockMode(mode) {
+  _clockMode = mode;
+  localStorage.setItem(STORE.clockMode, mode);
+  updateClockModeUI();
+}
+
+function updateClockModeUI() {
+  document.querySelectorAll("#clockModeGroup .pill-btn").forEach(b => b.classList.toggle("active", b.dataset.clock === _clockMode));
+  const badge = document.getElementById("clockGameBadge");
+  if (badge) badge.style.display = _clockMode === "game" ? "" : "none";
+  const cdGroup = document.getElementById("gameCountdownGroup");
+  if (cdGroup) cdGroup.style.display = _clockMode === "game" ? "" : "none";
+}
+
+function fmtCountdown(ms) {
+  if (ms <= 0) return "now";
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+function renderGameCountdowns() {
+  const el = document.getElementById("gameCountdowns");
+  if (!el || !_gameDates) return;
+  const now = Date.now();
+  const parts = [];
+  if (_gameDates.nextRegenAt) {
+    const ms = new Date(_gameDates.nextRegenAt).getTime() - now;
+    parts.push(`Regen: ${fmtCountdown(ms)}`);
+  }
+  if (_gameDates.nextDayAt) {
+    const ms = new Date(_gameDates.nextDayAt).getTime() - now;
+    parts.push(`Day: ${fmtCountdown(ms)}`);
+  }
+  if (_gameDates.nextMonthAt) {
+    const ms = new Date(_gameDates.nextMonthAt).getTime() - now;
+    parts.push(`Month: ${fmtCountdown(ms)}`);
+  }
+  if (_gameDates.nextPresidentialElectionsAt) {
+    const ms = new Date(_gameDates.nextPresidentialElectionsAt).getTime() - now;
+    parts.push(`Pres. Election: ${fmtCountdown(ms)}`);
+  }
+  if (_gameDates.nextCongressElectionsAt) {
+    const ms = new Date(_gameDates.nextCongressElectionsAt).getTime() - now;
+    parts.push(`Congress: ${fmtCountdown(ms)}`);
+  }
+  el.textContent = parts.join("  ·  ");
+}
+
+export async function fetchGameDates() {
+  const k = apiKey();
+  if (!k) return;
+  try {
+    const r = await fetchTrpcApi2("gameConfig.getDates", {}, k);
+    _gameDates = unwrap(r);
+  } catch {}
+}
 
 export function initClock() {
   function tick() {
     const now = new Date();
-    const d = now.getDate().toString().padStart(2,"0");
-    const mo = (now.getMonth()+1).toString().padStart(2,"0");
-    const y = now.getFullYear();
-    const hh = now.getHours().toString().padStart(2,"0");
-    const mm = now.getMinutes().toString().padStart(2,"0");
-    const ss = now.getSeconds().toString().padStart(2,"0");
+    const isGame = _clockMode === "game";
+    const ref = isGame ? new Date(now.getTime() + now.getTimezoneOffset() * 60000) : now;
+    const d = ref.getDate().toString().padStart(2,"0");
+    const mo = (ref.getMonth()+1).toString().padStart(2,"0");
+    const y = ref.getFullYear();
+    const hh = ref.getHours().toString().padStart(2,"0");
+    const mm = ref.getMinutes().toString().padStart(2,"0");
+    const ss = ref.getSeconds().toString().padStart(2,"0");
     const el = document.getElementById("clockTime");
     if (el) el.textContent = `${hh}:${mm}:${ss}`;
     const dateEl = document.getElementById("clockDate");
     if (dateEl) dateEl.textContent = `${y}-${mo}-${d} `;
+    if (isGame) renderGameCountdowns();
   }
   tick();
   setInterval(tick, 1000);
+  setInterval(renderGameCountdowns, 1000);
+  fetchGameDates();
+  _gameDatesTimer = setInterval(fetchGameDates, 5 * 60 * 1000);
+  updateClockModeUI();
 }
 
 function pillTrend(item) {

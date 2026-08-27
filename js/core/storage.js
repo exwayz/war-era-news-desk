@@ -1,1 +1,1 @@
-export const STORE = { apiKey:"wa-nd-apikey", theme:"wa-nd-theme", userProfile:"wa-nd-user-profile", texture:"wa-nd-texture" };
+export const STORE = { apiKey:"wa-nd-apikey", theme:"wa-nd-theme", userProfile:"wa-nd-user-profile", texture:"wa-nd-texture", clockMode:"wa-nd-clock-mode" };
