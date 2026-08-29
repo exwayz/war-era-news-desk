@@ -26,6 +26,7 @@ let _detailId = null;
 let _articlePage = 0;
 let _timeframe = "all";
 let _autoRefreshTimer = null;
+let _subsGains = [];
 
 function fmtN(v) {
   if (v == null || !isFinite(v)) return "—";
@@ -80,6 +81,69 @@ function saveCachedAnalytics(userId, data) {
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify({ userId, ts: Date.now(), data }));
   } catch {}
+}
+
+/* ── Subscriber Gains Tracker ─────────────────────────── */
+
+const SUBS_KEY = "wa-studio-subs-tracker";
+const SUBS_GAIN_WINDOW = 24 * 60 * 60 * 1000;
+const SUBS_MAX_GAINS = 50;
+
+function subsKeyFor(userId) { return "u:" + userId; }
+
+function loadSubsTracker(userId) {
+  try {
+    const raw = localStorage.getItem(SUBS_KEY);
+    if (!raw) return { key: subsKeyFor(userId), articles: {}, gains: [] };
+    const t = JSON.parse(raw);
+    if (t.key !== subsKeyFor(userId)) return { key: subsKeyFor(userId), articles: {}, gains: [] };
+    return t;
+  } catch {
+    return { key: subsKeyFor(userId), articles: {}, gains: [] };
+  }
+}
+
+function saveSubsTracker(t) {
+  try { localStorage.setItem(SUBS_KEY, JSON.stringify(t)); } catch {}
+}
+
+function trackSubsGains(articles, userId) {
+  const t = loadSubsTracker(userId);
+  const now = Date.now();
+  let changed = false;
+  for (const a of articles) {
+    const id = a._id || a.id;
+    if (!id) continue;
+    const subs = (a.stats?.subs) || 0;
+    const prev = t.articles[id];
+    if (prev) {
+      if (subs > prev.subs) {
+        t.gains.unshift({ id, title: a.title || "Untitled", delta: subs - prev.subs, at: now });
+        changed = true;
+      }
+      prev.subs = subs;
+      prev.lastSeenAt = now;
+    } else {
+      t.articles[id] = { subs, lastSeenAt: now };
+    }
+  }
+  if (changed) {
+    t.gains = t.gains.slice(0, SUBS_MAX_GAINS);
+    saveSubsTracker(t);
+  }
+  _subsGains = t.gains;
+  return t.gains;
+}
+
+function fmtTimeAgo(ts) {
+  const diff = Date.now() - ts;
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "just now";
+  if (min < 60) return min + "m ago";
+  const h = Math.floor(min / 60);
+  if (h < 24) return h + "h ago";
+  const d = Math.floor(h / 24);
+  return d + "d ago";
 }
 
 async function fetchArticlesFromApi(userId, k, onProgress) {
@@ -163,6 +227,7 @@ async function fetchAllArticles(userId, k, onProgress) {
   if (articles.length) {
     articles = await backfillStats(articles, k, onProgress);
   }
+  trackSubsGains(articles, userId);
   return articles;
 }
 
@@ -730,6 +795,13 @@ function renderAudience(el) {
       ${mCard("Avg Views / Article", fmtN(m.avgViews), "mdi:eye-outline", "st-ic-yellow")}
       ${mCard("Avg Comments / Article", m.avgComments.toFixed(1), "mdi:comment-outline", "st-ic-green")}
     </div>
+    <div class="st-section-head">Recent Subscriber Gains${(() => { const sum = _subsGains.filter(g => Date.now() - g.at <= SUBS_GAIN_WINDOW).reduce((s, g) => s + g.delta, 0); return sum > 0 ? ` <span style="color:var(--st-green)">+${fmtN(sum)} in 24h</span>` : ""; })()}</div>
+    <div class="st-list">${(() => {
+      const gains = _subsGains.filter(g => Date.now() - g.at <= SUBS_GAIN_WINDOW).slice(0, 10);
+      return gains.length ? gains.map(g =>
+        `<div class="st-list-item"><span class="st-list-title">${esc(g.title)}</span><span class="st-list-val" style="color:var(--st-green);font-weight:600">+${g.delta} sub${g.delta !== 1 ? "s" : ""} \u00B7 ${fmtTimeAgo(g.at)}</span></div>`
+      ).join("") : `<p style="color:var(--st-ink-dim);padding:16px;text-align:center">No subscriber gains recorded yet. Gains are detected as studio data refreshes — open the studio, let it refresh, and recent subscriber growth will appear here.</p>`;
+    })()}</div>
     <div class="st-section-head">Top Articles by Views</div>
     <div class="st-list">${[...m.articleMetrics].sort((a, b) => b.views - a.views).slice(0, 10).map((a, i) =>
       `<div class="st-list-item"><span class="st-list-rank">#${i + 1}</span><span class="st-list-title">${esc(a.title || "Untitled")}</span><span class="st-list-val">${fmtN(a.views)} views</span></div>`
@@ -851,6 +923,7 @@ export async function openStudio(userId, profileData) {
 
   _data = { userId, profile: profileData };
   const k = apiKey();
+  _subsGains = loadSubsTracker(userId).gains;
 
   const head = modal.querySelector(".st-head");
   let refreshBtn = head.querySelector("#studioRefreshBtn");
