@@ -111,13 +111,13 @@ export function showToc(article) {
       const target = document.getElementById(btn.dataset.tocId);
       const readerContent = document.getElementById("readerContent");
       if (target && readerContent) {
-        let el = target;
-        let offsetTop = 0;
-        while (el && el !== readerContent) {
-          offsetTop += el.offsetTop;
-          el = el.offsetParent;
-        }
-        readerContent.scrollTo({ top: Math.max(0, offsetTop - 20), behavior: "smooth" });
+        const cRect = readerContent.getBoundingClientRect();
+        const tRect = target.getBoundingClientRect();
+        const top = tRect.top - cRect.top + readerContent.scrollTop;
+        readerContent.scrollTo({ top: Math.max(0, top - 20), behavior: "smooth" });
+        target.classList.remove("toc-go-flash");
+        void target.offsetWidth;
+        target.classList.add("toc-go-flash");
       }
     });
   });

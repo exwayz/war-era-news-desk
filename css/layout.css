@@ -1647,6 +1647,12 @@ mark.reader-highlight {
 .toc-l2 { font-weight: 500; padding-left: 28px; font-size: .72rem; }
 .toc-l3 { font-weight: 400; padding-left: 42px; font-size: .68rem; color: var(--ink-dim); }
 
+.toc-go-flash { animation: tocGoFlash 1.4s ease-out; }
+@keyframes tocGoFlash {
+  0% { background: color-mix(in srgb, var(--accent) 40%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent); }
+  100% { background: transparent; box-shadow: 0 0 0 1px transparent; }
+}
+
 /* ── READER BACK-TO-TOP ─────────────────────────────── */
 .reader-btt {
   position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
