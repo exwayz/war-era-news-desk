@@ -28,6 +28,7 @@ let _timeframe = "all";
 let _autoRefreshTimer = null;
 let _subsGains = [];
 let _subsInventory = [];
+let _subsTotalGrowth = null;
 
 function fmtN(v) {
   if (v == null || !isFinite(v)) return "—";
@@ -108,7 +109,7 @@ function saveSubsTracker(t) {
   try { localStorage.setItem(SUBS_KEY, JSON.stringify(t)); } catch {}
 }
 
-function trackSubsGains(articles, userId) {
+function trackSubsGains(articles, userId, total) {
   const t = loadSubsTracker(userId);
   const now = Date.now();
   _subsInventory = [];
@@ -128,6 +129,14 @@ function trackSubsGains(articles, userId) {
       t.articles[id] = { subs, lastSeenAt: now };
     }
   }
+  if (total != null) {
+    if (t.totalBase == null) t.totalBase = total;
+    if (t.total != null && total > t.total) {
+      t.gains.unshift({ id: "__total__", title: "Total subscribers", delta: total - t.total, at: now });
+    }
+    t.total = total;
+  }
+  _subsTotalGrowth = (t.total != null && t.totalBase != null) ? t.total - t.totalBase : null;
   _subsInventory.sort((x, y) => y.subs - x.subs);
   t.gains = t.gains.slice(0, SUBS_MAX_GAINS);
   saveSubsTracker(t);
@@ -227,7 +236,6 @@ async function fetchAllArticles(userId, k, onProgress) {
   if (articles.length) {
     articles = await backfillStats(articles, k, onProgress);
   }
-  trackSubsGains(articles, userId);
   return articles;
 }
 
@@ -795,12 +803,18 @@ function renderAudience(el) {
       ${mCard("Avg Views / Article", fmtN(m.avgViews), "mdi:eye-outline", "st-ic-yellow")}
       ${mCard("Avg Comments / Article", m.avgComments.toFixed(1), "mdi:comment-outline", "st-ic-green")}
     </div>
-    <div class="st-section-head">Recent Subscriber Gains${(() => { const sum = _subsGains.filter(g => Date.now() - g.at <= SUBS_GAIN_WINDOW).reduce((s, g) => s + g.delta, 0); return sum > 0 ? ` <span style="color:var(--st-green)">+${fmtN(sum)} in 24h</span>` : ""; })()}</div>
+    <div class="st-section-head">Recent Subscriber Gains${(() => {
+      const sum = _subsGains.filter(g => g.id !== "__total__" && Date.now() - g.at <= SUBS_GAIN_WINDOW).reduce((s, g) => s + g.delta, 0);
+      const parts = [];
+      if (sum > 0) parts.push(`<span style="color:var(--st-green)">+${fmtN(sum)} in 24h</span>`);
+      if (_subsTotalGrowth > 0) parts.push(`<span style="color:var(--st-cyan)">\u00B7 ${fmtN(_subsTotalGrowth)} since tracking</span>`);
+      return parts.length ? " " + parts.join(" ") : "";
+    })()}</div>
     <div class="st-list">${(() => {
       const gains = _subsGains.filter(g => Date.now() - g.at <= SUBS_GAIN_WINDOW).slice(0, 10);
       return gains.length ? gains.map(g =>
         `<div class="st-list-item"><span class="st-list-title">${esc(g.title)}</span><span class="st-list-val" style="color:var(--st-green);font-weight:600">+${g.delta} sub${g.delta !== 1 ? "s" : ""} \u00B7 ${fmtTimeAgo(g.at)}</span></div>`
-      ).join("") : `<p style="color:var(--st-ink-dim);padding:16px;text-align:center">No subscriber gains detected yet. The first refresh records a baseline; subscriber growth is detected from the next refresh onward.</p>`;
+      ).join("") : `<p style="color:var(--st-ink-dim);padding:16px;text-align:center">Subscriber gains are detected as data refreshes from the first open onward — current subscriber counts are listed below in "Subscribers by Article". Subscribers gained before tracking began can't be attributed retroactively.</p>`;
     })()}</div>
     <div class="st-section-head">Subscribers by Article</div>
     <div class="st-list">${_subsInventory.length ? _subsInventory.slice(0, 10).map(a =>
@@ -975,6 +989,7 @@ async function refreshStudioData(userId, profileData, k, modal, content, silent)
       _data.profile = { ...(_data.profile || profileData), ...freshProfile };
       Object.assign(profileData, freshProfile);
     }
+    trackSubsGains(articles, userId, freshProfile?.subscribers);
     if (articles.length) {
       const newMetrics = computeMetrics(articles, _data.profile || profileData);
       if (newMetrics) {
@@ -1009,6 +1024,8 @@ async function fetchAndRender(userId, profileData, k, content) {
       _data.profile = { ...(_data.profile || profileData), ...freshProfile };
       Object.assign(profileData, freshProfile);
     }
+
+    trackSubsGains(articles, userId, freshProfile?.subscribers);
 
     content.innerHTML = `<div class="st-loading"><iconify-icon icon="mdi:loading" class="nd-spin"></iconify-icon><p>Calculating statistics...</p></div>`;
     _data.metrics = computeMetrics(articles, _data.profile || profileData);
