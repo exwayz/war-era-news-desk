@@ -27,6 +27,7 @@ let _articlePage = 0;
 let _timeframe = "all";
 let _autoRefreshTimer = null;
 let _subsGains = [];
+let _subsInventory = [];
 
 function fmtN(v) {
   if (v == null || !isFinite(v)) return "—";
@@ -110,16 +111,16 @@ function saveSubsTracker(t) {
 function trackSubsGains(articles, userId) {
   const t = loadSubsTracker(userId);
   const now = Date.now();
-  let changed = false;
+  _subsInventory = [];
   for (const a of articles) {
     const id = a._id || a.id;
     if (!id) continue;
     const subs = (a.stats?.subs) || 0;
+    if (subs > 0) _subsInventory.push({ id, title: a.title || "Untitled", subs });
     const prev = t.articles[id];
     if (prev) {
       if (subs > prev.subs) {
         t.gains.unshift({ id, title: a.title || "Untitled", delta: subs - prev.subs, at: now });
-        changed = true;
       }
       prev.subs = subs;
       prev.lastSeenAt = now;
@@ -127,10 +128,9 @@ function trackSubsGains(articles, userId) {
       t.articles[id] = { subs, lastSeenAt: now };
     }
   }
-  if (changed) {
-    t.gains = t.gains.slice(0, SUBS_MAX_GAINS);
-    saveSubsTracker(t);
-  }
+  _subsInventory.sort((x, y) => y.subs - x.subs);
+  t.gains = t.gains.slice(0, SUBS_MAX_GAINS);
+  saveSubsTracker(t);
   _subsGains = t.gains;
   return t.gains;
 }
@@ -800,8 +800,12 @@ function renderAudience(el) {
       const gains = _subsGains.filter(g => Date.now() - g.at <= SUBS_GAIN_WINDOW).slice(0, 10);
       return gains.length ? gains.map(g =>
         `<div class="st-list-item"><span class="st-list-title">${esc(g.title)}</span><span class="st-list-val" style="color:var(--st-green);font-weight:600">+${g.delta} sub${g.delta !== 1 ? "s" : ""} \u00B7 ${fmtTimeAgo(g.at)}</span></div>`
-      ).join("") : `<p style="color:var(--st-ink-dim);padding:16px;text-align:center">No subscriber gains recorded yet. Gains are detected as studio data refreshes — open the studio, let it refresh, and recent subscriber growth will appear here.</p>`;
+      ).join("") : `<p style="color:var(--st-ink-dim);padding:16px;text-align:center">No subscriber gains detected yet. The first refresh records a baseline; subscriber growth is detected from the next refresh onward.</p>`;
     })()}</div>
+    <div class="st-section-head">Subscribers by Article</div>
+    <div class="st-list">${_subsInventory.length ? _subsInventory.slice(0, 10).map(a =>
+      `<div class="st-list-item"><span class="st-list-title">${esc(a.title)}</span><span class="st-list-val" style="color:var(--st-cyan);font-weight:600">${fmtN(a.subs)} sub${a.subs !== 1 ? "s" : ""}</span></div>`
+    ).join("") : `<p style="color:var(--st-ink-dim);padding:16px;text-align:center">No subscribers on any tracked article yet.</p>`}</div>
     <div class="st-section-head">Top Articles by Views</div>
     <div class="st-list">${[...m.articleMetrics].sort((a, b) => b.views - a.views).slice(0, 10).map((a, i) =>
       `<div class="st-list-item"><span class="st-list-rank">#${i + 1}</span><span class="st-list-title">${esc(a.title || "Untitled")}</span><span class="st-list-val">${fmtN(a.views)} views</span></div>`
