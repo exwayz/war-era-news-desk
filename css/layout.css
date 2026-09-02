@@ -569,10 +569,10 @@
 .reader-body summary .toc-chevron {
   flex: 0 0 auto;
   width: 1.05em; height: 1.05em;
-  transform: rotate(90deg);
+  transform: rotate(0deg);
   transition: transform .2s ease;
 }
-.reader-body details[open] summary .toc-chevron { transform: rotate(0deg); }
+.reader-body details[open] summary .toc-chevron { transform: rotate(90deg); }
 .reader-body summary:hover { background: color-mix(in srgb, var(--accent) 12%, var(--surface-hi)); color: var(--accent); }
 .reader-body summary::-webkit-details-marker { display: none; }
 .reader-body summary::marker { content: ""; }
