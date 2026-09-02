@@ -559,12 +559,20 @@
 .reader-body summary {
   cursor: pointer;
   list-style: none;
+  display: flex; align-items: center; gap: .55em;
   font-family: var(--font-ui); font-weight: 700; font-size: .9em;
   padding: 10px 14px;
   background: color-mix(in srgb, var(--surface-hi) 55%, transparent);
   border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
   transition: background .15s ease, color .15s ease;
 }
+.reader-body summary .toc-chevron {
+  flex: 0 0 auto;
+  width: 1.05em; height: 1.05em;
+  transform: rotate(90deg);
+  transition: transform .2s ease;
+}
+.reader-body details[open] summary .toc-chevron { transform: rotate(0deg); }
 .reader-body summary:hover { background: color-mix(in srgb, var(--accent) 12%, var(--surface-hi)); color: var(--accent); }
 .reader-body summary::-webkit-details-marker { display: none; }
 .reader-body summary::marker { content: ""; }

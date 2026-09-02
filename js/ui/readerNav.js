@@ -4,7 +4,7 @@ import { resolveEntityByType, resolveContentLinks } from "../core/resolver.js";
 import { apiKey } from "../core/api.js";
 import { playRead } from "../audio/audio.js";
 import { loadHighlightsForArticle } from "./readerHighlight.js";
-import { parseTocFromContent, injectTocIdsIntoDom, showToc, hideToc } from "../pinned/guideArticle.js";
+import { parseTocFromContent, injectTocIdsIntoDom, decorateCollapsibles, showToc, hideToc } from "../pinned/guideArticle.js";
 
 const _stack = [];
 const _scrollPositions = [];
@@ -21,6 +21,7 @@ function renderArticleInReader(a, restoreScrollTop) {
   E.readerContent.innerHTML = sanitizeHtml(a.content) || "<p>No content available.</p>";
   E.readerContent.querySelectorAll("a").forEach(l => { l.target = "_blank"; l.rel = "noopener noreferrer"; });
   E.readerContent.querySelectorAll("iframe").forEach(f => { f.style.width = "100%"; f.style.aspectRatio = "16/9"; f.style.height = "auto"; });
+  decorateCollapsibles(E.readerContent);
   const entries = parseTocFromContent(a.content || "");
   if (entries.length) injectTocIdsIntoDom(E.readerContent, entries);
   const openBtn = document.getElementById("openArticleBtn");

@@ -85,6 +85,14 @@ function extractElementHtml(html, from, tag) {
   return html.slice(from, endIndex);
 }
 
+export function decorateCollapsibles(container) {
+  if (!container) return;
+  container.querySelectorAll("summary").forEach(s => {
+    s.insertAdjacentHTML("afterbegin",
+      `<iconify-icon class="toc-chevron" icon="akar-icons:chevron-right-small"></iconify-icon>`);
+  });
+}
+
 export function injectTocIdsIntoDom(container, entries) {
   if (!container || !entries.length) return;
   for (const e of entries) {
