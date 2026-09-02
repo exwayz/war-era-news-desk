@@ -51,6 +51,7 @@ const SANITIZE_TAGS = new Set([
   "H1","H2","H3","H4","H5","H6","UL","OL","LI","DL","DT","DD","BLOCKQUOTE",
   "PRE","CODE","HR","A","IMG","TABLE","THEAD","TBODY","TFOOT","TR","TH","TD",
   "SPAN","DIV","FIGURE","FIGCAPTION","HEADER","FOOTER","SECTION","ARTICLE",
+  "DETAILS","SUMMARY",
 ]);
 const SANITIZE_HREF_OK = /^(https?:|mailto:|tel:|#)/i;
 const SANITIZE_IFRAME_OK = /^https?:\/\/(www\.)?(youtube\.com|youtube-nocookie\.com|youtu\.be)\//i;

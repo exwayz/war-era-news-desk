@@ -548,6 +548,28 @@
   font-style: normal; font-size: .85em; color: var(--ink-dim);
 }
 
+/* Collapsible sections (TipTap <details>/<summary>) in the reader */
+.reader-body details {
+  margin: 1.25em 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-hi) 30%, transparent);
+  overflow: hidden;
+}
+.reader-body summary {
+  cursor: pointer;
+  list-style: none;
+  font-family: var(--font-ui); font-weight: 700; font-size: .9em;
+  padding: 10px 14px;
+  background: color-mix(in srgb, var(--surface-hi) 55%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  transition: background .15s ease, color .15s ease;
+}
+.reader-body summary:hover { background: color-mix(in srgb, var(--accent) 12%, var(--surface-hi)); color: var(--accent); }
+.reader-body summary::-webkit-details-marker { display: none; }
+.reader-body summary::marker { content: ""; }
+.reader-body details > div { padding: 2px 16px 12px; }
+
 /* Reader copy protection — text may not be selected or copied directly from
    the reader; links, resolved entities, and images stay fully interactive. */
 .reader-body { user-select: none; -webkit-user-select: none; }

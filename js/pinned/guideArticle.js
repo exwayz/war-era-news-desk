@@ -57,24 +57,41 @@ function decodeEntities(s) {
 export function parseTocFromContent(html) {
   if (!html) return [];
   const entries = [];
-  const headerRe = /<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi;
+  const tokenRe = /<(\/?)(details|summary|h([1-6]))(\s[^>]*)?>/gi;
   let match;
-  while ((match = headerRe.exec(html)) !== null) {
-    const level = parseInt(match[1]);
-    if (level > 3) continue;
-    const text = decodeEntities(match[2].replace(/<[^>]+>/g, ""));
+  let detailsDepth = 0;
+  while ((match = tokenRe.exec(html)) !== null) {
+    const isClose = match[1] === "/";
+    const element = match[2];
+    if (element === "details") {
+      detailsDepth = isClose ? Math.max(0, detailsDepth - 1) : detailsDepth + 1;
+      continue;
+    }
+    if (isClose) continue;
+    const isHeader = /^h[1-6]$/.test(element);
+    const level = isHeader ? parseInt(element.slice(1), 10) : Math.min(detailsDepth, 3);
+    if (level < 1 || level > 3) continue;
+    const inner = extractElementHtml(html, match.index + match[0].length, element);
+    const text = decodeEntities(inner.replace(/<[^>]+>/g, ""));
     if (!text) continue;
-    const id = "toc-" + entries.length;
-    entries.push({ text, level, id });
+    entries.push({ text, level, id: "toc-" + entries.length, collapsible: !isHeader });
   }
   return entries;
+}
+
+function extractElementHtml(html, from, tag) {
+  const endIndex = html.indexOf(`</${tag}>`, from);
+  if (endIndex < 0) return "";
+  return html.slice(from, endIndex);
 }
 
 export function injectTocIdsIntoDom(container, entries) {
   if (!container || !entries.length) return;
   for (const e of entries) {
-    const headers = container.querySelectorAll(`h${e.level}`);
-    for (const h of headers) {
+    const targets = e.collapsible
+      ? container.querySelectorAll("summary")
+      : container.querySelectorAll(`h${e.level}`);
+    for (const h of targets) {
       if (decodeEntities(h.textContent) === e.text && !h.id) {
         h.id = e.id;
         break;
