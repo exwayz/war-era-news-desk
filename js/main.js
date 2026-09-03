@@ -554,6 +554,10 @@ function bindAll() {
     const id = document.getElementById("openArticleBtn").dataset.id;
     if (id) window.open(`https://app.warera.io/article/${id}`, "_blank", "noopener");
   });
+  document.getElementById("copyMentionBtn")?.addEventListener("click",()=>{
+    const id = document.getElementById("openArticleBtn").dataset.id;
+    if (id) navigator.clipboard.writeText(`/article/${id}`).then(()=>toast("Mention URL copied."));
+  });
 
   E.battleTabLive?.addEventListener("click",()=>{ S.battleMode="live"; S.battleTypeFilter="all"; resetBattleTypePills(); stopBattlePolling(); loadBattles(true); updateBattleTabPills(); });
   E.battleTabHistory?.addEventListener("click",()=>{ S.battleMode="history"; S.battleTypeFilter="all"; resetBattleTypePills(); stopBattlePolling(); loadBattles(true); updateBattleTabPills(); });
