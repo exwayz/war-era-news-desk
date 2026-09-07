@@ -1129,7 +1129,7 @@ mark.reader-highlight {
 .prod-input:focus { border-color: var(--accent); outline: none; }
 .prod-inline { display: flex; gap: 4px; }
 .prod-inline .prod-input { flex: 1; min-width: 0; }
-.prod-region-list { display: flex; flex-wrap: wrap; gap: 4px; }
+.prod-region-list { gap: 4px; display: grid; grid-auto-flow: row; grid-template-columns: repeat(4, 1fr); }
 .prod-region-item { display: inline-flex; align-items: center; gap: 5px; padding: 2px 6px; border: 1px solid var(--line); background: var(--surface-hi); font-size: .72rem; cursor: pointer; }
 .prod-region-item small { display: block; color: var(--ink-dim); font-size: .62rem; }
 .prod-region-item input { accent-color: var(--accent); }
