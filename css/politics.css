@@ -132,7 +132,7 @@
 .pol-role-row:last-child { border-bottom: none; }
 
 .pol-role-icon { font-size: 1.1rem; width: 22px; text-align: center; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-.pol-role-label { color: var(--ink-dim); font-weight: 700; font-size: .76rem; text-align: right; width: 140px; flex-shrink: 0; }
+.pol-role-label { color: var(--ink-dim); font-weight: 700; font-size: .76rem; text-align: left; width: 140px; flex-shrink: 0; }
 .pol-role-name { color: var(--ink); font-weight: 600; display: flex; align-items: center; gap: 6px; min-width: 0; }
 
 /* ── User / Party avatars in government rows ── */
@@ -179,7 +179,6 @@
 
 /* ── Congress collapsible ── */
 .pol-congress-details {
-  margin-top: 6px;
   border-top: 1px solid var(--line);
   padding-top: 6px;
 }
