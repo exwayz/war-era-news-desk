@@ -215,11 +215,11 @@ function renderGovernment() {
   if (!_government) return '<p class="pol-empty">No government data</p>';
 
   const roles = [
-    { key: "president", label: "President:", icon: "icon-park-twotone:five-star-badge", color: "var(--gold)" },
-    { key: "vicePresident", label: "Vice President:", icon: "icon-park-outline:five-star-badge", color: "var(--silver)" },
-    { key: "minOfDefense", label: "Minister of Defense:", icon: "stash:shield-duotone", color: "var(--red)" },
-    { key: "minOfEconomy", label: "Minister of Economy:", icon: "fa7-solid:money-bill-trend-up", color: "var(--yellow)" },
-    { key: "minOfForeignAffairs", label: "Foreign Affairs:", icon: "ion:earth", color: "var(--blue)" },
+    { key: "president", label: "President", icon: "bi:star-fill", color: "var(--gold)" },
+    { key: "vicePresident", label: "Vice President", icon: "bi:star-half", color: "var(--silver)" },
+    { key: "minOfDefense", label: "Minister of Defense", icon: "clarity:shield-solid", color: "var(--red)" },
+    { key: "minOfEconomy", label: "Minister of Economy", icon: "ant-design:line-chart-outlined", color: "var(--yellow)" },
+    { key: "minOfForeignAffairs", label: "Foreign Affairs", icon: "ion:earth", color: "var(--blue)" },
   ];
 
   const roleHtml = roles.map(r => {
@@ -247,8 +247,8 @@ function renderGovernment() {
       : `<span class="pol-party-avatar-sm pol-party-initials-sm">${(party?.name?.charAt(0) || '?').toUpperCase()}</span>`;
     extraHtml += `
       <div class="pol-role-row">
-        <span class="pol-role-icon"><iconify-icon icon="lsicon:user-crowd-filled" style="color:#ffffff;filter:drop-shadow(0 1px 2px rgba(0,0,0,.55))" class="lu"></iconify-icon></span>
-        <span class="pol-role-label">Ruling Party:</span>
+        <span class="pol-role-icon"><iconify-icon icon="mdi:lectern" style="color:#ffffff;filter:drop-shadow(0 1px 2px rgba(0,0,0,.55))" class="lu"></iconify-icon></span>
+        <span class="pol-role-label">Ruling Party</span>
         <span class="pol-role-name">${pAvatar} ${escHtml(party?.name || rpId.slice(-6))}</span>
       </div>
     `;
@@ -262,8 +262,8 @@ function renderGovernment() {
     const aColor = _countryDetail?.allianceId ? (allianceColor(_countryDetail.allianceId) || "var(--ink-dim)") : "var(--ink-dim)";
     extraHtml += `
       <div class="pol-role-row">
-        <span class="pol-role-icon"><iconify-icon icon="material-symbols-light:handshake-sharp" style="color:${aColor}" class="lu"></iconify-icon></span>
-        <span class="pol-role-label">Alliance:</span>
+        <span class="pol-role-icon"><iconify-icon icon="mdi:handshake" style="color:${aColor}" class="lu"></iconify-icon></span>
+        <span class="pol-role-label">Alliance</span>
         <span class="pol-role-name">${aAvatar} ${escHtml(_alliance.allianceName || _alliance.name || _alliance._id?.slice(-6))}</span>
       </div>
     `;
