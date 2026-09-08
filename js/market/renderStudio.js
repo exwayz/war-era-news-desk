@@ -242,7 +242,7 @@ function ensureStudioDom(container) {
         <div class="prod-field"><label class="prod-field-label">Sell price (₿)</label><input id="psSell" type="number" step="0.0001" class="prod-input"></div>
         <div class="prod-acc" style="grid-column:1/-1">
           <button type="button" class="prod-acc-head"><iconify-icon icon="mdi:map-marker-multiple" class="lu"></iconify-icon><span>Regions</span><iconify-icon icon="mdi:chevron-down" class="lu prod-acc-caret"></iconify-icon></button>
-          <div class="prod-acc-body"><div class="prod-field wide"><label class="prod-field-label">Regions</label><div id="psRegions" class="prod-region-list"></div></div></div>
+          <details class="prod-acc-body"><summary class="prod-field-label">Regions</summary><div class="prod-field wide"><div id="psRegions" class="prod-region-list"></div></div></details>
         </div>
         </div>
         </div>
