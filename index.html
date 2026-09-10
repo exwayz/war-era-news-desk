@@ -20,6 +20,7 @@
   <link rel="stylesheet" href="css/responsive.css">
   <link rel="stylesheet" href="css/rankings.css">
   <link rel="stylesheet" href="css/politics.css">
+  <link rel="stylesheet" href="css/jotter.css">
   <link rel="preconnect" href="https://gateway.warerastats.io">
   <link rel="preconnect" href="https://api2.warera.io">
   <link rel="preconnect" href="https://flagcdn.com">
@@ -126,6 +127,7 @@
         <div class="sidebar-sec-label">Tools</div>
         <button class="side-btn" id="externalToolsBtn" title="External Tools" aria-haspopup="true" aria-expanded="false"><span class="side-icon"><iconify-icon icon="streamline-sharp:application-add-remix" class="lu"></iconify-icon></span></button>
         <button class="side-btn" data-tab="table-maker" title="Table Maker"><span class="side-icon"><iconify-icon icon="mdi:table" class="lu"></iconify-icon></span></button>
+        <button class="side-btn" data-tab="jotter" title="Article Jotter"><span class="side-icon"><iconify-icon icon="streamline-sharp:typewriter-solid" class="lu"></iconify-icon></span></button>
       </div>
       <div class="sidebar-bottom">
         <button class="side-btn" id="userBtn" title="User"><span class="side-icon" id="userIcon"><iconify-icon icon="mdi:account" class="lu"></iconify-icon></span></button>
@@ -443,6 +445,86 @@
             <div id="tmStatus" class="status-msg" hidden></div>
           </div>
           <div id="tmOutput" class="tm-output"><div id="tmEmptyMsg" class="tm-empty">Your table will appear here</div></div>
+        </div>
+      </div>
+
+      <!-- ARTICLE JOTTER -->
+      <div class="tab-panel" id="tab-jotter">
+        <div class="jotter-layout">
+          <div class="panel-head">
+            <h2>Article Jotter</h2>
+            <div class="btn-row">
+              <button class="btn-secondary" id="jSaveDraftBtn" type="button"><iconify-icon icon="fontisto:save-1" class="lu"></iconify-icon> Save draft</button>
+              <button class="btn-secondary" id="jCopyHtmlBtn" type="button" title="Copy TipTap HTML"><iconify-icon icon="fluent-mdl2:copy-edit" class="lu"></iconify-icon> <span>HTML</span></button>
+              <button class="btn-icon-sm" id="jOpenWriterBtn" type="button" title="Open War Era editor"><iconify-icon icon="oi:external-link" class="lu"></iconify-icon></button>
+            </div>
+          </div>
+          <div class="jotter-grid">
+            <div class="jotter-main">
+              <input class="j-title-input" id="jTitleInput" type="text" placeholder="Article title…" autocomplete="off">
+              <div class="j-toolbar" id="jToolbar" role="toolbar" aria-label="Formatting">
+                <div class="j-tb-group" aria-label="Block type">
+                  <select class="j-tb-select" id="jBlockSelect" title="Block type">
+                    <option value="p">P</option>
+                    <option value="h1">H1</option>
+                    <option value="h2">H2</option>
+                    <option value="h3">H3</option>
+                  </select>
+                </div>
+                <div class="j-tb-group" aria-label="Text formatting">
+                  <button class="j-tb-btn" data-cmd="bold" type="button" title="Bold"><iconify-icon icon="mdi:format-bold" class="lu"></iconify-icon></button>
+                  <button class="j-tb-btn" data-cmd="italic" type="button" title="Italic"><iconify-icon icon="mdi:format-italic" class="lu"></iconify-icon></button>
+                  <button class="j-tb-btn" data-cmd="underline" type="button" title="Underline"><iconify-icon icon="mdi:format-underline" class="lu"></iconify-icon></button>
+                  <button class="j-tb-btn" data-cmd="strike" type="button" title="Strikethrough"><iconify-icon icon="mdi:format-strikethrough" class="lu"></iconify-icon></button>
+                  <button class="j-tb-btn" data-cmd="code" type="button" title="Inline code"><iconify-icon icon="mdi:code-tags" class="lu"></iconify-icon></button>
+                </div>
+                <div class="j-tb-group" aria-label="Font">
+                  <select class="j-tb-select" id="jFontSelect" title="Font family"></select>
+                </div>
+                <div class="j-tb-group" aria-label="Color">
+                  <select class="j-tb-select" id="jColorSelect" title="Text color"></select>
+                </div>
+                <div class="j-tb-group" aria-label="Alignment">
+                  <button class="j-tb-btn" data-cmd="justifyLeft" type="button" title="Align left"><iconify-icon icon="mdi:format-align-left" class="lu"></iconify-icon></button>
+                  <button class="j-tb-btn" data-cmd="justifyCenter" type="button" title="Align center"><iconify-icon icon="mdi:format-align-center" class="lu"></iconify-icon></button>
+                  <button class="j-tb-btn" data-cmd="justifyRight" type="button" title="Align right"><iconify-icon icon="mdi:format-align-right" class="lu"></iconify-icon></button>
+                  <button class="j-tb-btn" data-cmd="justifyFull" type="button" title="Justify"><iconify-icon icon="mdi:format-align-justify" class="lu"></iconify-icon></button>
+                </div>
+                <div class="j-tb-group" aria-label="Lists and blocks">
+                  <button class="j-tb-btn" data-cmd="hr" type="button" title="Horizontal ruler"><iconify-icon icon="mdi:minus" class="lu"></iconify-icon></button>
+                  <button class="j-tb-btn" data-cmd="orderedList" type="button" title="Numbered list"><iconify-icon icon="mdi:format-list-numbered" class="lu"></iconify-icon></button>
+                  <button class="j-tb-btn" data-cmd="bulletList" type="button" title="Bulleted list"><iconify-icon icon="mdi:format-list-bulleted" class="lu"></iconify-icon></button>
+                  <button class="j-tb-btn" data-cmd="indent" type="button" title="Indent (Tab)"><iconify-icon icon="mdi:format-indent-increase" class="lu"></iconify-icon></button>
+                  <button class="j-tb-btn" data-cmd="outdent" type="button" title="Outdent (Shift+Tab)"><iconify-icon icon="mdi:format-indent-decrease" class="lu"></iconify-icon></button>
+                  <button class="j-tb-btn" data-cmd="blockquote" type="button" title="Quote block"><iconify-icon icon="mdi:format-quote-close" class="lu"></iconify-icon></button>
+                  <button class="j-tb-btn" data-cmd="codeBlock" type="button" title="Code block"><iconify-icon icon="mdi:code-braces" class="lu"></iconify-icon></button>
+                  <button class="j-tb-btn" data-cmd="collapsible" type="button" title="Collapsible section"><iconify-icon icon="mdi:chevron-down-box-outline" class="lu"></iconify-icon></button>
+                </div>
+                <div class="j-tb-group" aria-label="Insert">
+                  <button class="j-tb-btn" data-cmd="link" type="button" title="Insert link"><iconify-icon icon="mdi:link" class="lu"></iconify-icon></button>
+                  <button class="j-tb-btn" data-cmd="image" type="button" title="Insert image"><iconify-icon icon="mdi:image" class="lu"></iconify-icon></button>
+                </div>
+              </div>
+              <div class="j-editor-wrap">
+                <div class="j-editor" id="jEditor" contenteditable="true" spellcheck="false"></div>
+                <div class="j-info-bar" id="jInfoBar" aria-live="polite">0 chars &nbsp;·&nbsp; 0 words &nbsp;·&nbsp; 1 line &nbsp;·&nbsp; Ln 1, Col 1, Pos 0</div>
+              </div>
+            </div>
+            <div class="jotter-side">
+              <div class="j-side-sec j-draft-sec">
+                <div class="j-side-head">Draft Library</div>
+                <div class="j-drafts" id="jDraftList"></div>
+              </div>
+              <div class="j-side-sec j-image-sec">
+                <div class="j-side-head">Image Library</div>
+                <div class="j-img-add">
+                  <input id="jImageUrlInput" type="text" placeholder="https://i.imgur.com/…" autocomplete="off" spellcheck="false">
+                  <button id="jImageAddBtn" type="button">Add</button>
+                </div>
+                <div class="j-images" id="jImageGrid"></div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

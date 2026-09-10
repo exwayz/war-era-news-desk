@@ -27,6 +27,7 @@ import { loadPolitics, initPolitics, copyPoliticsReport, capturePoliticsReport }
 import { initLibrary, ensureLibraryIndex, copyLibraryArticles } from "./library/library.js";
 import { initBookmarkButton, getCurrentArticle } from "./library/bookmarks.js";
 import { initTableMaker } from "./tablemaker/tablemaker.js";
+import { initJotter } from "./jotter/jotter.js";
 import { highlightUserData } from "./core/profileHighlighter.js";
 import { initClock, updateInfobar, setClockMode } from "./visuals/clock.js";
 import { initReaderZoom } from "./ui/readerZoom.js";
@@ -687,6 +688,7 @@ function bindAll() {
   initLibrary();
   initBookmarkButton();
   initTableMaker();
+  initJotter();
 
   document.getElementById("jobWageFilter")?.addEventListener("input", () => {
     S.jobWageFilter = Number(document.getElementById("jobWageFilter").value || 0);
