@@ -135,7 +135,9 @@ export async function initJotter() {
 
   // Toolbar
   J.toolbar.addEventListener("mousedown", (e) => {
-    if (e.target.closest("button")) e.preventDefault(); // keep focus + selection
+    // Keep focus + selection for everything except <select> (its dropdown
+    // needs the default mousedown). savedRange protects operations from selects.
+    if (!e.target.closest("select")) e.preventDefault();
   });
   J.toolbar.addEventListener("click", (e) => syncSelection());
   J.toolbar.addEventListener("click", (e) => onToolbarClick(e));
@@ -202,13 +204,15 @@ function syncSelection() {
 
 function restoreSelection() {
   const sel = window.getSelection();
-  J.editor.focus({ preventScroll: true });
-  const ok = sel.rangeCount && J.editor.contains(sel.getRangeAt(0).startContainer);
-  const range = ok ? sel.getRangeAt(0) : savedRange;
-  if (range && J.editor.contains(range.startContainer)) {
+  // Always prefer the saved range: className of focus() is that the browser
+  // clamps the caret to the document start, and a stray selectionchange fired
+  // from focus() would otherwise corrupt savedRange (formatting the first paragraph).
+  const r = savedRange && savedRange.startContainer?.isConnected ? savedRange.cloneRange() : null;
+  if (r && J.editor.contains(r.startContainer)) {
     sel.removeAllRanges();
-    sel.addRange(range);
+    sel.addRange(r);
   }
+  J.editor.focus({ preventScroll: true });
 }
 
 function withSelection(fn) {
@@ -307,6 +311,20 @@ function updateInfoBar() {
   const m = caretMetrics();
   if (!J.infoBar) return;
   J.infoBar.textContent = `${m.chars} chars · ${m.words} words · ${m.lines} ${m.lines === 1 ? "line" : "lines"} · Ln ${m.ln}, Col ${m.col}, Pos ${m.pos}`;
+  updateAlignState();
+}
+
+function updateAlignState() {
+  const states = [["justifyLeft", "left"], ["justifyCenter", "center"], ["justifyRight", "right"], ["justifyFull", "justify"]];
+  let any = false;
+  for (const [cmd] of states) {
+    let on = false;
+    try { on = document.queryCommandState(cmd); } catch {}
+    if (on) any = true;
+    J.toolbar?.querySelector(`[data-cmd="${cmd}"]`)?.classList.toggle("is-active", on);
+  }
+  // Left is the implicit default: show it active when no alignment is set.
+  if (!any) J.toolbar?.querySelector('[data-cmd="justifyLeft"]')?.classList.add("is-active");
 }
 
 /* ── TOOLBAR ───────────────────────────────────────────── */
