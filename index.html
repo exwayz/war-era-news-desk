@@ -479,10 +479,16 @@
                   <button class="j-tb-btn" data-cmd="code" type="button" title="Inline code"><iconify-icon icon="mdi:code-tags" class="lu"></iconify-icon></button>
                 </div>
                 <div class="j-tb-group" aria-label="Font">
-                  <select class="j-tb-select" id="jFontSelect" title="Font family"></select>
+                  <span class="j-tb-wrap">
+                    <iconify-icon icon="mdi:format-font" class="lu j-tb-select-icon"></iconify-icon>
+                    <select class="j-tb-select" id="jFontSelect" title="Font family"></select>
+                  </span>
                 </div>
                 <div class="j-tb-group" aria-label="Color">
-                  <select class="j-tb-select" id="jColorSelect" title="Text color"></select>
+                  <span class="j-tb-wrap">
+                    <iconify-icon icon="eva:color-palette-fill" class="lu j-tb-select-icon"></iconify-icon>
+                    <select class="j-tb-select" id="jColorSelect" title="Text color"></select>
+                  </span>
                 </div>
                 <div class="j-tb-group" aria-label="Alignment">
                   <button class="j-tb-btn" data-cmd="justifyLeft" type="button" title="Align left"><iconify-icon icon="mdi:format-align-left" class="lu"></iconify-icon></button>
@@ -502,7 +508,7 @@
                 </div>
                 <div class="j-tb-group" aria-label="Insert">
                   <button class="j-tb-btn" data-cmd="link" type="button" title="Insert link"><iconify-icon icon="mdi:link" class="lu"></iconify-icon></button>
-                  <button class="j-tb-btn" data-cmd="image" type="button" title="Insert image"><iconify-icon icon="mdi:image" class="lu"></iconify-icon></button>
+                  <button class="j-tb-btn" data-cmd="image" type="button" title="Insert image"><iconify-icon icon="gridicons:add-image" class="lu"></iconify-icon></button>
                   <button class="j-tb-btn" data-cmd="youtube" type="button" title="Insert YouTube video"><iconify-icon icon="mdi:youtube" class="lu"></iconify-icon></button>
                   <button class="j-tb-btn" data-cmd="tiktok" type="button" title="Insert TikTok video"><iconify-icon icon="mdi:music-note" class="lu"></iconify-icon></button>
                 </div>
@@ -521,7 +527,7 @@
                 <div class="j-side-head">Image Library</div>
                 <div class="j-img-add">
                   <input id="jImageUrlInput" type="text" placeholder="https://i.imgur.com/…" autocomplete="off" spellcheck="false">
-                  <button id="jImageAddBtn" type="button">Add</button>
+                  <button id="jImageAddBtn" type="button"><iconify-icon icon="wpf:add-image" class="lu"></iconify-icon></button>
                 </div>
                 <div class="j-images" id="jImageGrid"></div>
               </div>

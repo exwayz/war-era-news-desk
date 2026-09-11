@@ -77,7 +77,6 @@ const TRUSTED_HOSTS = [
   "imagebam.com", "www.imagebam.com", "thumbs2.imagebam.com",
 ];
 
-const BLOCKLIKE = new Set(["P","DIV","H1","H2","H3","H4","H5","H6","LI","BLOCKQUOTE","PRE","DETAILS","UL","OL","SUMMARY"]);
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -91,6 +90,8 @@ function saveLS(key, val) {
 let drafts = [];
 let images = [];
 let savedRange = null;
+let savedAnchor = -1;      // char-pos fallback so the caret survives node replacement
+let savedFocus = -1;
 let mention = null;        // {state:'kind'|'search', type, anchorNode, anchorOffset}
 let pending = null;        // {span, type, id, name}
 let userIndex = null;      // lazy id→name map
@@ -121,8 +122,8 @@ export async function initJotter() {
   renderDrafts();
   renderImages();
 
-  populateSelect(J.fontSelect, FONTS, (o, f) => { o.textContent = f.label; if (f.value) o.style.fontFamily = f.value; });
-  populateSelect(J.colorSelect, COLORS, (o, c) => { o.textContent = c.label; if (c.value) o.style.background = c.value; });
+  populateSelect(J.fontSelect, FONTS, (o, f) => { o.value = f.value; o.textContent = f.label; if (f.value) o.style.fontFamily = f.value; });
+  populateSelect(J.colorSelect, COLORS, (o, c) => { o.value = c.value; o.textContent = c.label; if (c.value) o.style.background = c.value; });
   populateSelect(J.blockSelect, [
     { v: "p", label: "P" }, { v: "h1", label: "H1" }, { v: "h2", label: "H2" }, { v: "h3", label: "H3" },
   ], (o, b) => { o.value = b.v; o.textContent = b.label; });
@@ -131,7 +132,7 @@ export async function initJotter() {
   document.getElementById("jSaveDraftBtn").addEventListener("click", () => saveDraft());
   document.getElementById("jCopyHtmlBtn").addEventListener("click", () => copyHtml());
   document.getElementById("jOpenWriterBtn").addEventListener("click", () =>
-    window.open("https://lundgrenwarera.github.io/warera-writer/", "_blank", "noopener"));
+    window.open("https://app.warera.io/news/write", "_blank", "noopener"));
 
   // Toolbar
   J.toolbar.addEventListener("mousedown", (e) => {
@@ -145,22 +146,45 @@ export async function initJotter() {
   J.blockSelect.addEventListener("change", () => { withSelection(() => fmtBlock(J.blockSelect.value)); });
   J.fontSelect.addEventListener("change", () => {
     const v = J.fontSelect.value;
-    apply(v ? "fontName" : "removeFormat", v);
+    withSelection(() => {
+      if (v) document.execCommand("fontName", false, v);
+      else {
+        unstyleInline("font");
+        // "Default" must also clear the browser's persistent typing font —
+        // execCommand("fontName") on a collapsed caret remembers it for the
+        // next keystrokes, which is why a once-picked font kept sticking.
+        document.execCommand("fontName", false, getComputedStyle(J.editor).fontFamily);
+      }
+    });
   });
   J.colorSelect.addEventListener("change", () => {
     const v = J.colorSelect.value;
-    apply(v ? "foreColor" : "removeFormat", v);
+    withSelection(() => {
+      if (v) document.execCommand("foreColor", false, v);
+      else {
+        unstyleInline("color");
+        document.execCommand("foreColor", false, getComputedStyle(J.editor).color);
+      }
+    });
   });
 
   // Editor events
   J.editor.addEventListener("input", () => { updateInfoBar(); syncSelection(); onEditorInput(); });
   J.editor.addEventListener("keydown", (e) => onEditorKeydown(e));
-  J.editor.addEventListener("keyup", () => updateInfoBar());
+  J.editor.addEventListener("keyup", () => { syncSelection(); updateInfoBar(); });
+  J.editor.addEventListener("mouseup", () => { syncSelection(); updateInfoBar(); });
   J.editor.addEventListener("blur", () => { if (mention) hideMention(); });
   J.editor.addEventListener("paste", (e) => { e.preventDefault(); const t = (e.clipboardData || window.clipboardData)?.getData("text/plain") || ""; insertTextSanitized(t); });
 
   document.addEventListener("selectionchange", () => {
-    if (document.activeElement === J.editor) { syncSelection(); updateInfoBar(); }
+    // No activeElement gate: the editor never "has" focus while a toolbar
+    // <select> holds it, yet the DOM range must stay current or toolbar
+    // commands keep targeting the last select-driven position.
+    const r = window.getSelection();
+    if (r.rangeCount && J.editor.contains(r.getRangeAt(0).startContainer)) {
+      savedRange = r.getRangeAt(0).cloneRange();
+      updateInfoBar();
+    }
   });
   document.addEventListener("mousedown", (e) => {
     if (e.target.closest?.(".j-img-item, .j-img-del, .j-images")) e.preventDefault();
@@ -195,20 +219,62 @@ function populateSelect(sel, list, render) {
   }
 }
 
+function charPosAt(container, offset) {
+  const pre = document.createRange();
+  pre.selectNodeContents(J.editor);
+  pre.setEnd(container, offset);
+  return pre.toString().length;
+}
+
+function rangeFromPos(pos) {
+  const tw = document.createTreeWalker(J.editor, NodeFilter.SHOW_TEXT);
+  let acc = 0, node;
+  while ((node = tw.nextNode())) {
+    const len = node.data.length;
+    if (acc + len >= pos) {
+      const r = document.createRange();
+      r.setStart(node, Math.min(len, pos - acc));
+      r.collapse(true);
+      return r;
+    }
+    acc += len;
+  }
+  const r = document.createRange();
+  const last = J.editor.lastChild;
+  if (last && last.nodeType === 1) { r.selectNodeContents(last); r.collapse(false); }
+  else { r.selectNodeContents(J.editor); r.collapse(true); }
+  return r;
+}
+
 function syncSelection() {
   const sel = window.getSelection();
   if (sel.rangeCount && J.editor.contains(sel.getRangeAt(0).startContainer)) {
-    savedRange = sel.getRangeAt(0).cloneRange();
+    const range = sel.getRangeAt(0);
+    savedRange = range.cloneRange();
+    savedAnchor = charPosAt(range.startContainer, range.startOffset);
+    savedFocus = charPosAt(range.endContainer, range.endOffset);
   }
 }
 
 function restoreSelection() {
   const sel = window.getSelection();
-  // Always prefer the saved range: className of focus() is that the browser
-  // clamps the caret to the document start, and a stray selectionchange fired
-  // from focus() would otherwise corrupt savedRange (formatting the first paragraph).
-  const r = savedRange && savedRange.startContainer?.isConnected ? savedRange.cloneRange() : null;
-  if (r && J.editor.contains(r.startContainer)) {
+  // Prefer the exact range; when formatBlock or similar replaces elements
+  // the captured text node can detach – fall back to the saved character
+  // offset so the caret stays where the user put it instead of jumping
+  // back to line 1 col 1.
+  let r = null;
+  if (savedRange?.startContainer?.isConnected && J.editor.contains(savedRange.startContainer)) {
+    r = savedRange.cloneRange();
+  } else if (savedAnchor >= 0) {
+    const a = rangeFromPos(Math.min(savedAnchor, savedFocus));
+    const b = rangeFromPos(Math.max(savedAnchor, savedFocus));
+    if (a && b) {
+      r = document.createRange();
+      r.setStart(a.startContainer, a.startOffset);
+      r.setEnd(b.endContainer, b.endOffset);
+    }
+  }
+  if (r) {
     sel.removeAllRanges();
     sel.addRange(r);
   }
@@ -241,90 +307,239 @@ function blockAt(node) {
   return node.nodeType === 1 ? node.closest?.("p,div,h1,h2,h3,h4,h5,h6,li,pre,blockquote,summary,td") : node.parentElement?.closest?.("p,div,h1,h2,h3,h4,h5,h6,li,pre,blockquote,summary,td");
 }
 
+function unstyleInline(prop) {
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return;
+  const r = sel.getRangeAt(0);
+  const root = (r.commonAncestorContainer.nodeType === 1 ? r.commonAncestorContainer : r.commonAncestorContainer.parentElement);
+  if (!root || !J.editor.contains(root)) return;
+  // Only touch spans/fonts fully contained in the selection so we never
+  // restyle text outside it (execCommand("removeFormat") is not used here —
+  // it collapses the selection and can restructure the block).
+  const fullyInside = (el) => r.comparePoint(el, 0) === 0 && r.comparePoint(el, el.childNodes.length) === 0;
+  const els = [];
+  const iter = document.createNodeIterator(root, NodeFilter.SHOW_ELEMENT, {
+    acceptNode(node) {
+      const t = node.tagName;
+      if (t !== "SPAN" && t !== "FONT") return NodeFilter.FILTER_SKIP;
+      if (node.hasAttribute("data-content-link")) return NodeFilter.FILTER_SKIP;
+      return fullyInside(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+    },
+  });
+  let n;
+  while ((n = iter.nextNode())) els.push(n);
+  els.reverse(); // children before parents so unwrapping stays consistent
+  for (const el of els) {
+    if (prop === "color") { el.style.removeProperty("color"); el.removeAttribute("color"); }
+    else { el.style.removeProperty("font-family"); el.removeAttribute("face"); }
+    if (!el.getAttribute("style")) el.removeAttribute("style");
+    if (el.attributes.length === 0) el.replaceWith(...el.childNodes);
+  }
+}
+
 function editorText() { return J.editor.textContent || ""; }
 
 /* ── INFO BAR ──────────────────────────────────────────── */
 
-function buildLineMap(root) {
-  const lines = [];
-  let current = 0;
-  function walk(node, boundary) {
-    if (node.nodeType === 3) {
-      const t = node.textContent;
-      if (lines.length) {
-        const L = lines[lines.length - 1];
-        L.text += t;
-        L.end = current + t.length;
-      }
-      current += t.length;
-      return;
+function subText(n) {
+  let s = "";
+  for (const k of n.childNodes) {
+    if (k.nodeType === 3) s += k.data;
+    else if (k.nodeType === 1) {
+      if (k.tagName === "BR" || k.tagName === "HR") s += "\n";
+      else s += subText(k);
     }
-    if (node.nodeType !== 1) return;
-    const tag = node.tagName;
-    if (tag === "BR") { current += 1; return; }
-    if (boundary && tag === "LI") {
-      lines.push({ start: current, end: current, text: "" });
-      for (const c of node.childNodes) walk(c, true);
-      return;
-    }
-    if (boundary && tag === "SUMMARY") {
-      lines.push({ start: current, end: current, text: "" });
-      for (const c of node.childNodes) walk(c, false);
-      return;
-    }
-    if (boundary && BLOCKLIKE.has(tag)) {
-      if (tag === "UL" || tag === "OL") { for (const c of node.childNodes) walk(c, true); return; }
-      lines.push({ start: current, end: current, text: "" });
-      for (const c of node.childNodes) walk(c, true);
-      return;
-    }
-    for (const c of node.childNodes) walk(c, boundary);
   }
-  walk(root, true);
-  return lines;
+  return s;
+}
+
+// Line counter model: render the whole editor to a Notepad-style plain string
+// where every visual line ends with "\n" (paragraphs, list items, code-block
+// lines, <hr>, <br>). Structural wrappers (BLOCKQUOTE/DETAILS/PRE/UL/OL) never
+// add lines themselves, so quote/code/collapsible blocks count correctly
+// instead of being double counted or lumped into one "line".
+const LINE_UNITS = new Set(["P", "H1", "H2", "H3", "H4", "H5", "H6", "LI", "TD", "DD", "DT", "SUMMARY", "PRE"]);
+
+let plainSig = null;
+let plainTextCache = "";
+
+function plainText() {
+  const sig = J.editor.textContent + "#" + J.editor.querySelectorAll("*").length;
+  if (plainSig === sig) return plainTextCache;
+  plainSig = sig;
+  const parts = [];
+  (function walk(node) {
+    for (const c of node.childNodes) {
+      if (c.nodeType === 3) { parts.push(c.data); continue; }
+      if (c.nodeType !== 1) continue;
+      const t = c.tagName;
+      if (t === "BR" || t === "HR") { parts.push("\n"); continue; }
+      if (LINE_UNITS.has(t)) { parts.push(subText(c)); parts.push("\n"); continue; }
+      walk(c);
+    }
+  })(J.editor);
+  let text = parts.join("");
+  if (text.endsWith("\n")) text = text.slice(0, -1);
+  plainTextCache = text;
+  return plainTextCache;
+}
+
+function childPlainLen(c) {
+  if (c.nodeType === 3) return c.data.length;
+  if (c.nodeType !== 1) return 0;
+  const t = c.tagName;
+  if (t === "BR" || t === "HR") return 1;
+  if (LINE_UNITS.has(t)) return subText(c).length + 1;
+  let n = 0;
+  for (const k of c.childNodes) n += childPlainLen(k);
+  return n;
+}
+
+function textNodeStart(target) {
+  let found = -1, acc = 0;
+  (function walk(node) {
+    if (found >= 0) return;
+    for (const c of node.childNodes) {
+      if (found >= 0) return;
+      if (c.nodeType === 3) {
+        if (c === target) { found = acc; return; }
+        acc += c.data.length;
+      } else if (c.nodeType === 1) {
+        const t = c.tagName;
+        if (t === "BR" || t === "HR") { acc += 1; continue; }
+        if (LINE_UNITS.has(t)) { acc += subText(c).length + 1; continue; }
+        walk(c);
+      }
+    }
+  })(J.editor);
+  return found;
+}
+
+function caretPlainPos(container, offset) {
+  if (container.nodeType === 3) {
+    const start = textNodeStart(container);
+    return start >= 0 ? start + offset : offset;
+  }
+  let sum = 0;
+  const kids = container.childNodes;
+  for (let i = 0; i < offset && i < kids.length; i++) sum += childPlainLen(kids[i]);
+  return sum;
 }
 
 function caretMetrics() {
   const sel = window.getSelection();
   const range = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
   const inEditor = range && J.editor.contains(range.startContainer);
-  const text = editorText();
-  const lines = buildLineMap(J.editor);
-  let pos = 0, ln = 1, col = 1;
-  if (inEditor) {
-    const pre = document.createRange();
-    pre.selectNodeContents(J.editor);
-    pre.setEnd(range.startContainer, range.startOffset);
-    pos = pre.toString().length;
-    for (let i = 0; i < lines.length; i++) {
-      const L = lines[i];
-      if (pos >= L.start && pos <= L.end) { ln = i + 1; col = pos - L.start + 1; break; }
-      if (i === lines.length - 1) { ln = i + 1; col = pos - L.start + 1; }
+  const plain = plainText();
+  let pos = 0;
+  if (inEditor) pos = caretPlainPos(range.startContainer, range.startOffset);
+  let ln = 1, col = pos + 1;
+  if (pos > 0) {
+    let nl = 0, lastNL = -1;
+    for (let i = 0; i < pos; i++) {
+      if (plain.charCodeAt(i) === 10) { nl++; lastNL = i; }
     }
-    if (pos > 0 && lines.length === 0) { ln = 1; col = pos + 1; }
+    ln = nl + 1;
+    col = lastNL < 0 ? pos + 1 : pos - lastNL;
   }
+  const text = editorText();
   const words = text.trim() ? text.trim().split(/\s+/).length : 0;
-  return { chars: text.length, words, lines: lines.length, ln, col, pos };
+  let lines = 1;
+  for (let i = 0; i < plain.length; i++) if (plain.charCodeAt(i) === 10) lines++;
+  return { chars: text.length, words, lines, ln, col, pos };
 }
 
 function updateInfoBar() {
   const m = caretMetrics();
   if (!J.infoBar) return;
   J.infoBar.textContent = `${m.chars} chars · ${m.words} words · ${m.lines} ${m.lines === 1 ? "line" : "lines"} · Ln ${m.ln}, Col ${m.col}, Pos ${m.pos}`;
-  updateAlignState();
+  updateToolbarState();
 }
 
-function updateAlignState() {
-  const states = [["justifyLeft", "left"], ["justifyCenter", "center"], ["justifyRight", "right"], ["justifyFull", "justify"]];
-  let any = false;
-  for (const [cmd] of states) {
-    let on = false;
-    try { on = document.queryCommandState(cmd); } catch {}
-    if (on) any = true;
-    J.toolbar?.querySelector(`[data-cmd="${cmd}"]`)?.classList.toggle("is-active", on);
+function setActive(cmd, on) {
+  J.toolbar?.querySelector(`[data-cmd="${cmd}"]`)?.classList.toggle("is-active", !!on);
+}
+function normFont(s) { return String(s||"").toLowerCase().replace(/["']/g,"").replace(/\s+/g," ").trim(); }
+function parseRgb(s) { const m=String(s).match(/rgba?\(([^)]+)\)/); return m ? m[1].split(",").map(x=>Math.round(parseFloat(x))) : [0,0,0]; }
+function sameColor(a,b) { const x=parseRgb(a),y=parseRgb(b); return x[0]===y[0]&&x[1]===y[1]&&x[2]===y[2]; }
+function hexToRgb(hex) { const v=String(hex).replace(/^#/,""); const n=parseInt(v.length===3?[...v].map(c=>c+c).join(""):v,16); return `rgb(${(n>>16)&255},${(n>>8)&255},${n&255})`; }
+
+function updateToolbarState() {
+  const tb = J.toolbar; if (!tb) return;
+  const sel = window.getSelection();
+  const range = sel?.rangeCount ? sel.getRangeAt(0) : null;
+  if (!range || !J.editor.contains(range.startContainer)) {
+    for (const c of ["bold","italic","underline","strike","code","blockquote","codeBlock","collapsible","orderedList","bulletList","justifyLeft","justifyCenter","justifyRight","justifyFull"]) setActive(c,false);
+    return;
   }
-  // Left is the implicit default: show it active when no alignment is set.
-  if (!any) J.toolbar?.querySelector('[data-cmd="justifyLeft"]')?.classList.add("is-active");
+  const el = range.startContainer.nodeType===1 ? range.startContainer : range.startContainer.parentElement;
+  const block = blockAt(range.startContainer);
+  const chain = [];
+  for (let n = el; n && n !== J.editor; n = n.parentElement) chain.push(n);
+
+  // Block type select
+  const bTag = block ? block.tagName : "P";
+  const bVal = ["H1","H2","H3","H4","H5","H6"].includes(bTag) ? bTag.toLowerCase() : "p";
+  if (J.blockSelect?.value !== bVal) J.blockSelect.value = bVal;
+
+  // Toggles from the ancestor chain
+  let bold=false, italic=false, underline=false, strike=false,
+      code=false, blockquote=false, pre=false, details=false, ul=false, ol=false;
+  for (const n of chain) {
+    const t = n.tagName;
+    if (t==="B"||t==="STRONG") bold=true;
+    if (t==="I"||t==="EM") italic=true;
+    if (t==="U") underline=true;
+    if (t==="S"||t==="STRIKE"||t==="DEL") strike=true;
+    if (t==="CODE") code=true;
+    if (t==="BLOCKQUOTE") blockquote=true;
+    if (t==="PRE") pre=true;
+    if (t==="DETAILS") details=true;
+    if (t==="UL") ul=true;
+    if (t==="OL") ol=true;
+    const cs = getComputedStyle(n);
+    if (parseInt(cs.fontWeight,10)>=600||/^(bold|bolder)$/.test(cs.fontWeight)) bold=true;
+    if (cs.fontStyle==="italic"||cs.fontStyle==="oblique") italic=true;
+    if ((cs.textDecorationLine||"").includes("underline")) underline=true;
+    if ((cs.textDecorationLine||"").includes("line-through")) strike=true;
+  }
+  setActive("bold",bold); setActive("italic",italic);
+  setActive("underline",underline); setActive("strike",strike);
+  setActive("code",code); setActive("blockquote",blockquote);
+  setActive("codeBlock",pre); setActive("collapsible",details);
+  setActive("orderedList",ol); setActive("bulletList",ul);
+
+  // Alignment
+  const aligns=[["justifyLeft"],["justifyCenter"],["justifyRight"],["justifyFull"]];
+  let anyAlign=false;
+  for (const [cmd] of aligns) {
+    let on=false; try{on=document.queryCommandState(cmd);}catch{}
+    if(on) anyAlign=true;
+    setActive(cmd,on);
+  }
+  if (!anyAlign) setActive("justifyLeft",true); // left implicit default
+
+  // Font / color labels
+  if (!J.fontSelect && !J.colorSelect) return;
+  const cs = getComputedStyle(el);
+  const baseFont = normFont(getComputedStyle(J.editor).fontFamily);
+  const baseColor = getComputedStyle(J.editor).color;
+  if (J.fontSelect) {
+    const fam = normFont(cs.fontFamily);
+    let fv = "";
+    if (fam && fam !== baseFont) {
+      for (const f of FONTS) { if (f.value && normFont(f.value)===fam) { fv=f.value; break; } }
+    }
+    if (J.fontSelect.value !== fv) J.fontSelect.value = fv;
+  }
+  if (J.colorSelect) {
+    const cur = cs.color;
+    let cv = "";
+    if (!sameColor(cur, baseColor)) {
+      for (const c of COLORS) { if (c.value && sameColor(cur, hexToRgb(c.value))) { cv=c.value; break; } }
+    }
+    if (J.colorSelect.value !== cv) J.colorSelect.value = cv;
+  }
 }
 
 /* ── TOOLBAR ───────────────────────────────────────────── */
@@ -920,7 +1135,7 @@ function renderDrafts(activeId) {
   if (!drafts.length) {
     const none = document.createElement("div");
     none.className = "j-draft-empty";
-    none.textContent = "No drafts yet — write something and hit Save draft.";
+    none.textContent = "No drafts yet, write something and hit Save draft.";
     J.draftList.appendChild(none);
     return;
   }
@@ -1016,7 +1231,7 @@ function renderImages() {
   if (!images.length) {
     const none = document.createElement("div");
     none.className = "j-img-empty";
-    none.textContent = "No images yet — add a direct imgur/giphy link above.";
+    none.textContent = "No images yet, add a direct imgur/giphy link above.";
     J.imageGrid.appendChild(none);
     return;
   }
