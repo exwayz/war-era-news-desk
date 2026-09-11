@@ -113,7 +113,11 @@ function emitList(list) {
       if (tag === "UL" || tag === "OL") {
         nested.push(emitList(child));
       } else if (tag === "P" || tag === "DIV") {
-        pHtml += makeBlock(child);
+        if (tag === "DIV" && (child.hasAttribute?.("data-youtube-video") || child.classList?.contains("tiptap-tiktok"))) {
+          nested.push(passthroughHtml(child));
+        } else {
+          pHtml += makeBlock(child);
+        }
       } else if (child.nodeType === 3) {
         const t = child.textContent;
         if (t && t.replace(/\s/g, "")) {
@@ -218,7 +222,11 @@ function emit(container) {
     if (node.nodeType !== 1) continue;
     const tag = node.tagName;
     if (tag === "P" || tag === "DIV" || tag === "LI" || tag === "SUMMARY") {
-      out.push(hasBlockChildren(node) ? emit(node) : makeBlock(node));
+      if (tag === "DIV" && (node.hasAttribute?.("data-youtube-video") || node.classList?.contains("tiptap-tiktok"))) {
+        out.push(passthroughHtml(node));
+      } else {
+        out.push(hasBlockChildren(node) ? emit(node) : makeBlock(node));
+      }
     } else if (tag === "UL" || tag === "OL") {
       out.push(emitList(node));
     } else if (BLOCK_TAGS.has(tag)) {

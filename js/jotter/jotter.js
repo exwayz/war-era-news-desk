@@ -338,6 +338,8 @@ function runCommand(cmd) {
     case "collapsible": insertCollapsible(); break;
     case "link": promptRow({ label: "Link URL", placeholder: "https://example.com", onSubmit: (v) => insertLink(v) }); break;
     case "image": promptRow({ label: "Image URL", placeholder: "https://i.imgur.com/…", onSubmit: (v) => insertImage(v) }); break;
+    case "youtube": promptRow({ label: "YouTube URL", placeholder: "https://www.youtube.com/watch?v=…", onSubmit: (v) => insertYoutube(v) }); break;
+    case "tiktok": promptRow({ label: "TikTok URL", placeholder: "https://www.tiktok.com/@user/video/…", onSubmit: (v) => insertTiktok(v) }); break;
   }
 }
 
@@ -460,6 +462,51 @@ function validateImageUrl(raw) {
   const giphy = url.match(/^https?:\/\/(?:www\.|media\.)?giphy\.com\/(?:gifs|stickers|embed|clips)\/(?:[^/]*-)?([A-Za-z0-9]+)\/?$/i);
   if (giphy) return { url: `https://media.giphy.com/media/${giphy[1]}/giphy.gif`, kind: "direct" };
   return null;
+}
+
+/* ── YOUTUBE / TIKTOK EMBEDS ───────────────────────────── */
+
+function youtubeId(input) {
+  const s = String(input).trim();
+  if (!s) return null;
+  let m = s.match(/(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com|youtube-nocookie\.com)\/(?:watch\?v=|embed\/|shorts\/|live\/|v\/)([A-Za-z0-9_-]{6,})/i);
+  if (m) return m[1];
+  m = s.match(/(?:https?:\/\/)?(?:www\.)?youtu\.be\/([A-Za-z0-9_-]{6,})/i);
+  if (m) return m[1];
+  m = s.match(/[?&]v=([A-Za-z0-9_-]{6,})/i);
+  if (m) return m[1];
+  if (/^[A-Za-z0-9_-]{6,}$/.test(s)) return s;
+  return null;
+}
+
+function tiktokId(input) {
+  const s = String(input).trim();
+  if (!s) return null;
+  let m = s.match(/tiktok\.com\/(?:@[\w.\-]+\/)?video\/(\d+)/i);
+  if (m) return m[1];
+  m = s.match(/tiktok\.com\/embed\/v2\/(\d+)/i);
+  if (m) return m[1];
+  if (/^\d{6,20}$/.test(s)) return s;
+  return null;
+}
+
+function insertYoutube(url) {
+  const id = youtubeId(url);
+  if (!id) { toast("Not a recognised YouTube URL."); return; }
+  apply("insertHTML",
+    `<div data-youtube-video=""><iframe class="tiptap-youtube" width="320" height="240" ` +
+    `allowfullscreen="true" autoplay="false" disablekbcontrols="false" enableiframeapi="false" ` +
+    `endtime="0" ivloadpolicy="0" loop="false" modestbranding="true" origin="" playlist="" rel="1" ` +
+    `src="https://www.youtube-nocookie.com/embed/${id}?modestbranding=1&amp;rel=1" start="0"></iframe></div>`);
+}
+
+function insertTiktok(url) {
+  const id = tiktokId(url);
+  if (!id) { toast("Not a recognised TikTok URL."); return; }
+  apply("insertHTML",
+    `<div class="tiptap-tiktok"><iframe src="https://www.tiktok.com/embed/v2/${id}" videoid="${id}" ` +
+    `width="325" height="580" allow="encrypted-media; fullscreen" allowfullscreen="true" ` +
+    `frameborder="0" scrolling="no"></iframe></div>`);
 }
 
 /* ── PROMPT ROW (link / image) ─────────────────────────── */
