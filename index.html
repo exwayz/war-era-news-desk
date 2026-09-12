@@ -461,7 +461,10 @@
           </div>
           <div class="jotter-grid">
             <div class="jotter-main">
-              <input class="j-title-input" id="jTitleInput" type="text" placeholder="Title…" autocomplete="off">
+              <div class="j-title-row">
+                <input class="j-title-input" id="jTitleInput" type="text" placeholder="Title…" autocomplete="off">
+                <button class="j-title-clear" id="jTitleClear" type="button" title="Clear title"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
+              </div>
               <div class="j-toolbar" id="jToolbar" role="toolbar" aria-label="Formatting">
                 <div class="j-tb-group" aria-label="Block type">
                   <select class="j-tb-select" id="jBlockSelect" title="Block type">
@@ -514,8 +517,40 @@
                 </div>
               </div>
               <div class="j-editor-wrap">
-                <div class="j-editor" id="jEditor" contenteditable="true" spellcheck="false"></div>
-                <div class="j-info-bar" id="jInfoBar" aria-live="polite">0 chars &nbsp;·&nbsp; 0 words &nbsp;·&nbsp; 1 line &nbsp;·&nbsp; Ln 1, Col 1, Pos 0</div>
+                <div class="j-editor-col">
+                  <div class="j-editor" id="jEditor" contenteditable="true" spellcheck="false"></div>
+                  <div class="j-info-bar" id="jInfoBar" aria-live="polite">0 chars &nbsp;·&nbsp; 0 words &nbsp;·&nbsp; 1 line &nbsp;·&nbsp; Ln 1, Col 1, Pos 0</div>
+                </div>
+                <div class="j-editor-sidebar" aria-label="Editor tools">
+                  <div class="j-side-group j-side-zoom" aria-label="Zoom">
+                    <button class="j-side-btn" id="jZoomIn" type="button" title="Zoom in"><iconify-icon icon="mdi:plus" class="lu"></iconify-icon></button>
+                    <button class="j-side-btn j-side-pct" id="jZoomPct" type="button" title="Reset zoom to 100%">100%</button>
+                    <button class="j-side-btn" id="jZoomOut" type="button" title="Zoom out"><iconify-icon icon="mdi:minus" class="lu"></iconify-icon></button>
+                  </div>
+                  <button class="j-side-btn" id="jUndoBtn" type="button" title="Undo (Ctrl+Z)"><iconify-icon icon="mdi:undo-variant" class="lu"></iconify-icon></button>
+                  <button class="j-side-btn" id="jRedoBtn" type="button" title="Redo (Ctrl+Y)"><iconify-icon icon="mdi:redo-variant" class="lu"></iconify-icon></button>
+                  <button class="j-side-btn" id="jFindBtn" type="button" title="Find &amp; replace"><iconify-icon icon="mdi:magnify" class="lu"></iconify-icon></button>
+                  <button class="j-side-btn" id="jSpellBtn" type="button" title="Spellcheck"><iconify-icon icon="mdi:spellcheck" class="lu"></iconify-icon></button>
+                  <button class="j-side-btn j-side-danger" id="jClearBtn" type="button" title="Clear editor"><iconify-icon icon="mdi:delete-sweep-outline" class="lu"></iconify-icon></button>
+                </div>
+                <div class="j-find-pop" id="jFindPop" hidden>
+                  <div class="j-find-row">
+                    <input class="j-find-input" id="jFindInput" type="text" placeholder="Find…" autocomplete="off" spellcheck="false">
+                    <span class="j-find-count" id="jFindCount">0/0</span>
+                    <button class="j-find-x" id="jFindClose" type="button" title="Close (Esc)">✕</button>
+                  </div>
+                  <label class="j-find-toggle" title="Enable replace">
+                    <input type="checkbox" id="jFindReplaceChk"> Replace
+                  </label>
+                  <div class="j-find-replace-box" id="jFindReplaceBox" hidden>
+                    <input class="j-find-input" id="jReplaceInput" type="text" placeholder="Replace with…" autocomplete="off" spellcheck="false">
+                  </div>
+                  <div class="j-find-btns">
+                    <button class="j-find-btn" id="jFindNextBtn" type="button">Next</button>
+                    <button class="j-find-btn" id="jReplaceOneBtn" type="button" hidden>Replace</button>
+                    <button class="j-find-btn" id="jReplaceAllBtn" type="button" hidden>Replace all</button>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="jotter-side">

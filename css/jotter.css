@@ -13,12 +13,18 @@
   flex: 1; min-height: 0; align-items: stretch;
 }
 .jotter-main { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; }
-.jotter-side { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.jotter-side {
+    display: grid;
+    grid-template-rows: 60fr 100fr;
+    min-height: 0;
+    min-width: 0;
+}
 
 /* ── TITLE ─────────────────────────────────────────────── */
+.j-title-row { display: flex; align-items: stretch; gap: 4px; margin-bottom: 4px; }
 .j-title-input {
     background: var(--surface);
-    width: 100%;
+    flex: 1;
     height: 31px;
     color: var(--ink);
     border: 1px solid var(--line);
@@ -29,6 +35,13 @@
     font-weight: 520;
 }
 .j-title-input:focus { border-color: var(--accent); }
+.j-title-clear {
+  width: 31px; height: 31px; flex: 0 0 auto;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink-dim);
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: .8rem;
+}
+.j-title-clear:hover { color: var(--red); border-color: var(--red); }
 
 /* ── TOOLBAR ───────────────────────────────────────────── */
 .j-toolbar {
@@ -60,8 +73,12 @@
 
 /* ── EDITOR ────────────────────────────────────────────── */
 .j-editor-wrap {
-  flex: 1; min-height: 0; display: flex; flex-direction: column;
+  flex: 1; min-height: 0; display: flex; flex-direction: row;
   border: 1px solid var(--line); background: var(--surface); overflow: hidden;
+  position: relative; --j-editor-zoom: 1;
+}
+.j-editor-col {
+  display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; position: relative;
 }
 .j-editor {
     font-family: var(--font-article);
@@ -71,7 +88,7 @@
     outline: none;
     flex: 1;
     padding: 10px 14px;
-    font-size: 14px;
+    font-size: calc(14px * var(--j-editor-zoom, 1));
     line-height: 1.6;
     overflow-y: auto;
 }
@@ -79,9 +96,9 @@
 .j-editor:empty::before { content: "Start writing…"; color: var(--ink-caption); pointer-events: none; }
 .j-editor p { margin: 0 0 .6em; }
 
-.j-editor h1 { font-size: 1.6rem; margin: .7em 0 .4em; font-weight: 700; }
-.j-editor h2 { font-size: 1.35rem; margin: .7em 0 .4em; font-weight: 700; }
-.j-editor h3 { font-size: 1.15rem; margin: .6em 0 .35em; font-weight: 700; }
+.j-editor h1 { font-size: 2.05em; margin: .7em 0 .4em; font-weight: 700; }
+.j-editor h2 { font-size: 1.75em; margin: .7em 0 .4em; font-weight: 700; }
+.j-editor h3 { font-size: 1.45em; margin: .6em 0 .35em; font-weight: 700; }
 .j-editor blockquote {
   border-left: 3px solid var(--line); padding: 2px 0 2px 14px; margin: .6em 0;
   color: var(--ink-dim);
@@ -134,19 +151,28 @@
 }
 
 /* ── MENTION POPUP ─────────────────────────────────────── */
+/* The popup lives inside .j-editor-wrap (position: relative, overflow: hidden)
+   and is positioned absolutely relative to it, so it follows the caret without
+   relying on viewport coordinates. */
 .j-mention-pop {
-  position: fixed; z-index: 60; min-width: 230px; max-width: 340px; max-height: 260px;
-  overflow-y: auto;
+  position: absolute; z-index: 60; min-width: 260px; max-width: 360px;
+  display: flex; flex-direction: column; gap: 4px;
   background: var(--surface-hi); border: 1px solid var(--line);
   box-shadow: 0 8px 24px rgba(0,0,0,.35);
-  padding: 4px;
+  padding: 5px;
 }
-.j-mention-kind {
-  padding: 4px 8px; font-size: .68rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: .06em; color: var(--ink-caption); background: none; width: 100%;
-  text-align: left; border: none; cursor: pointer;
+.j-mention-pill {
+  display: flex; align-items: center; gap: 6px; flex: 0 0 auto;
+  padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--surface);
 }
-.j-mention-kind:hover { color: var(--accent); }
+.j-mention-at { flex: 0 0 auto; color: var(--accent); font-weight: 700; }
+.j-mention-input {
+  flex: 1; min-width: 0; border: none; outline: none; background: none;
+  color: var(--ink); font-size: .85rem; font-family: inherit; padding: 0;
+}
+.j-mention-input::placeholder { color: var(--ink-dim); }
+.j-mention-list { flex: 1 1 auto; max-height: 220px; overflow-y: auto; }
 .j-mention-item {
   display: flex; align-items: center; gap: 8px; padding: 5px 8px;
   font-size: .82rem; color: var(--ink); background: none; border: none;
@@ -166,7 +192,78 @@ div#jInfoBar {
     padding-left: 6px;
 }
 
-/* ── DRAWTS ────────────────────────────────────────────── */
+/* ── EDITOR SIDEBAR ───────────────────────────────────── */
+.j-editor-sidebar {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 2px;
+    background: var(--surface-hi);
+}
+.j-side-btn {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid #00000000;
+    background: transparent;
+    color: var(--ink-dim);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 700;
+    flex: 0 0 auto;
+}
+.j-side-btn:hover { color: var(--ink); border-color: var(--line); background: var(--surface); }
+.j-side-btn.is-active { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.j-side-btn.j-side-danger:hover { border-color: var(--red); color: var(--red); }
+.j-side-btn:disabled { opacity: .35; cursor: default; }
+.j-side-btn:disabled:hover { color: var(--ink-dim); border-color: #00000000; background: transparent; }
+.j-side-pct { font-size: .58rem; letter-spacing: 0; }
+
+.j-side-group { display: flex; flex-direction: column; gap: 2px; }
+.j-side-zoom {
+    padding-bottom: 4px;
+    margin-bottom: 3px;
+    border-bottom: 1px solid var(--line);
+}
+.j-side-zoom .j-side-btn {
+    color: color-mix(in srgb, var(--accent) 55%, var(--ink-dim));
+}
+.j-side-zoom .j-side-btn:hover { color: var(--accent); border-color: var(--line); background: var(--surface); }
+.j-side-zoom .j-side-btn.is-active { color: var(--accent); }
+
+/* ── FIND & REPLACE POPUP ─────────────────────────────── */
+.j-find-pop {
+  position: absolute; z-index: 58; top: 4px; right: 34px;
+  width: 240px; display: flex; flex-direction: column; gap: 6px; padding: 8px;
+  background: var(--surface-hi); border: 1px solid var(--line);
+  box-shadow: 0 8px 24px rgba(0,0,0,.35);
+}
+.j-find-pop[hidden] { display: none !important; }
+.j-find-row { display: flex; align-items: center; gap: 6px; }
+.j-find-input {
+  flex: 1; min-width: 0; height: 26px; padding: 0 8px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  font-size: .74rem; font-family: var(--font-code);
+}
+.j-find-input:focus { outline: none; border-color: var(--accent); }
+.j-find-count { flex: 0 0 auto; font-size: .64rem; color: var(--ink-caption); font-family: var(--font-num); }
+.j-find-x { flex: 0 0 auto; width: 22px; height: 22px; border: 1px solid transparent; background: transparent; color: var(--ink-dim); cursor: pointer; font-size: .7rem; display: inline-flex; align-items: center; justify-content: center; }
+.j-find-x:hover { color: var(--ink); border-color: var(--line); }
+.j-find-toggle { display: flex; align-items: center; gap: 6px; font-size: .72rem; color: var(--ink-dim); cursor: pointer; user-select: none; }
+.j-find-toggle input { margin: 0; }
+.j-find-btns { display: flex; gap: 6px; }
+.j-find-btn {
+  flex: 1; height: 26px; border: 1px solid var(--line); background: var(--surface-hi);
+  color: var(--ink); cursor: pointer; font-size: .7rem; font-weight: 700;
+}
+.j-find-btn:hover { border-color: var(--accent); }
+.j-find-btn.is-disabled { opacity: .45; pointer-events: none; }
+
+/* ── DRAFTS ────────────────────────────────────────────── */
 .j-side-sec { border: 1px solid var(--line); background: var(--surface); display: flex; flex-direction: column; min-height: 0; }
 .j-side-head {
     font-family: var(--font-article);
@@ -188,10 +285,12 @@ div#jInfoBar {
     cursor: pointer;
     flex-shrink: 0;
     align-items: center;
-    gap: 6px;
-    height: 30px;
-    padding: 0 5px;
-    display: flex;
+    height: 35px;
+    padding: 1px 5px;
+    display: grid;
+    grid-template-columns: 3fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    align-content: center;
 }
 .j-draft-card:hover, .j-draft-card.is-current { border-color: var(--accent); }
 .j-draft-card.is-current { background: color-mix(in srgb, var(--accent) 8%, var(--surface-hi)); }
@@ -199,20 +298,35 @@ div#jInfoBar {
     white-space: nowrap;
     min-width: 0;
     color: var(--ink);
-    flex: 1;
+    grid-column: 1;
+    grid-row: 1;
     font-size: .82rem;
     font-weight: 400;
     overflow: hidden;
 }
 .j-draft-card:hover:not(.is-editing) .j-draft-title { text-overflow: clip; animation: j-marquee 5s linear infinite; }
-@keyframes j-marquee { from { transform: translateX(0); } to { transform: translateX(min(calc(100% - 96px), 0px)); } }
-.j-draft-date { color: var(--ink-caption); font-size: .62rem; flex: 0 0 auto; font-family: var(--font-num); }
-.j-draft-actions { display: none; gap: 4px; flex: 0 0 auto; }
-.j-draft-card:hover .j-draft-actions, .j-draft-card.is-editing .j-draft-actions { display: flex; }
+@keyframes j-marquee { from { transform: translateX(0); } to { transform: translateX(min(calc(100% - 124px), 0px)); } }
+.j-draft-date {
+    color: var(--ink-caption);
+    font-size: .62rem;
+    grid-column: 1;
+    grid-row: 2;
+    font-family: var(--font-num);
+}
+.j-draft-actions {
+    display: none;
+    grid-column: 2;
+    grid-row: 1 / 3;
+}
+.j-draft-card:hover .j-draft-actions, .j-draft-card.is-editing .j-draft-actions { 
+	display: flex;
+    justify-content: flex-end;
+    align-items: center; 
+	}
 .j-draft-btn {
   width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
   border: 1px solid var(--line); background: transparent; color: var(--ink-dim);
-  cursor: pointer; font-size: .8rem;
+  cursor: pointer; font-size: 16px;
 }
 .j-draft-btn:hover { border-color: var(--accent); color: var(--ink); }
 .j-draft-btn.danger:hover { border-color: var(--red); color: var(--red); }

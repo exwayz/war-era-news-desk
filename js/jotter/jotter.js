@@ -4,9 +4,26 @@
 import { serializeEditorHtml } from "./serialize.js";
 import { offlineLookups } from "../../data/offlineLookups.js";
 import { toast } from "../ui/toast.js";
+import { resolveEntityByType } from "../core/resolver.js";
+import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
+import { debounce, entityDisplayName } from "../core/utils.js";
 
 const LS_DRAFTS = "wa-nd-jotter-drafts";
 const LS_IMAGES = "wa-nd-jotter-images";
+const LS_TITLE = "wa-nd-jotter-title";
+const LS_EDITOR = "wa-nd-jotter-editor";
+const LS_JOTTER_ZOOM = "wa-nd-jotter-zoom";
+const ZOOM_MIN = 60, ZOOM_MAX = 180, ZOOM_STEP = 5, ZOOM_DEFAULT = 100;
+
+function loadStr(key, fb) { try { const v = localStorage.getItem(key); return v == null ? fb : JSON.parse(v); } catch { return fb; } }
+function saveStr(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} }
+function clampZoom(v) { return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, v)); }
+
+// NodeFilter constants as local consts so the module also runs under Node/jsdom.
+const NF = {
+  SHOW_ELEMENT: 1, SHOW_TEXT: 4,
+  FILTER_ACCEPT: 1, FILTER_REJECT: 2, FILTER_SKIP: 3,
+};
 
 const FONTS = [
   { label: "Default", value: "" },
@@ -53,15 +70,6 @@ const COLORS = [
   { label: "Gray", value: "#9abbc4" },
 ];
 
-const ENT_TYPES = [
-  { type: "user", label: "User" },
-  { type: "country", label: "Country" },
-  { type: "region", label: "Region" },
-  { type: "party", label: "Party" },
-  { type: "mu", label: "MU" },
-  { type: "alliance", label: "Alliance" },
-];
-
 const OFFLINE_KEY = { country: "countries", region: "regions", alliance: "alliances", party: "parties", mu: "mus" };
 const DATA_KEY = { user: "userId", country: "countryId", region: "regionId", alliance: "allianceId", mu: "muId", party: "partyId" };
 
@@ -92,18 +100,21 @@ let images = [];
 let savedRange = null;
 let savedAnchor = -1;      // char-pos fallback so the caret survives node replacement
 let savedFocus = -1;
-let mention = null;        // {state:'kind'|'search', type, anchorNode, anchorOffset}
-let pending = null;        // {span, type, id, name}
+let mention = null;        // {anchorNode, anchorOffset, text, searched, results, active, seq, rect}
+
 let userIndex = null;      // lazy id→name map
 let userIndexPromise = null;
 
-const J = {};
+let findState = { term: "", matches: [], idx: -1 };
+
+const J = { zoom: ZOOM_DEFAULT };
 
 export async function initJotter() {
   if (J.done) return;
   J.done = true;
 
   J.title = document.getElementById("jTitleInput");
+  J.titleClear = document.getElementById("jTitleClear");
   J.toolbar = document.getElementById("jToolbar");
   J.editor = document.getElementById("jEditor");
   J.infoBar = document.getElementById("jInfoBar");
@@ -115,12 +126,40 @@ export async function initJotter() {
   J.fontSelect = document.getElementById("jFontSelect");
   J.colorSelect = document.getElementById("jColorSelect");
 
+  // Editor sidebar
+  J.zoomIn = document.getElementById("jZoomIn");
+  J.zoomPct = document.getElementById("jZoomPct");
+  J.zoomOut = document.getElementById("jZoomOut");
+  J.undoBtn = document.getElementById("jUndoBtn");
+  J.redoBtn = document.getElementById("jRedoBtn");
+  J.findBtn = document.getElementById("jFindBtn");
+  J.spellBtn = document.getElementById("jSpellBtn");
+  J.clearBtn = document.getElementById("jClearBtn");
+
+  // Find & replace popup
+  J.findPop = document.getElementById("jFindPop");
+  J.findInput = document.getElementById("jFindInput");
+  J.findCount = document.getElementById("jFindCount");
+  J.findClose = document.getElementById("jFindClose");
+  J.findNextBtn = document.getElementById("jFindNextBtn");
+  J.findReplaceChk = document.getElementById("jFindReplaceChk");
+  J.findReplaceBox = document.getElementById("jFindReplaceBox");
+  J.replaceInput = document.getElementById("jReplaceInput");
+  J.replaceOneBtn = document.getElementById("jReplaceOneBtn");
+  J.replaceAllBtn = document.getElementById("jReplaceAllBtn");
+
   document.execCommand("styleWithCSS", false, "true");
 
   drafts = loadLS(LS_DRAFTS, []);
   images = loadLS(LS_IMAGES, []);
   renderDrafts();
   renderImages();
+
+  // Restore persisted title & editor content
+  const savedTitle = loadStr(LS_TITLE, "");
+  if (savedTitle) J.title.value = savedTitle;
+  const savedEditor = loadStr(LS_EDITOR, "");
+  if (savedEditor) { J.editor.innerHTML = savedEditor; rehydrateEntityNames(); updateInfoBar(); }
 
   populateSelect(J.fontSelect, FONTS, (o, f) => { o.value = f.value; o.textContent = f.label; if (f.value) o.style.fontFamily = f.value; });
   populateSelect(J.colorSelect, COLORS, (o, c) => { o.value = c.value; o.textContent = c.label; if (c.value) o.style.background = c.value; });
@@ -133,6 +172,10 @@ export async function initJotter() {
   document.getElementById("jCopyHtmlBtn").addEventListener("click", () => copyHtml());
   document.getElementById("jOpenWriterBtn").addEventListener("click", () =>
     window.open("https://app.warera.io/news/write", "_blank", "noopener"));
+
+  // Title persistence
+  J.title.addEventListener("input", persistTitle);
+  J.titleClear.addEventListener("click", () => { J.title.value = ""; saveStr(LS_TITLE, ""); J.title.focus(); });
 
   // Toolbar
   J.toolbar.addEventListener("mousedown", (e) => {
@@ -169,12 +212,64 @@ export async function initJotter() {
   });
 
   // Editor events
-  J.editor.addEventListener("input", () => { updateInfoBar(); syncSelection(); onEditorInput(); });
+  J.editor.addEventListener("input", () => { updateInfoBar(); syncSelection(); onEditorInput(); schedulePersist(); });
   J.editor.addEventListener("keydown", (e) => onEditorKeydown(e));
   J.editor.addEventListener("keyup", () => { syncSelection(); updateInfoBar(); });
   J.editor.addEventListener("mouseup", () => { syncSelection(); updateInfoBar(); });
-  J.editor.addEventListener("blur", () => { if (mention) hideMention(); });
   J.editor.addEventListener("paste", (e) => { e.preventDefault(); const t = (e.clipboardData || window.clipboardData)?.getData("text/plain") || ""; insertTextSanitized(t); });
+
+  // Sidebar buttons
+  J.zoomIn?.addEventListener("click", () => { J.zoom = clampZoom(J.zoom + ZOOM_STEP); applyZoom(); });
+  J.zoomOut?.addEventListener("click", () => { J.zoom = clampZoom(J.zoom - ZOOM_STEP); applyZoom(); });
+  J.zoomPct?.addEventListener("click", () => { J.zoom = ZOOM_DEFAULT; applyZoom(); });
+  J.editor.addEventListener("wheel", (e) => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    J.zoom = clampZoom(J.zoom + (e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP));
+    applyZoom();
+  }, { passive: false });
+  J.zoom = clampZoom(Number(localStorage.getItem(LS_JOTTER_ZOOM) || ZOOM_DEFAULT) || ZOOM_DEFAULT);
+  applyZoom();
+
+  J.undoBtn?.addEventListener("click", () => apply("undo"));
+  J.redoBtn?.addEventListener("click", () => apply("redo"));
+  J.spellBtn?.addEventListener("click", () => {
+    J.editor.spellcheck = !J.editor.spellcheck;
+    J.spellBtn.classList.toggle("is-active", !!J.editor.spellcheck);
+    if (J.editor.spellcheck) forceSpellcheckRescan();
+    J.editor.focus({ preventScroll: true });
+  });
+  J.spellBtn?.classList.toggle("is-active", !!J.editor.spellcheck);
+  J.clearBtn?.addEventListener("click", () => clearEditor());
+
+  // Find & replace
+  J.findBtn?.addEventListener("click", () => { if (J.findPop && J.findPop.hidden) openFind(); else hideFind(); });
+  J.findClose?.addEventListener("click", () => hideFind());
+  J.findNextBtn?.addEventListener("click", () => findNext());
+  J.replaceOneBtn?.addEventListener("click", () => replaceCurrent());
+  J.replaceAllBtn?.addEventListener("click", () => replaceAll());
+  J.findReplaceChk?.addEventListener("change", () => {
+    const on = J.findReplaceChk.checked;
+    if (J.findReplaceBox) J.findReplaceBox.hidden = !on;
+    if (J.replaceOneBtn) J.replaceOneBtn.hidden = !on;
+    if (J.replaceAllBtn) J.replaceAllBtn.hidden = !on;
+    if (on) J.replaceInput?.focus();
+  });
+  J.findInput?.addEventListener("input", () => { findState.matches = []; findState.idx = -1; findState.term = ""; updateFindLabel(); });
+  J.findInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); findNext(); }
+    if (e.key === "Escape") { e.preventDefault(); hideFind(); }
+  });
+  J.replaceInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); replaceCurrent(); }
+    if (e.key === "Escape") { e.preventDefault(); hideFind(); }
+  });
+  if (J.findPop) J.findPop.addEventListener("mousedown", (e) => e.preventDefault());
+
+  // Close the find popup when the user clicks elsewhere in the app.
+  document.addEventListener("mousedown", (e) => {
+    if (J.findPop && !J.findPop.hidden && e.target.closest && !e.target.closest(".j-find-pop") && !e.target.closest("#jFindBtn")) hideFind();
+  }, true);
 
   document.addEventListener("selectionchange", () => {
     // No activeElement gate: the editor never "has" focus while a toolbar
@@ -183,9 +278,13 @@ export async function initJotter() {
     const r = window.getSelection();
     if (r.rangeCount && J.editor.contains(r.getRangeAt(0).startContainer)) {
       savedRange = r.getRangeAt(0).cloneRange();
+      if (mention) hideMention();
       updateInfoBar();
     }
   });
+  document.addEventListener("mousedown", (e) => {
+    if (mention && J.pop && !J.pop.contains(e.target)) hideMention();
+  }, true);
   document.addEventListener("mousedown", (e) => {
     if (e.target.closest?.(".j-img-item, .j-img-del, .j-images")) e.preventDefault();
   }, true);
@@ -194,18 +293,35 @@ export async function initJotter() {
   J.imageAdd.addEventListener("click", () => addImageFromInput());
   J.imageUrl.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addImageFromInput(); } });
 
-  // Mention popup scaffolding
+  // Mention popup scaffolding — a "@" pill input + live suggestion list
   J.pop = document.createElement("div");
   J.pop.className = "j-mention-pop";
   J.pop.style.display = "none";
-  document.body.appendChild(J.pop);
+  J.pop.innerHTML =
+    '<div class="j-mention-pill"><span class="j-mention-at">@</span>' +
+    '<input type="text" class="j-mention-input" placeholder="Type to search user, country, region…" autocomplete="off" spellcheck="false" data-lpignore="true">' +
+    "</div><div class=\"j-mention-list\"></div>";
+  J.popInput = J.pop.querySelector(".j-mention-input");
+  J.popList = J.pop.querySelector(".j-mention-list");
+  J.popInput.addEventListener("input", onPillInput);
+  J.popInput.addEventListener("keydown", onPillKeydown);
+  J.popInput.addEventListener("blur", () => { if (mention) hideMention(); });
   J.pop.addEventListener("mousedown", (e) => { if (e.target.closest("button")) e.preventDefault(); });
   J.pop.addEventListener("click", (e) => {
-    const kind = e.target.closest(".j-mention-kind");
-    if (kind) { pickMentionKind(kind.dataset.type); return; }
     const item = e.target.closest(".j-mention-item");
     if (item) { compleMention(item.dataset.id, item.dataset.type); return; }
   });
+  // Anchor the popup inside the editor wrapper (position: relative) so it stays
+  // with the caret and never depends on viewport/fixed-position math. The wrap
+  // scrolls internally, so reposition on any scroll/resize while mention is open.
+  J.popHost = J.editor.closest(".j-editor-wrap") || J.editor.parentElement;
+  J.popHost.appendChild(J.pop);
+  J.popHost.addEventListener("scroll", () => { if (mention) positionMentionPopup(); }, true);
+  window.addEventListener("resize", () => { if (mention) positionMentionPopup(); });
+  window.addEventListener("scroll", () => { if (mention) positionMentionPopup(); }, true);
+
+  if ((J.editor.textContent || "").trim()) rehydrateEntityNames();
+  updateNavButtons();
 }
 
 /* ── SMALL HELPERS ─────────────────────────────────────── */
@@ -227,7 +343,7 @@ function charPosAt(container, offset) {
 }
 
 function rangeFromPos(pos) {
-  const tw = document.createTreeWalker(J.editor, NodeFilter.SHOW_TEXT);
+  const tw = document.createTreeWalker(J.editor, NF.SHOW_TEXT);
   let acc = 0, node;
   while ((node = tw.nextNode())) {
     const len = node.data.length;
@@ -283,9 +399,61 @@ function restoreSelection() {
 
 function withSelection(fn) {
   restoreSelection();
-  fn();
+  const restoreEntities = protectEntities();
+  try { fn(); } finally { restoreEntities(); }
   syncSelection();
   updateInfoBar();
+}
+
+// Chrome's execCommand formatting (justify, indent, lists, formatBlock, fonts…)
+// splits paragraphs around inline contenteditable=false spans and can strip the
+// span entirely, keeping only its text. Before any toolbar command runs, swap
+// every entity chip for an editable inline marker span — formatting then treats
+// it as ordinary text and never restructures the paragraph — and put the real
+// chips back after. Result: the DOM keeps the entity as a single inline
+// paragraph, so Copy HTML stays correct even after styling.
+function protectEntities() {
+  const ents = [...J.editor.querySelectorAll("span[data-content-link]")];
+  if (!ents.length) return () => {};
+  const tokens = [];
+  for (let i = 0; i < ents.length; i++) {
+    const mark = "\u0001j" + i + "\u0002";
+    const tok = document.createElement("span");
+    tok.setAttribute("data-jtoken", String(i));
+    tok.textContent = mark;
+    tokens.push({ mark, ent: ents[i], tok });
+    ents[i].replaceWith(tok);
+  }
+  return () => {
+    const found = [];
+    for (const { mark, ent, tok } of tokens) {
+      let host = tok;
+      if (!tok.isConnected) host = locateMark(mark);
+      if (!host) { found.push(ent); continue; }   // marker lost — re-insert below
+      host.replaceWith(ent);
+    }
+    for (const ent of found) J.editor.appendChild(ent);  // keep data, never drop
+  };
+}
+
+// The marker element may rarely be absorbed by formatting; fall back to finding
+// its text (the marks use control chars so they can't collide with user text).
+function locateMark(mark) {
+  const tw = document.createTreeWalker(J.editor, NF.SHOW_TEXT);
+  let n = null;
+  while ((n = tw.nextNode())) {
+    const i = n.data.indexOf(mark);
+    if (i < 0) continue;
+    const r = document.createRange();
+    r.setStart(n, i);
+    r.setEnd(n, i + mark.length);
+    try {
+      const holder = document.createElement("span");
+      r.surroundContents(holder);
+      return holder;
+    } catch { return null; }
+  }
+  return null;
 }
 
 function apply(cmd, value) {
@@ -318,12 +486,12 @@ function unstyleInline(prop) {
   // it collapses the selection and can restructure the block).
   const fullyInside = (el) => r.comparePoint(el, 0) === 0 && r.comparePoint(el, el.childNodes.length) === 0;
   const els = [];
-  const iter = document.createNodeIterator(root, NodeFilter.SHOW_ELEMENT, {
+  const iter = document.createNodeIterator(root, NF.SHOW_ELEMENT, {
     acceptNode(node) {
       const t = node.tagName;
-      if (t !== "SPAN" && t !== "FONT") return NodeFilter.FILTER_SKIP;
-      if (node.hasAttribute("data-content-link")) return NodeFilter.FILTER_SKIP;
-      return fullyInside(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+      if (t !== "SPAN" && t !== "FONT") return NF.FILTER_SKIP;
+      if (node.hasAttribute("data-content-link")) return NF.FILTER_SKIP;
+      return fullyInside(node) ? NF.FILTER_ACCEPT : NF.FILTER_SKIP;
     },
   });
   let n;
@@ -459,12 +627,24 @@ function updateInfoBar() {
 function setActive(cmd, on) {
   J.toolbar?.querySelector(`[data-cmd="${cmd}"]`)?.classList.toggle("is-active", !!on);
 }
+
+// Undo/redo only make sense while the browser history has something to give —
+// disable the buttons otherwise. Runs on every toolbar-state sync so it flips
+// the moment history changes (typing, undo, redo, bulk load/clear).
+function updateNavButtons() {
+  let canUndo = false, canRedo = false;
+  try { canUndo = !!document.queryCommandEnabled("undo"); } catch {}
+  try { canRedo = !!document.queryCommandEnabled("redo"); } catch {}
+  if (J.undoBtn) J.undoBtn.disabled = !canUndo;
+  if (J.redoBtn) J.redoBtn.disabled = !canRedo;
+}
 function normFont(s) { return String(s||"").toLowerCase().replace(/["']/g,"").replace(/\s+/g," ").trim(); }
 function parseRgb(s) { const m=String(s).match(/rgba?\(([^)]+)\)/); return m ? m[1].split(",").map(x=>Math.round(parseFloat(x))) : [0,0,0]; }
 function sameColor(a,b) { const x=parseRgb(a),y=parseRgb(b); return x[0]===y[0]&&x[1]===y[1]&&x[2]===y[2]; }
 function hexToRgb(hex) { const v=String(hex).replace(/^#/,""); const n=parseInt(v.length===3?[...v].map(c=>c+c).join(""):v,16); return `rgb(${(n>>16)&255},${(n>>8)&255},${n&255})`; }
 
 function updateToolbarState() {
+  updateNavButtons();
   const tb = J.toolbar; if (!tb) return;
   const sel = window.getSelection();
   const range = sel?.rangeCount ? sel.getRangeAt(0) : null;
@@ -660,6 +840,7 @@ function insertCollapsible() {
       `<div class="tiptap-collapsible-body-content"><p class="tiptap-block"><br></p></div></div></div></details>`;
     document.execCommand("insertHTML", false, html);
   });
+  schedulePersist();
 }
 
 function insertLink(url) {
@@ -674,12 +855,14 @@ function insertLink(url) {
       }
     }
   });
+  schedulePersist();
 }
 
 function insertImage(url) {
   const parsed = validateImageUrl(url);
   if (!parsed) { toast("Not a recognised image URL. Use imgur, giphy or tenor direct links."); return; }
   apply("insertHTML", `<img class="tiptap-image" src="${esc(parsed.url)}">`);
+  schedulePersist();
 }
 
 function validateImageUrl(raw) {
@@ -731,6 +914,7 @@ function insertYoutube(url) {
     `allowfullscreen="true" autoplay="false" disablekbcontrols="false" enableiframeapi="false" ` +
     `endtime="0" ivloadpolicy="0" loop="false" modestbranding="true" origin="" playlist="" rel="1" ` +
     `src="https://www.youtube-nocookie.com/embed/${id}?modestbranding=1&amp;rel=1" start="0"></iframe></div>`);
+  schedulePersist();
 }
 
 function insertTiktok(url) {
@@ -740,6 +924,7 @@ function insertTiktok(url) {
     `<div class="tiptap-tiktok"><iframe src="https://www.tiktok.com/embed/v2/${id}" videoid="${id}" ` +
     `width="325" height="580" allow="encrypted-media; fullscreen" allowfullscreen="true" ` +
     `frameborder="0" scrolling="no"></iframe></div>`);
+  schedulePersist();
 }
 
 /* ── PROMPT ROW (link / image) ─────────────────────────── */
@@ -782,30 +967,24 @@ function promptRow({ label, placeholder, initial, onSubmit }) {
 /* ── KEYBOARD SHORTCUTS ────────────────────────────────── */
 
 function onEditorKeydown(e) {
-  if (mention && (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter" || e.key === "Tab" || e.key === "Escape")) {
+  if ((e.key === "Backspace" || e.key === "Delete") && deleteEntityUnit(e.key === "Backspace" ? "back" : "fwd")) {
     e.preventDefault();
-    navMention(e.key);
     return;
   }
+  if (constrainEntityCaret(e)) return;
   if (e.key === "Tab") {
     e.preventDefault();
     apply(e.shiftKey ? "outdent" : "indent");
     return;
   }
   if (e.key === "@") {
-    const sel = window.getSelection();
-    const r = sel.rangeCount ? sel.getRangeAt(0) : null;
-    // Capture the caret before '@' is inserted — this is the mention start.
-    mention = { state: "kind", type: null, anchorNode: r?.startContainer, anchorOffset: r?.startOffset ?? 0 };
-    setTimeout(() => renderMentionPopup(), 0);
+    // Nothing is inserted yet — the "@" lives inside the pill popup until the
+    // user confirms a suggestion, which then inserts the entity at the caret.
+    e.preventDefault();
+    openMention();
     return;
   }
   if (e.key === " ") {
-    if (pending) {
-      e.preventDefault();
-      if (caretAdjacentToPending()) resolvePending(); else unwrapPending();
-      return;
-    }
     const block = blockAt(window.getSelection()?.focusNode);
     if (block) {
       const t = (block.innerText || block.textContent).trim();
@@ -836,153 +1015,422 @@ function onEditorKeydown(e) {
       return;
     }
   }
-  if (e.key === "Backspace" && pending) {
-    const block = blockAt(window.getSelection()?.focusNode);
-    if (block && block.contains(pending.span)) {
-      unwrapPending();
-    }
-  }
   updateInfoBar();
 }
 
-function syncMentionAnchor() {
-  const sel = window.getSelection();
-  if (mention && sel.rangeCount) {
-    mention.anchorNode = sel.getRangeAt(0).startContainer;
-    mention.anchorOffset = sel.getRangeAt(0).startOffset;
-  }
-}
-
 function onEditorInput() {
-  // A Space that resolves a pending mention is consumed in keydown before this fires;
-  // any other input reaching here while a mention is pending cancels it.
-  if (pending) unwrapPending();
-  if (mention) renderMentionPopup();
-}
-
-function unwrapPending() {
-  if (!pending) return;
-  const span = pending.span;
-  pending = null;
-  if (span.isConnected) span.replaceWith(...span.childNodes);
-}
-
-function caretAdjacentToPending() {
-  if (!pending || !pending.span || !pending.span.isConnected) return true;
-  const span = pending.span;
-  const sel = window.getSelection();
-  if (!sel.rangeCount) return false;
-  const r = sel.getRangeAt(0);
-  const isEndOfSpan = r.startContainer === span && r.startOffset >= span.childNodes.length;
-  const isAfterSpan = r.startContainer === span.parentNode &&
-    r.startOffset === Array.prototype.indexOf.call(span.parentNode.childNodes, span) + 1;
-  const isStartOfNext = span.nextSibling && r.startContainer === span.nextSibling && r.startOffset === 0;
-  return isEndOfSpan || isAfterSpan || isStartOfNext;
+  // Text typed in the document while the pill is open means the caret left the
+  // "@" anchor — drop the popup (the pill input owns mention typing now).
+  if (mention) hideMention();
 }
 
 /* ── MENTIONS ──────────────────────────────────────────── */
 
-function mentionText() {
-  if (!mention || !mention.anchorNode || !mention.anchorNode.isConnected) return "";
+// Typing "@" opens a pill input anchored at the caret. The user types a name
+// inside the pill; each keystroke runs search.searchAnything and the popup
+// lists the matching entities. Names resolve instantly from offlineLookups /
+// userLookups, or lazily via the article-reader resolver when the local maps
+// don't know the ID. Choosing a row (click, Enter or Tab) — or typing the full
+// name and pressing Enter before results arrive — inserts the data-content-link
+// entity immediately and moves the caret past it.
+
+// Viewport-anchored point for the popup: prefer the caret's first non-empty
+// client rect, fall back to the range rect, then to the editor's own box.
+function caretAnchorRect() {
   const sel = window.getSelection();
-  if (!sel.rangeCount || !J.editor.contains(sel.getRangeAt(0).startContainer)) return "";
-  const r = document.createRange();
-  r.setStart(mention.anchorNode, mention.anchorOffset);
-  r.setEnd(sel.getRangeAt(0).startContainer, sel.getRangeAt(0).startOffset);
-  return r.toString();
+  const r = sel.rangeCount ? sel.getRangeAt(0) : null;
+  if (!r || !J.editor.contains(r.startContainer)) return null;
+  let rect = null;
+  try { rect = r.getClientRects()[0] || null; } catch {}
+  if (!rect || (rect.width === 0 && rect.height === 0 && rect.left === 0 && rect.top === 0)) {
+    try { rect = r.getBoundingClientRect(); } catch { rect = null; }
+  }
+  if (!rect || (rect.width === 0 && rect.height === 0 && rect.left === 0 && rect.top === 0)) {
+    const er = J.editor.getBoundingClientRect();
+    if (er && (er.width || er.height)) return { top: er.top + 24, left: er.left + 4 };
+    return null;
+  }
+  return { top: rect.bottom + 4, left: rect.left };
 }
 
-function renderMentionPopup() {
-  if (!mention || !J.pop) return;
-  J.pop.innerHTML = "";
+function openMention() {
   const sel = window.getSelection();
-  let top = 0, left = 0;
-  if (sel.rangeCount) {
-    const rect = sel.getRangeAt(0).getBoundingClientRect();
-    top = rect.bottom + 4;
-    left = rect.left;
-  }
-  if (mention.state === "kind") {
-    for (const t of ENT_TYPES) {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "j-mention-kind";
-      b.dataset.type = t.type;
-      b.textContent = "@" + t.type;
-      J.pop.appendChild(b);
-    }
-    const hint = document.createElement("div");
-    hint.className = "j-mention-empty";
-    hint.textContent = "Choose entity type";
-    J.pop.appendChild(hint);
-  } else {
-    if (mention.type === "user" && !userIndex && userIndexPromise) {
-      userIndexPromise.then(() => { if (mention) renderMentionPopup(); }).catch(() => {});
-    }
-    const prefix = mentionText().slice(mention.state === "search" ? ("@" + mention.type + ": ").length : 0);
-    const items = candidatesFor(mention.type, prefix);
-    if (!prefix) {
-      const hint = document.createElement("div");
-      hint.className = "j-mention-empty";
-      hint.textContent = `Keep typing to search @${mention.type}…`;
-      J.pop.appendChild(hint);
-    } else if (!items.length) {
-      const none = document.createElement("div");
-      none.className = "j-mention-empty";
-      none.textContent = "No matches";
-      J.pop.appendChild(none);
-    } else {
-      for (const it of items.slice(0, 30)) {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.className = "j-mention-item";
-        b.dataset.id = it.id;
-        b.dataset.type = it.type;
-        const t = document.createElement("span");
-        t.className = "j-mi-type";
-        t.textContent = it.type;
-        const n = document.createElement("span");
-        n.className = "j-mi-name";
-        n.textContent = it.name;
-        b.append(t, n);
-        J.pop.appendChild(b);
-      }
-    }
-  }
+  const r = sel.rangeCount ? sel.getRangeAt(0) : null;
+  if (!r || !J.editor.contains(r.startContainer)) return;
+  const anchor = caretAnchorRect();
+  mention = {
+    anchorNode: r.startContainer,
+    anchorOffset: r.startOffset,
+    rect: anchor,
+    text: "",
+    searched: "",
+    results: [],
+    active: -1,
+    lastErr: "",
+    seq: 0,
+  };
+  J.popInput.value = "";
+  J.popList.innerHTML = "";
   J.pop.style.display = "block";
-  J.pop.style.top = Math.max(4, Math.min(top, window.innerHeight - J.pop.offsetHeight - 4)) + "px";
-  J.pop.style.left = Math.max(4, Math.min(left, window.innerWidth - J.pop.offsetWidth - 4)) + "px";
+  renderMentionList();
+  getUserIndexSync();
+  J.popInput.focus({ preventScroll: true });
+  // Re-anchor once the popup + caret layout has settled (focus may scroll/flush).
+  setTimeout(() => { if (mention) positionMentionPopup(); }, 0);
 }
 
-function pickMentionKind(type) {
+function positionMentionPopup() {
+  const p = J.pop;
+  const wrap = J.popHost;
+  if (!p || !wrap || p.style.display === "none" || !mention) return;
+  let rect = anchorViewportRect();
+  if (!rect && mention.rect) {
+    rect = { left: mention.rect.left, top: mention.rect.top, bottom: mention.rect.top, width: 0, height: 0 };
+  }
+  if (!rect) return;
+  // Both rects are live viewport coordinates, so the deltas stay correct
+  // regardless of page scroll, transforms, or zoom — no offsetParent math.
+  const w = wrap.getBoundingClientRect();
+  let top = (rect.bottom + 4) - w.top;
+  let left = rect.left - w.left;
+  const maxTop = Math.max(4, wrap.clientHeight - p.offsetHeight);
+  const maxLeft = Math.max(4, wrap.clientWidth - p.offsetWidth);
+  p.style.top = Math.max(4, Math.min(top, maxTop)) + "px";
+  p.style.left = Math.max(4, Math.min(left, maxLeft)) + "px";
+}
+
+// Re-measure the caret from the stored anchor so the popup follows scrolls and
+// layout shifts without us having to track scroll offsets.
+function anchorViewportRect() {
+  const a = mention?.anchorNode;
+  if (!a || !a.isConnected) return null;
+  const r = document.createRange();
+  r.setStart(a, mention.anchorOffset || 0);
+  r.collapse(true);
+  let rect = null;
+  try { rect = r.getClientRects()[0] || null; } catch {}
+  if (!rect || (rect.width === 0 && rect.height === 0 && rect.left === 0 && rect.top === 0)) {
+    try { rect = r.getBoundingClientRect(); } catch { rect = null; }
+  }
+  return rect;
+}
+
+function onPillInput() {
   if (!mention) return;
-  mention.type = type;
-  mention.state = "search";
-  if (type === "user" && !userIndex) getUserIndexSync();
-  document.execCommand("insertText", false, " " + type + ": ");
-  renderMentionPopup();
+  mention.text = J.popInput.value;
+  mention.searched = "";
+  mention.results = [];
+  mention.active = -1;
+  mention.lastErr = "";
+  renderMentionList();
+  scheduleSearch();
+}
+
+function onPillKeydown(e) {
+  if (!mention) return;
+  const items = J.popList.querySelectorAll(".j-mention-item");
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    if (!items.length) return;
+    const dir = e.key === "ArrowDown" ? 1 : -1;
+    mention.active = mention.active < 0
+      ? (dir === 1 ? 0 : items.length - 1)
+      : (mention.active + dir + items.length) % items.length;
+    renderMentionList();
+  } else if (e.key === "Enter" || e.key === "Tab") {
+    e.preventDefault();
+    const active = items[mention.active] || items[0];
+    if (active) { compleMention(active.dataset.id, active.dataset.type); return; }
+    completeByText();
+  } else if (e.key === "Escape") {
+    e.preventDefault();
+    cancelMention();
+  } else if (e.key === "Backspace" && !J.popInput.value) {
+    e.preventDefault();
+    cancelMention();
+  }
+}
+
+const scheduleSearch = debounce(runSearch, 120);
+
+function runSearch() {
+  if (!mention) return;
+  const text = (mention.text || "").trim();
+  const k = apiKey();
+  if (!text) {
+    mention.results = [];
+    mention.searched = "";
+    mention.active = -1;
+    renderMentionList();
+    return;
+  }
+  if (!k) {
+    mention.results = [];
+    mention.lastErr = "API key missing";
+    mention.searched = text;
+    renderMentionList();
+    return;
+  }
+  const seq = ++mention.seq;
+  fetchTrpc("search.searchAnything", { searchText: text }, k)
+    .then((res) => {
+      if (!mention || mention.seq !== seq) return;
+      const d = unwrap(res) || {};
+      const rows = [];
+      for (const [type, ids] of [
+        ["user", d.userIds], ["country", d.countryIds], ["region", d.regionIds],
+        ["party", d.partyIds], ["mu", d.muIds], ["alliance", d.allianceIds],
+      ]) {
+        for (const id of (ids || [])) rows.push({ type, id, name: "" });
+      }
+      mention.results = rows.slice(0, 80);
+      mention.lastErr = "";
+      mention.searched = text;
+      mention.active = 0;
+      renderMentionList();
+      fillNames(rows);
+    })
+    .catch(() => {
+      if (!mention || mention.seq !== seq) return;
+      mention.results = [];
+      mention.lastErr = "Search failed";
+      mention.searched = text;
+      renderMentionList();
+    });
+}
+
+function renderMentionList() {
+  if (!mention || !J.popList) return;
+  const list = J.popList;
+  list.innerHTML = "";
+  const hint = (msg) => {
+    const div = document.createElement("div");
+    div.className = "j-mention-empty";
+    div.textContent = msg;
+    list.appendChild(div);
+  };
+  const text = (mention.text || "").trim();
+  if (!text) {
+    hint("Type to search @user / @country / @region / @party / @mu / @alliance …");
+    return;
+  }
+  if (mention.searched !== text) { hint("Searching…"); return; }
+  if (!mention.results.length) { hint(mention.lastErr || "No matches"); return; }
+  let i = 0;
+  for (const row of mention.results) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "j-mention-item" + (i === mention.active ? " is-active" : "");
+    b.dataset.id = row.id;
+    b.dataset.type = row.type;
+    const t = document.createElement("span");
+    t.className = "j-mi-type";
+    t.textContent = "@" + row.type;
+    const n = document.createElement("span");
+    n.className = "j-mi-name";
+    n.textContent = row.name || "…";
+    b.append(t, n);
+    list.appendChild(b);
+    i++;
+  }
+  positionMentionPopup();
+}
+
+function localName(type, id) {
+  const map = type === "user" ? userIndex : offlineLookups[OFFLINE_KEY[type]];
+  return map?.[id] || "";
+}
+
+function fillNames(rows) {
+  const k = apiKey();
+  let waitingUsers = false;
+  let filled = false;
+  for (const row of rows) {
+    if (!row.name) row.name = localName(row.type, row.id);
+    if (row.name) filled = true;
+    else if (row.type === "user" && userIndexPromise) waitingUsers = true;
+  }
+  if (filled) renderMentionList();
+  if (waitingUsers) {
+    userIndexPromise
+      .then(() => {
+        let changed = false;
+        for (const row of rows) if (!row.name && (row.name = localName(row.type, row.id))) changed = true;
+        if (changed) renderMentionList();
+      })
+      .catch(() => {});
+  }
+  for (const row of rows) {
+    if (row.name) continue;
+    resolveEntityByType(row.type, row.id, k)
+      .then((data) => {
+        if (!data) {
+          if (!row.name) { row.name = row.id; renderMentionList(); }
+          return;
+        }
+        row.name = entityDisplayName(row.type, row.id, data);
+        renderMentionList();
+      })
+      .catch(() => {
+        if (!row.name) { row.name = row.id; renderMentionList(); }
+      });
+  }
+}
+
+function compleMention(id, type) {
+  if (!mention) return;
+  const anchor = { node: mention.anchorNode, off: mention.anchorOffset };
+  const row = mention.results.find((r) => r.type === type && r.id === id);
+  const name = row?.name || localName(type, id) || id;
+  mention = null;
+  J.pop.style.display = "none";
+  J.popInput.value = "";
+  J.popList.innerHTML = "";
+  if (!anchor.node?.isConnected) return;
+  const sel = window.getSelection();
+  const r = document.createRange();
+  r.setStart(anchor.node, anchor.off);
+  r.collapse(true);
+  const ent = document.createElement("span");
+  ent.setAttribute("data-content-link", "");
+  ent.setAttribute("data-content-type", type);
+  ent.setAttribute("data-content-data", JSON.stringify({ [DATA_KEY[type]]: id, fullMatch: `/${type}/${id}` }));
+  ent.setAttribute("data-original-text", `/${type}/${id}`);
+  // Non-editable chip keeps the caret out and reads as one unit; browsers can
+  // split paragraphs around an inline contenteditable=false span, so the copy
+  // serializer heals that back at export time (see mergeEntityParagraphs).
+  ent.setAttribute("contenteditable", "false");
+  ent.textContent = name;
+  r.insertNode(ent);
+  placeCaretAfter(ent);
+  updateInfoBar();
+  schedulePersist();
+}
+
+// Treat a data-content-link entity as one atomic unit: a single Backspace /
+// Delete while adjacent to (or inside) the span removes the whole entity with
+// one keystroke instead of eating characters one by one.
+function deleteEntityUnit(dir) {
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return false;
+  const r = sel.getRangeAt(0);
+  if (!r.collapsed) return false;
+  const c = r.startContainer;
+  const o = r.startOffset;
+  let ent = null;
+  const isEnt = (n) => n && n.nodeType === 1 && n.hasAttribute?.("data-content-link");
+  if (c.nodeType === 3) {
+    const inside = c.parentElement?.closest?.("[data-content-link]");
+    if (inside) ent = inside;
+    else if (dir === "back" && o === 0 && isEnt(c.previousSibling)) ent = c.previousSibling;
+    else if (dir === "fwd" && o === c.length && isEnt(c.nextSibling)) ent = c.nextSibling;
+  } else if (c.nodeType === 1) {
+    const child = c.childNodes[dir === "back" ? o - 1 : o];
+    if (isEnt(child)) ent = child;
+  }
+  if (!ent) return false;
+  const before = document.createRange();
+  before.setStartBefore(ent);
+  before.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(before);
+  ent.remove();
+  updateInfoBar();
+  return true;
+}
+
+// The chip behaves like contenteditable=false without the DOM side-effects:
+// if the caret ever lands inside a data-content-link span's text, bounce it
+// out to just after the span and swallow the key so the name can't be edited
+// from inside and following typing stays out of the chip.
+function constrainEntityCaret(e) {
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return false;
+  const r = sel.getRangeAt(0);
+  if (!r.collapsed) return false;
+  const c = r.startContainer;
+  let inside = null;
+  if (c.nodeType === 3) inside = c.parentElement?.closest?.("[data-content-link]") || null;
+  else if (c.nodeType === 1 && c.hasAttribute?.("data-content-link")) inside = c;
+  else if (c.nodeType === 1) {
+    const ch = c.childNodes[r.startOffset];
+    if (ch?.nodeType === 1 && ch.hasAttribute?.("data-content-link")) inside = ch;
+  }
+  if (!inside) return false;
+  e.preventDefault();
+  placeCaretAfter(inside);
+  return true;
+}
+
+// Move the caret to just after an inline element so further typing stays out of it.
+function placeCaretAfter(el) {
+  const sel = window.getSelection();
+  const parent = el.parentNode;
+  if (!parent || !sel) return;
+  const idx = Array.prototype.indexOf.call(parent.childNodes, el) + 1;
+  J.editor.focus({ preventScroll: true });
+  const r = document.createRange();
+  r.setStart(parent, idx);
+  r.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(r);
+}
+
+// Enter with no suggestion picked: complete exactly typed names straight from the
+// local lookup maps (userLookups / offlineLookups), so a fast "type name + Enter"
+// works without waiting for search results.
+function completeByText() {
+  if (!mention) return;
+  const text = J.popInput.value.trim();
+  if (!text) return;
+  const finish = () => {
+    const match = localMatchByText(text);
+    if (match) compleMention(match.id, match.type);
+  };
+  if (userIndex || !userIndexPromise) { finish(); return; }
+  userIndexPromise.then(finish).catch(finish);
+}
+
+function localMatchByText(text) {
+  const q = text.trim().toLowerCase();
+  if (!q) return null;
+  if (userIndex) {
+    for (const [id, name] of Object.entries(userIndex)) {
+      if (String(name).toLowerCase() === q) return { type: "user", id };
+    }
+  }
+  for (const [type, key] of Object.entries(OFFLINE_KEY)) {
+    const map = offlineLookups[key];
+    if (!map) continue;
+    for (const [id, name] of Object.entries(map)) {
+      if (String(name).toLowerCase() === q) return { type, id };
+    }
+  }
+  return null;
+}
+
+function cancelMention() {
+  if (!mention) return;
+  const anchor = mention.anchorNode;
+  const off = mention.anchorOffset;
+  mention = null;
+  J.pop.style.display = "none";
+  J.popInput.value = "";
+  J.popList.innerHTML = "";
+  if (anchor?.isConnected) {
+    const sel = window.getSelection();
+    const r = document.createRange();
+    r.setStart(anchor, off);
+    r.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(r);
+  }
   J.editor.focus({ preventScroll: true });
 }
 
-function candidatesFor(type, prefix) {
-  const P = (prefix || "").toLowerCase();
-  if (!P) return [];
-  let map = null;
-  if (type === "user") {
-    map = userIndex;
-    if (!map) return [];
-  } else {
-    map = offlineLookups[OFFLINE_KEY[type]];
-  }
-  if (!map) return [];
-  const out = [];
-  for (const [id, name] of Object.entries(map)) {
-    if (String(name).toLowerCase().startsWith(P)) {
-      out.push({ id, name: String(name), type });
-      if (out.length >= 40) break;
-    }
-  }
-  return out;
+function hideMention() {
+  if (J.pop) J.pop.style.display = "none";
+  mention = null;
 }
 
 function getUserIndexSync() {
@@ -995,95 +1443,24 @@ function getUserIndexSync() {
   return null;
 }
 
-function navMention(key) {
-  if (!J.pop) return;
-  const items = [...J.pop.querySelectorAll(".j-mention-item")];
-  const kinds = [...J.pop.querySelectorAll(".j-mention-kind")];
-  if (mention?.state === "kind") {
-    if (key === "ArrowDown" || key === "ArrowUp") {
-      const idx = kinds.indexOf(document.activeElement);
-      const next = key === "ArrowDown" ? (idx + 1) % kinds.length : (idx - 1 + kinds.length) % kinds.length;
-      kinds[next]?.focus();
+// Entities serialize as empty spans (War Era keeps only the attributes); on
+// reload, put the display name back from the local lookup maps so the editor
+// shows the chip again.
+function rehydrateEntityNames() {
+  for (const ent of [...J.editor.querySelectorAll("[data-content-link]")]) {
+    if ((ent.textContent || "").trim()) continue;
+    let data = null;
+    try { data = JSON.parse(ent.getAttribute("data-content-data") || "null"); } catch {}
+    const type = ent.getAttribute("data-content-type");
+    const key = type && DATA_KEY[type];
+    const id = (data && key && data[key]) ||
+      (data && data.fullMatch || "").split("/").filter(Boolean).pop() || "";
+    const name = (type && id && localName(type, id)) || data?.fullMatch || "";
+    if (name) {
+      ent.textContent = name;
+      if (ent.getAttribute("contenteditable") !== "false") ent.setAttribute("contenteditable", "false");
     }
-    if (key === "Enter" || key === "Tab") {
-      pickMentionKind(kinds[0]?.dataset?.type || "user");
-    }
-    if (key === "Escape") {
-      hideMention();
-    }
-    return;
   }
-  if (key === "ArrowDown" || key === "ArrowUp") {
-    const cur = J.pop.querySelector(".is-active") || items[0];
-    const idx = items.indexOf(cur);
-    const next = key === "ArrowDown" ? (idx + 1) % items.length : (idx - 1 + items.length) % items.length;
-    items.forEach((i) => i.classList.remove("is-active"));
-    items[next]?.classList.add("is-active");
-  } else if (key === "Enter" || key === "Tab") {
-    const active = J.pop.querySelector(".is-active") || items[0];
-    if (active) compleMention(active.dataset.id, active.dataset.type);
-  } else if (key === "Escape") {
-    hideMention();
-  }
-}
-
-function compleMention(id, type) {
-  if (!mention) return;
-  const name = nameFor(type, id);
-  if (!name) return;
-  const r = document.createRange();
-  r.setStart(mention.anchorNode, mention.anchorOffset);
-  const sel = window.getSelection();
-  r.setEnd(sel.getRangeAt(0).startContainer, sel.getRangeAt(0).startOffset);
-  const span = document.createElement("span");
-  span.className = "j-mention-pending";
-  span.dataset.jtype = type;
-  span.dataset.jid = id;
-  span.textContent = "@" + type + ": " + name;
-  r.deleteContents();
-  r.insertNode(span);
-  const r2 = document.createRange();
-  r2.selectNodeContents(span);
-  r2.collapse(false);
-  sel.removeAllRanges();
-  sel.addRange(r2);
-  pending = { span, type, id, name };
-  mention = null;
-  hideMention();
-  J.editor.focus({ preventScroll: true });
-}
-
-function nameFor(type, id) {
-  let map;
-  if (type === "user") map = userIndex;
-  else map = offlineLookups[OFFLINE_KEY[type]];
-  return map?.[id] || "";
-}
-
-function resolvePending() {
-  if (!pending) return;
-  const { span, type, id, name } = pending;
-  pending = null;
-  if (!span.isConnected) return;
-  const ent = document.createElement("span");
-  ent.setAttribute("data-content-link", "");
-  ent.setAttribute("data-content-type", type);
-  ent.setAttribute("data-content-data", JSON.stringify({ [DATA_KEY[type]]: id, fullMatch: `/${type}/${id}` }));
-  ent.setAttribute("data-original-text", `/${type}/${id}`);
-  ent.textContent = name || id;
-  span.replaceWith(ent);
-  const sel = window.getSelection();
-  const r = document.createRange();
-  r.selectNodeContents(ent);
-  r.collapse(false);
-  sel.removeAllRanges();
-  sel.addRange(r);
-  updateInfoBar();
-}
-
-function hideMention() {
-  if (J.pop) J.pop.style.display = "none";
-  mention = null;
 }
 
 /* ── DRAFTS ────────────────────────────────────────────── */
@@ -1106,8 +1483,11 @@ function loadDraft(id) {
   if (!d) return;
   J.title.value = d.title;
   J.editor.innerHTML = d.html;
+  rehydrateEntityNames();
   updateInfoBar();
   renderDrafts(id);
+  saveStr(LS_TITLE, d.title);
+  persistEditor();
   toast(`Loaded "${d.title}".`);
 }
 
@@ -1115,6 +1495,16 @@ function renameDraft(id, title) {
   drafts = drafts.map((x) => (x.id === id ? { ...x, title: title.trim() || x.title } : x));
   saveLS(LS_DRAFTS, drafts);
   renderDrafts();
+}
+
+function saveToDraft(id) {
+  const payload = currentDraftPayload();
+  drafts = drafts.map((x) => (x.id === id
+    ? { ...x, title: payload.title || x.title, html: payload.html, savedAt: Date.now() }
+    : x));
+  saveLS(LS_DRAFTS, drafts);
+  renderDrafts(id);
+  toast("Saved to draft.");
 }
 
 function deleteDraft(id) {
@@ -1126,7 +1516,9 @@ function deleteDraft(id) {
 
 function shortDate(ts) {
   try {
-    return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    const d = new Date(ts);
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) +
+      " " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
   } catch { return ""; }
 }
 
@@ -1154,13 +1546,15 @@ function renderDrafts(activeId) {
 
     const actions = document.createElement("div");
     actions.className = "j-draft-actions";
+    const saveBtn = makeIconBtn("iconoir:floppy-disk-arrow-in", "Save to this draft");
     const editBtn = makeIconBtn("boxicons:edit-filled", "Rename");
     const delBtn = makeIconBtn("ep:delete", "Delete");
     delBtn.classList.add("danger");
-    actions.append(editBtn, delBtn);
+    actions.append(saveBtn, editBtn, delBtn);
 
     card.append(title, date, actions);
 
+    saveBtn.addEventListener("mouseup", (e) => { e.stopPropagation(); saveToDraft(d.id); });
     editBtn.addEventListener("mouseup", (e) => { e.stopPropagation(); startRename(card, d); });
     delBtn.addEventListener("mouseup", (e) => { e.stopPropagation(); deleteDraft(d.id); });
     card.addEventListener("click", () => { if (!card.classList.contains("is-editing")) loadDraft(d.id); });
@@ -1254,6 +1648,166 @@ function renderImages() {
   }
 }
 
+/* ── PERSISTENCE (title + editor survive closing newsdesk) ── */
+
+function persistTitle() {
+  saveStr(LS_TITLE, J.title.value);
+}
+
+function persistEditor() {
+  saveStr(LS_EDITOR, serializeEditorHtml(J.editor));
+}
+
+// Debounced save on typing; programmatic edits call persistEditor() directly.
+const schedulePersist = debounce(() => persistEditor(), 600);
+
+// Flush any pending debounce when the tab closes so the last keystrokes stick.
+window.addEventListener("pagehide", () => persistEditor());
+
+/* ── ZOOM (mirrors the reader modal: scales text only) ──── */
+
+function applyZoom() {
+  J.editor.closest(".j-editor-wrap")?.style.setProperty("--j-editor-zoom", J.zoom / 100);
+  if (J.zoomPct) J.zoomPct.textContent = `${J.zoom}%`;
+  localStorage.setItem(LS_JOTTER_ZOOM, String(J.zoom));
+}
+
+/* ── CLEAR ─────────────────────────────────────────────── */
+
+// Chrome only spell-checks text typed AFTER the spellcheck flag turns on, so
+// pre-existing content stays unmarked. Rebooting the contenteditable attribute
+// makes the browser re-scan the whole document (selection is re-applied after).
+function forceSpellcheckRescan() {
+  const sel = window.getSelection();
+  const r = sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+  J.editor.contentEditable = "false";
+  J.editor.contentEditable = "true";
+  const restore = () => {
+    try {
+      if (r && r.startContainer?.isConnected && J.editor.contains(r.startContainer)) {
+        sel.removeAllRanges();
+        sel.addRange(r);
+      }
+    } catch {}
+  };
+  if (typeof window.requestAnimationFrame === "function") window.requestAnimationFrame(restore);
+  else setTimeout(restore, 0);
+}
+
+function clearEditor() {
+  J.editor.innerHTML = '<p class="tiptap-block"><br></p>';
+  findState.matches = [];
+  findState.idx = -1;
+  findState.term = "";
+  updateFindLabel();
+  persistEditor();
+  updateInfoBar();
+  J.editor.focus({ preventScroll: true });
+}
+
+/* ── FIND & REPLACE ────────────────────────────────────── */
+
+function collectFind(term) {
+  const t = term.toLowerCase();
+  const res = [];
+  if (!t) return res;
+  const tw = document.createTreeWalker(J.editor, NF.SHOW_TEXT);
+  let n;
+  while ((n = tw.nextNode())) {
+    if (!n.data) continue;
+    const low = n.data.toLowerCase();
+    let i = 0;
+    while ((i = low.indexOf(t, i)) !== -1) {
+      res.push({ node: n, start: i, end: i + t.length });
+      i += Math.max(1, t.length);
+    }
+  }
+  return res;
+}
+
+function updateFindLabel() {
+  if (!J.findCount) return;
+  const tot = findState.matches.length;
+  const cur = findState.idx >= 0 && findState.idx < tot ? findState.idx + 1 : 0;
+  J.findCount.textContent = `${cur}/${tot}`;
+  if (J.findNextBtn) J.findNextBtn.classList.toggle("is-disabled", tot === 0);
+}
+
+function selectFind(i) {
+  const m = findState.matches[i];
+  if (!m) return;
+  const r = document.createRange();
+  r.setStart(m.node, m.start);
+  r.setEnd(m.node, m.end);
+  const sel = window.getSelection();
+  J.editor.focus({ preventScroll: true });
+  sel.removeAllRanges();
+  sel.addRange(r);
+  try { m.node.parentElement?.scrollIntoView?.({ block: "nearest" }); } catch {}
+  findState.idx = i;
+  updateFindLabel();
+}
+
+function findNext() {
+  const term = J.findInput?.value || "";
+  if (!term) { findState.matches = []; findState.idx = -1; updateFindLabel(); return; }
+  findState.term = term;
+  findState.matches = collectFind(term);
+  if (!findState.matches.length) { findState.idx = -1; updateFindLabel(); return; }
+  findState.idx = (findState.idx + 1) % findState.matches.length;
+  selectFind(findState.idx);
+}
+
+function replaceCurrent() {
+  const term = J.findInput?.value || "";
+  if (!term) return;
+  findState.term = term;
+  findState.matches = collectFind(term);
+  const sel = window.getSelection();
+  const r = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
+  const onMatch = r && !r.collapsed && J.editor.contains(r.startContainer) && r.toString().toLowerCase() === term.toLowerCase();
+  if (onMatch) {
+    withSelection(() => document.execCommand("insertText", false, J.replaceInput.value));
+    findState.matches = []; findState.idx = -1;
+    schedulePersist();
+  }
+  findNext();
+  updateInfoBar();
+}
+
+function replaceAll() {
+  const term = J.findInput?.value || "";
+  const rep = J.replaceInput?.value || "";
+  if (!term) return;
+  const matches = collectFind(term);
+  if (!matches.length) { toast("Nothing to replace."); return; }
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const m = matches[i];
+    m.node.replaceData(m.start, m.end - m.start, rep);
+  }
+  saveStr(LS_EDITOR, serializeEditorHtml(J.editor));
+  findState.matches = []; findState.idx = -1; findState.term = "";
+  if (J.findInput) J.findInput.value = "";
+  updateFindLabel();
+  updateInfoBar();
+  toast(`${matches.length} replaced.`);
+}
+
+function openFind() {
+  if (!J.findPop) return;
+  J.findPop.hidden = false;
+  findState.matches = []; findState.idx = -1; findState.term = "";
+  updateFindLabel();
+  J.findInput?.focus();
+  J.findInput?.select();
+}
+
+function hideFind() {
+  if (J.findPop) J.findPop.hidden = true;
+  findState.matches = []; findState.idx = -1;
+  J.editor.focus({ preventScroll: true });
+}
+
 /* ── COPY HTML ─────────────────────────────────────────── */
 
 async function copyHtml() {
@@ -1280,4 +1834,5 @@ function insertTextSanitized(text) {
   document.execCommand("insertHTML", false, esc(safe.textContent).replace(/\n/g, "<br>"));
   syncSelection();
   updateInfoBar();
+  schedulePersist();
 }

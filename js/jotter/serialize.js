@@ -108,6 +108,12 @@ function cleanInline(root) {
       el.replaceWith(...el.childNodes);
       continue;
     }
+    // Entity mentions store their display name only as transient editor text —
+    // War Era keeps the span EMPTY and shows the name from data-content-data.
+    if (el.hasAttribute?.("data-content-link")) {
+      while (el.firstChild) el.removeChild(el.firstChild);
+      continue;
+    }
     if (el.classList) {
       for (const c of [...el.classList]) {
         if (c.startsWith("j-")) el.classList.remove(c);
@@ -256,19 +262,24 @@ function emitBlockquote(el) {
   return `<blockquote class="tiptap-blockquote">${inner.join("")}</blockquote>`;
 }
 
-// Split a <pre>'s content into visual lines. Chrome may store each line as a
-// <div> under the <pre> or the <code>, as <br>-separated text, or as newlines.
+// Split a <pre>'s content into visual lines. Browsers store consecutive code
+// lines in various shapes: a <div> per line (Chrome, under <pre> or <code>),
+// <br>-separated raw text with a stray empty <code> at the end, or raw
+// newlines. Cloning the element and converting <br>s into newlines before
+// reading textContent covers every case without double-escaping the text.
 function preLines(el) {
   const divs = el.querySelectorAll("div");
-  if (divs.length) return [...divs]
-    .map((d) => (d.textContent || "").replace(/\s+$/, ""))
-    .filter((l) => l !== "");
-  const src = el.querySelector(":scope > code") || el;
-  let text = src.textContent || "";
-  if (/<br\s*\/?>/i.test(src.innerHTML || "")) {
-    text = (src.innerHTML || "").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "");
+  if (divs.length) {
+    return [...divs].map((l) => (l.textContent || "").replace(/\s+$/, "")).filter((l) => l !== "");
   }
-  return text.split("\n").map((l) => l.replace(/\s+$/, "")).filter((l) => l !== "");
+  const d = el.cloneNode(true);
+  if (d.querySelectorAll("br").length) {
+    for (const br of d.querySelectorAll("br")) br.replaceWith("\n");
+    return d.textContent.split("\n").map((l) => l.replace(/\s+$/, "")).filter((l) => l !== "");
+  }
+  const code = d.querySelector(":scope > code");
+  const src = code && code.textContent.trim() ? code : d;
+  return src.textContent.split("\n").map((l) => l.replace(/\s+$/, "")).filter((l) => l !== "");
 }
 
 // War Era keeps only the first line inside <pre><code>; the rest of the code
@@ -376,8 +387,58 @@ function emit(container, top, leadPending) {
   return out.join("");
 }
 
+// Safety net for Copy HTML: inline contenteditable=false chips make Chrome
+// split the surrounding text into separate blocks (e.g.
+//   <p>I am&nbsp;</p><p><span data-content-link …></span></p><p>!</p>
+// with the entity stranded in its own paragraph). When an entity ends up alone
+// in a paragraph, pull that paragraph up into the previous one so the copied
+// HTML stays the War Era inline format:
+//   <p>I am&nbsp;<span data-content-link …></span></p>
+function mergeEntityParagraphs(html) {
+  return html.replace(
+    /<p class="tiptap-block" style="text-align: left;">([^<]*)<\/p><p class="tiptap-block" style="text-align: left;">(<span data-content-link[^>]*><\/span>)<\/p>/g,
+    '<p class="tiptap-block" style="text-align: left;">$1$2</p>'
+  );
+}
+
+// Chrome does NOT auto-wrap text typed into an empty contenteditable root with
+// <p> blocks — inline runs (text, entity spans, links, …) can be direct
+// children of the editor, e.g.:
+//   "I am&nbsp;" <span data-content-link …>roostre</span> "!"
+// Serializing those bare nodes one-by-one would emit a separate paragraph per
+// node (and a stray inline span would lose its element). Group each consecutive
+// top-level inline run into a single paragraph first, so the output matches the
+// War Era block format:
+//   <p class="tiptap-block">I am&nbsp;<span data-content-link …></span>!</p>
+function wrapTopLevelRuns(container) {
+  const nodes = [...container.childNodes];
+  let i = 0;
+  while (i < nodes.length) {
+    const start = i;
+    let has = false;
+    while (i < nodes.length) {
+      const n = nodes[i];
+      if (n.nodeType === 3) { if (n.data.replace(/\s/g, "")) has = true; i++; continue; }
+      if (n.nodeType !== 1) { i++; continue; }
+      const tag = n.tagName;
+      if (BLOCK_TAGS.has(tag) || tag === "P" || tag === "DIV" || tag === "LI" || tag === "SUMMARY" || tag === "BR") break;
+      has = true;
+      i++;
+    }
+    if (i > start && has) {
+      const p = container.ownerDocument.createElement("p");
+      p.className = "tiptap-block";
+      const after = nodes[i] || null;
+      for (let k = start; k < i; k++) p.appendChild(nodes[k]);
+      if (after) container.insertBefore(p, after); else container.appendChild(p);
+    }
+    if (i === start) i++;
+  }
+}
+
 export function serializeEditorHtml(root) {
   const clone = root.cloneNode(true);
+  wrapTopLevelRuns(clone);
   // A raw nbsp in text content must serialize as the &nbsp; entity War Era emits.
-  return emit(clone, true).replace(/\u00A0/g, "&nbsp;");
+  return mergeEntityParagraphs(emit(clone, true).replace(/\u00A0/g, "&nbsp;"));
 }
