@@ -1267,10 +1267,14 @@ details.prod-acc-body[open] > summary.prod-field-label::before { transform: rota
 
 /* ── BATTLE CARD ────────────────────────────────────── */
 .battle-card {
-  position: relative;
-  display: flex; flex-direction: column; gap: 5px;
-  padding: 8px 10px; border: 1px solid var(--line);
-  cursor: pointer; min-width: 0;
+    border: 1px solid var(--line);
+    cursor: pointer;
+    flex-direction: column;
+    min-width: 0;
+    padding: 8px 10px;
+    padding-bottom: 0px;
+    display: flex;
+    position: relative;
 }
 .battle-card:hover { border-color: var(--accent); }
 .battle-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
@@ -1312,7 +1316,14 @@ details.prod-acc-body[open] > summary.prod-field-label::before { transform: rota
 .bc-flag-img { width: 32px; height: 22px; object-fit: cover; border: 1px solid var(--line); box-shadow: 0 1px 3px rgba(0,0,0,.4); }
 .bc-flag-img--round { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid var(--line); box-shadow: 0 1px 3px rgba(0,0,0,.4); }
 .bc-score { flex: 0 0 auto; font-size: 1.28rem; font-weight: 900; font-family: var(--font-num); line-height: 1; min-width: 16px; text-align: center; }
-.bc-emblem { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 38px; }
+.bc-emblem {
+    flex-direction: column;
+    flex: none;
+    align-items: center;
+    display: flex;
+    position: relative;
+    top: 8px;
+}
 .bc-emblem-icons { position: relative; display: flex; align-items: center; justify-content: center; height: 24px; min-height: 24px; }
 .bc-ico-shield {
   font-size: 1.35rem; line-height: 1;
@@ -1325,17 +1336,65 @@ details.prod-acc-body[open] > summary.prod-field-label::before { transform: rota
   transform: translateX(-12.5%);
   filter: drop-shadow(0 1px 1px rgba(0,0,0,.35));
 }
-.bc-dmg { display: inline-flex; align-items: center; gap: 3px; font-size: .72rem; font-weight: 800; font-family: var(--font-num); color: var(--red); white-space: nowrap; max-width: 100%; }
-.bc-dmg .lu { color: var(--red); }
+.bc-dmg {
+    font-size: .72rem;
+    font-weight: 800;
+    font-family: var(--font-num);
+    color: var(--red);
+    white-space: nowrap;
+    align-items: center;
+    gap: 3px;
+    max-width: 100%;
+    display: inline-flex;
+    position: relative;
+    top: 5px;
+}
 
 .bc-points { display: flex; flex-direction: column; gap: 2px; }
 .bc-points-labels { display: flex; justify-content: space-between; gap: 4px; font-size: .6rem; font-weight: 800; font-family: var(--font-num); }
-.bc-points-bar { position: relative; height: 5px; background: var(--line); overflow: hidden; }
-.bc-pts-def { position: absolute; left: 0; top: 0; bottom: 0; }
-.bc-pts-atk { position: absolute; right: 0; top: 0; bottom: 0; }
+.bc-points-bar { background: var(--line); height: 13px;  position: relative; overflow: hidden; }
+.bc-pts-def,
+.bc-pts-atk {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    overflow: hidden;
+}
+.bc-pts-def {
+    max-width: 50%;
+    left: 0;
+}
+.bc-pts-atk {
+    max-width: 50%;
+    right: 0;
+}
+.bc-pts-def::after,
+.bc-pts-atk::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+}
+.bc-pts-def::after {
+    background: repeating-linear-gradient(
+        135deg,
+        transparent 0px,
+        transparent 0px,
+        rgba(0, 0, 0, 0.30) 6px,
+        rgba(0, 0, 0, 0.15) 9px
+    );
+}
+.bc-pts-atk::after {
+    background: repeating-linear-gradient(
+        45deg,
+        transparent 0px,
+        transparent 0px,
+        rgba(0, 0, 0, 0.30) 6px,
+        rgba(0, 0, 0, 0.15) 9px
+    );
+}
 
-.bc-share { display: flex; margin-top: auto; height: 36px; overflow: hidden; border: 1px solid var(--line); }
-.bc-share-atk, .bc-share-def { display: flex; flex-direction: column; justify-content: center; min-width: 0; padding: 2px 6px; }
+.bc-share { height: 36px; display: flex; overflow: hidden; }
+.bc-share-atk, .bc-share-def { display: flex; flex-direction: column; justify-content: space-around; min-width: 0; padding: 2px 6px; }
 .bc-share-def { align-items: flex-end; border-right: 2px solid rgba(255,255,255,0.6); }
 .bc-share-atk { align-items: flex-start; }
 .bc-share-dmg { font-size: .8rem; font-weight: 900; font-family: var(--font-num); line-height: 1.1; color: #fff; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
@@ -1399,6 +1458,7 @@ details.prod-acc-body[open] > summary.prod-field-label::before { transform: rota
 .battle-toolbar { flex-wrap: wrap; align-items: center; }
 .battle-toolbar .input-wrap { flex: 0 1 130px; min-width: 0; }
 .battle-toolbar .input-wrap.search-bar { flex: 1 1 180px; }
+input#battlesRegionFilter { max-height: 24px; }
 .battle-toolbar .pill-btn { font-size: .68rem; padding: 2px 8px; }
 .battle-toolbar .sort-arrow { margin-left: 3px; font-size: .58rem; line-height: 1; opacity: .9; }
 .battle-toolbar .sort-arrow.off { opacity: .35; }
@@ -1514,6 +1574,7 @@ details.prod-acc-body[open] > summary.prod-field-label::before { transform: rota
 .library-head-actions .pill-btn .lib-book-count { font-family: var(--font-num); font-size: .62rem; opacity: .85; }
 .library-head-actions .pill-btn.active .lib-book-count { opacity: 1; }
 .library-toolbar .pill-btn { font-size: .68rem; padding: 2px 8px; }
+button#libraryRebuildBtn.pill-btn:hover{ border-color: var(--dark-red);  background: transparent; color: var(--red); }
 .library-toolbar .sort-arrow { margin-left: 3px; font-size: .58rem; line-height: 1; opacity: .9; }
 .library-toolbar .sort-arrow.off { opacity: .35; }
 .library-toolbar input.art-date { flex: 0 1 120px; max-width: 150px; font-size: .7rem; padding: 2px 4px; height: 24px; }

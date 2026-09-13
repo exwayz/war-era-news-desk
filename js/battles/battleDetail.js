@@ -559,13 +559,13 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
       <span>${etaChip(atkEta, "attacker", atkText)}</span>
     </div>` : "";
 
-    return `<div class="br-section" style="margin-bottom:14px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    return `<div class="br-section">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
       <span style="font-size:.78rem;font-weight:800;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.06em">Round ${roundIdx + 1} Ground Points</span>
       ${rdStatus}
     </div>
     ${etaRow}
-    <div style="display:flex;justify-content:space-between;font-size:.76rem;margin-bottom:5px">
+    <div style="display:flex;justify-content:space-between;font-size:.76rem;margin-bottom:1px">
       <span style="color:${defText};font-weight:800"><strong>${fmtNum(defPts)}</strong> pts ${sideLabel("defender", def || "Defender")}</span>
       <span style="color:var(--ink-dim);font-size:.68rem">First to 300 wins</span>
       <span style="color:${atkText};font-weight:800">${sideLabel("attacker", atk || "Attacker")} <strong>${fmtNum(atkPts)}</strong> pts</span>
