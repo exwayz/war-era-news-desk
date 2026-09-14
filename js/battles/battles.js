@@ -972,9 +972,9 @@ function makeBattleCard(battle) {
   defPtsEl.style.color = defText;
   const atkPtsFill = node.querySelector(".bc-pts-atk");
   const defPtsFill = node.querySelector(".bc-pts-def");
-  atkPtsFill.style.width = (Math.min(atkPts, MAX_GP) / MAX_GP * 100) + "%";
+  atkPtsFill.style.width = (Math.min(atkPts, MAX_GP) / MAX_GP * 50) + "%";
   atkPtsFill.style.background = atkText;
-  defPtsFill.style.width = (Math.min(defPts, MAX_GP) / MAX_GP * 100) + "%";
+  defPtsFill.style.width = (Math.min(defPts, MAX_GP) / MAX_GP * 50) + "%";
   defPtsFill.style.background = defText;
 
   const atkPct = (atkDmg + defDmg) > 0 ? Math.round(atkDmg / (atkDmg + defDmg) * 100) : 50;
