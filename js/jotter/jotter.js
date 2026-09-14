@@ -125,6 +125,9 @@ export async function initJotter() {
   J.blockSelect = document.getElementById("jBlockSelect");
   J.fontSelect = document.getElementById("jFontSelect");
   J.colorSelect = document.getElementById("jColorSelect");
+  J.helpBtn = document.getElementById("jHelpBtn");
+  J.helpModal = document.getElementById("helpModal");
+  J.helpCloseBtn = document.getElementById("jHelpCloseBtn");
 
   // Editor sidebar
   J.zoomIn = document.getElementById("jZoomIn");
@@ -172,6 +175,12 @@ export async function initJotter() {
   document.getElementById("jCopyHtmlBtn").addEventListener("click", () => copyHtml());
   document.getElementById("jOpenWriterBtn").addEventListener("click", () =>
     window.open("https://app.warera.io/news/write", "_blank", "noopener"));
+  J.helpBtn?.addEventListener("click", openHelp);
+  J.helpCloseBtn?.addEventListener("click", closeHelp);
+  J.helpModal?.addEventListener("click", (e) => { if (e.target === J.helpModal) closeHelp(); });
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && J.helpModal && !J.helpModal.classList.contains("hidden")) closeHelp();
+  });
 
   // Title persistence
   J.title.addEventListener("input", persistTitle);
@@ -1806,6 +1815,20 @@ function hideFind() {
   if (J.findPop) J.findPop.hidden = true;
   findState.matches = []; findState.idx = -1;
   J.editor.focus({ preventScroll: true });
+}
+
+/* ── HELP MODAL ───────────────────────────────────────── */
+
+function openHelp() {
+  const m = J.helpModal;
+  if (!m) return;
+  m.classList.remove("hidden");
+  J.helpCloseBtn?.focus();
+}
+
+function closeHelp() {
+  J.helpModal?.classList.add("hidden");
+  J.helpBtn?.focus();
 }
 
 /* ── COPY HTML ─────────────────────────────────────────── */

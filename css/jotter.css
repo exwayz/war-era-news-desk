@@ -6,6 +6,7 @@
     font-weight: 400;
     font-family: var(--font-num);
     margin: 0;
+	display: flex;
 }
 
 .jotter-grid {
@@ -398,4 +399,85 @@ div#jInfoBar {
 @media (max-width: 560px) {
   .j-title-input { width: 100%; }
   .jotter-side { flex-direction: column; }
+}
+
+/* ── TYPEWRITER HELP ───────────────────────────────────── */
+.j-help-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--ink-dim);
+    transition: color .15s ease;
+    position: relative;
+    top: 1px;
+}
+.j-help-btn:hover { color: var(--accent); }
+.j-help-btn iconify-icon { font-size: 20px; }
+
+.jw-help-window { background: var(--surface); }
+.jw-help-body {
+  flex: 1; overflow-y: auto; padding: 14px 18px;
+  font-family: "Atkinson Hyperlegible", "Literata", Georgia, serif;
+  font-size: 11px; line-height: 1.65; color: var(--ink);
+}
+.jw-help-body a { color: var(--gold); text-decoration: underline; }
+.jw-help-body a:hover { text-decoration: none; }
+
+.jw-help-sec {
+  margin: 0 0 10px; overflow: hidden;
+  border: 1px solid var(--line); border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 3%, var(--bg));
+}
+.jw-help-sec summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 8px 12px; cursor: pointer; user-select: none;
+  font-size: 15px; font-weight: 700; text-align: left; color: var(--ink);
+  list-style: none;
+}
+.jw-help-sec summary::-webkit-details-marker { display: none; }
+.jw-help-sec summary::after {
+  content: "\25B8"; flex-shrink: 0; font-size: 15px; line-height: 1;
+  color: var(--accent); transition: transform .15s ease;
+}
+.jw-help-sec[open] summary { border-bottom: 1px solid var(--line); }
+.jw-help-sec[open] summary::after { transform: rotate(90deg); }
+
+.jw-help-sec-body { padding: 8px 12px 10px; }
+.jw-help-sec-body p { margin: 0 0 8px; font-size: 14px; text-align: justify; }
+.jw-help-sec-body p:last-child { margin-bottom: 0; }
+.jw-help-sec-body h3 {
+  margin: 10px 0 4px; font-size: 13px; font-weight: 700;
+  text-align: left; color: var(--accent);
+}
+.jw-help-sec-body .jw-num { font-family: var(--font-code); font-weight: 700; color: var(--accent); }
+
+.jw-help-title { margin: 16px 0 4px; font-size: 14px; font-weight: 700; text-align: left; color: var(--ink); }
+
+.jw-help-body code,
+.jw-help-body .jw-help-kbd {
+  font-family: var(--font-code); font-size: .92em;
+  background: var(--line); color: var(--ink);
+  border-radius: 3px; padding: 0 4px; white-space: nowrap;
+}
+.jw-help-body .jw-help-kbd {
+  border: 1px solid var(--ink-dim); border-bottom-width: 2px;
+  background: var(--surface); box-shadow: 0 1px 0 var(--ink-dim);
+  padding: 0 5px;
+}
+
+.jw-help-kbd-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 2px 0; font-size: 11px; text-align: left;
+}
+.jw-help-kbd-row code { min-width: 92px; text-align: center; }
+.jw-help-kbd-row span { flex: 1; text-align: left; }
+
+@media (max-width: 560px) {
+  .jw-help-body { padding: 10px 12px; }
+  .jw-help-kbd-row { flex-wrap: wrap; row-gap: 2px; }
+  .jw-help-kbd-row code { min-width: 0; text-align: left; }
 }

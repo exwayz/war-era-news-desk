@@ -457,7 +457,7 @@
       <div class="tab-panel" id="tab-jotter">
         <div class="jotter-layout">
           <div class="panel-head">
-            <h2>Typewriter</h2>
+            <h2>Typewriter<button class="j-help-btn" id="jHelpBtn" type="button" title="How to use the Typewriter"><iconify-icon icon="ic:twotone-help" class="lu"></iconify-icon></button></h2>
             <div class="btn-row">
               <button class="btn-secondary" id="jSaveDraftBtn" type="button" title="Save draft"><iconify-icon icon="fontisto:save-1" class="lu"></iconify-icon></button>
               <button class="btn-secondary" id="jCopyHtmlBtn" type="button" title="Copy TipTap HTML"><iconify-icon icon="fluent-mdl2:copy-edit" class="lu"></iconify-icon> <span>HTML</span></button>
@@ -728,6 +728,145 @@
       <button id="changelogCloseBtn" class="btn-icon-sm reader-head-close" title="Close"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
     </div>
     <div id="changelogBody" class="reader-body changelog-body"></div>
+  </div>
+</div>
+
+<!-- TYPEWRITER HELP MODAL -->
+<div id="helpModal" class="overlay hidden">
+  <div class="reader-window reader-window--wide jw-help-window">
+    <div class="reader-head">
+      <div class="reader-head-info">
+        <h2><iconify-icon icon="ic:twotone-help" class="lu" style="color:var(--accent)"></iconify-icon> Typewriter Help</h2>
+        <div class="reader-byline">How to write, format and publish a War Era article</div>
+      </div>
+      <button id="jHelpCloseBtn" class="btn-icon-sm reader-head-close" title="Close (Esc)"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
+    </div>
+    <div id="jHelpBody" class="jw-help-body">
+
+      <details class="jw-help-sec" open>
+        <summary>Quick start</summary>
+        <div class="jw-help-sec-body">
+          <p>Typewriter is a focused rich text editor built to match the War Era article editor. You type a headline, write the body, format and style the text, save your work as a draft, then copy the finished HTML and paste it into the War Era editor.</p>
+          <h3>The full workflow</h3>
+          <p><span class="jw-num">1.</span> Type the headline in the title box above the editor. The title is saved automatically and stays with your draft.</p>
+          <p><span class="jw-num">2.</span> Write in the large editor area. Everything you type is saved locally in your browser and restored the next time you open News Desk.</p>
+          <p><span class="jw-num">3.</span> Select text and shape it with the toolbar above the editor, or use the keyboard shortcuts listed below.</p>
+          <p><span class="jw-num">4.</span> Press the <b>Save draft</b> button in the panel header at any time to store the current work in the Draft Library on the right.</p>
+          <p><span class="jw-num">5.</span> When the article is finished, press the <b>HTML</b> button to copy the TipTap HTML to your clipboard.</p>
+          <p><span class="jw-num">6.</span> Press the external link button to open the War Era editor in a new tab, paste the copied HTML into the article body, and publish.</p>
+        </div>
+      </details>
+
+      <details class="jw-help-sec">
+        <summary>Toolbar</summary>
+        <div class="jw-help-sec-body">
+          <p>The toolbar holds every formatting and insert tool, grouped by purpose. Select text first, then press a button, or apply the tool to the paragraph the caret is in.</p>
+          <h3>Block type</h3>
+          <p>The select on the left switches the current block between <code class="jw-help-code">P</code>, <code class="jw-help-code">H1</code>, <code class="jw-help-code">H2</code> and <code class="jw-help-code">H3</code>. Put the caret in a paragraph, pick a type, and the block becomes a heading or returns to a paragraph.</p>
+          <h3>Text formatting</h3>
+          <p><b>Bold</b> thickens the selection, <b>Italic</b> slants it, <b>Underline</b> underlines it and <b>Strikethrough</b> draws a line through it. <code class="jw-help-kbd">Ctrl+B</code> <code class="jw-help-kbd">Ctrl+I</code> <code class="jw-help-kbd">Ctrl+U</code></p>
+          <p><b>Inline code</b> renders the selection in a monospace font, perfect for names, IDs and technical words.</p>
+          <h3>Font and color</h3>
+          <p>The <b>font</b> select changes the family of the selected text and matches the fonts the War Era editor understands. The <b>color</b> select applies a War Era themed text color to the selection.</p>
+          <h3>Alignment</h3>
+          <p>Align the current block left, center, right or justified. These cover the paragraph, headings and quotes.</p>
+          <h3>Ruler, lists and indentation</h3>
+          <p><b>Horizontal ruler</b> inserts a divider line. Typing <code class="jw-help-code">---</code> on its own line then pressing Enter does the same thing.</p>
+          <p><b>Numbered list</b> and <b>Bulleted list</b> convert the current paragraphs into a list. Type <code class="jw-help-code">1.</code> then a space to start a numbered list, or <code class="jw-help-code">-</code> then a space for a bulleted list.</p>
+          <p><b>Indent</b> and <b>Outdent</b> move a line or a nested list item in and out. <code class="jw-help-kbd">Tab</code> indents, <code class="jw-help-kbd">Shift+Tab</code> outdents.</p>
+          <h3>Quote, code and collapsible</h3>
+          <p><b>Quote block</b> styles the paragraph as an editorial quote. <b>Code block</b> wraps it in a monospace, preformatted block. <b>Collapsible section</b> inserts an expandable <code class="jw-help-code">details</code> block that the War Era editor renders with a built in toggle.</p>
+          <h3>Insert</h3>
+          <p><b>Link</b> asks for a URL and wraps the selection in a hyperlink. <b>Image</b> asks for an image URL and inserts the image. <b>YouTube</b> and <b>TikTok</b> embed a video from its share link, ready for the War Era player.</p>
+        </div>
+      </details>
+
+      <details class="jw-help-sec">
+        <summary>The editor</summary>
+        <div class="jw-help-sec-body">
+          <p>The large area is a full rich text surface. Most formatting is inherited from the toolbar, and a few behaviors are built in.</p>
+          <h3>Mentions and locked chips</h3>
+          <p>Type <code class="jw-help-kbd">@</code> anywhere to open the mention picker. Search any user, country, region or faction, then pick one to insert it as a locked newsroom chip. Chips are protected: formatting and even backspace never damage them, the whole chip is deleted at once, and the caret snaps safely around it.</p>
+          <h3>Smart typing</h3>
+          <p><code class="jw-help-code">1.</code> then space starts a numbered list. <code class="jw-help-code">-</code> then space starts a bulleted list. <code class="jw-help-code">---</code> then Enter inserts a horizontal rule. Enter inside the summary of a collapsible section moves the caret into the collapsible body.</p>
+          <h3>Live status</h3>
+          <p>The counter bar under the editor shows the character count, the word count, the paragraph count (one line is one block) and the caret position as line, column and character offset. It updates while you type.</p>
+          <h3>Spellcheck</h3>
+          <p>Switch spellcheck on from the sidebar. It marks misspelled words in the whole document, including text that was already written, not just new words.</p>
+          <h3>Zoom</h3>
+          <p>Hold <code class="jw-help-kbd">Ctrl</code> and roll the mouse wheel to scale the text. The zoom level is remembered between sessions.</p>
+        </div>
+      </details>
+
+      <details class="jw-help-sec">
+        <summary>Sidebar</summary>
+        <div class="jw-help-sec-body">
+          <p>The narrow strip on the right of the editor holds the editor tools, from top to bottom.</p>
+          <p><b>Zoom in</b> and <b>Zoom out</b> scale the text in 5% steps. The percentage button in the middle resets the zoom to 100%.</p>
+          <p><b>Undo</b> reverts the last action and <b>Redo</b> replays it. Each button is grayed out when there is nothing to undo or redo. <code class="jw-help-kbd">Ctrl+Z</code> <code class="jw-help-kbd">Ctrl+Y</code></p>
+          <p><b>Find and replace</b> opens the search box. Type a term, read the live match count, and press Next to jump between matches. Tick the Replace checkbox to reveal the replace field and the Replace and <b>Replace all</b> buttons. <code class="jw-help-kbd">Esc</code> closes the search at any time.</p>
+          <p><b>Spellcheck</b> toggles the browser spell checker for the whole document.</p>
+          <p><b>Clear</b> wipes the editor back to a single empty paragraph. The cleared state is saved, so reloading keeps it clean.</p>
+        </div>
+      </details>
+
+      <details class="jw-help-sec">
+        <summary>Save, Copy HTML and Open War Era editor</summary>
+        <div class="jw-help-sec-body">
+          <p>Three buttons sit at the top of the Typewriter panel and cover the whole export path.</p>
+          <p><b>Save draft</b> stores the current title and body in the Draft Library, stamped with the date and time. Nothing leaves your browser.</p>
+          <p><b>Copy HTML</b> serializes the article into TipTap compatible HTML, exactly the format the War Era editor reads, cleans up loose markup, and puts it on your clipboard. A toast confirms the copy.</p>
+          <p><b>Open War Era editor</b> opens the article editor at <code class="jw-help-code">app.warera.io</code> in a new tab. From there, paste the copied HTML into the article body and continue with the official War Era tools: thumbnails, categories and publishing.</p>
+        </div>
+      </details>
+
+      <details class="jw-help-sec">
+        <summary>Draft Library</summary>
+        <div class="jw-help-sec-body">
+          <p>The library lives on the right side of the panel, above the images. Every saved draft is a card showing the title and the date and time it was last saved. When the library is empty a hint tells you to write something and press Save draft.</p>
+          <p>Click a card to load that draft into the editor. The card you are working on is highlighted as current.</p>
+          <p>Each card has three action buttons:</p>
+          <p><b>Save to this draft</b> takes the current editor state and overwrites that draft, refreshing its timestamp. Use it to update an older draft with newer changes.</p>
+          <p><b>Rename</b> swaps the card for a small input so you can change the title without touching the content. Enter saves, Esc cancels.</p>
+          <p><b>Delete</b> removes the draft immediately. Deleting has no undo.</p>
+        </div>
+      </details>
+
+      <details class="jw-help-sec">
+        <summary>Image Library</summary>
+        <div class="jw-help-sec-body">
+          <p>The image library reuses the same images across articles instead of hunting URLs every time. It accepts direct image links from imgur, giphy and tenor.</p>
+          <p>Paste a direct image link into the small input and press the add button. Duplicates are ignored, and a toast confirms the image was added.</p>
+          <p>Thumbnails appear in the grid below. Click any thumbnail to insert that image into the article at the caret. The small mark on a thumbnail removes the image from the library only, it never touches the article.</p>
+        </div>
+      </details>
+
+      <h2 class="jw-help-title">Keyboard shortcuts</h2>
+      <div class="jw-help-sec-body">
+        <div class="jw-help-kbd-row"><code class="jw-help-kbd">Ctrl+B</code><span>Bold</span></div>
+        <div class="jw-help-kbd-row"><code class="jw-help-kbd">Ctrl+I</code><span>Italic</span></div>
+        <div class="jw-help-kbd-row"><code class="jw-help-kbd">Ctrl+U</code><span>Underline</span></div>
+        <div class="jw-help-kbd-row"><code class="jw-help-kbd">Tab</code><span>Indent</span></div>
+        <div class="jw-help-kbd-row"><code class="jw-help-kbd">Shift+Tab</code><span>Outdent</span></div>
+        <div class="jw-help-kbd-row"><code class="jw-help-kbd">Ctrl+Z</code><span>Undo</span></div>
+        <div class="jw-help-kbd-row"><code class="jw-help-kbd">Ctrl+Y</code><span>Redo (also Ctrl+Shift+Z)</span></div>
+        <div class="jw-help-kbd-row"><code class="jw-help-kbd">Ctrl</code> + wheel<span>Zoom text in or out</span></div>
+        <div class="jw-help-kbd-row"><code class="jw-help-kbd">@</code><span>Open the mention picker</span></div>
+        <div class="jw-help-kbd-row"><code class="jw-help-code">1.</code> + space<span>Start a numbered list</span></div>
+        <div class="jw-help-kbd-row"><code class="jw-help-code">-</code> + space<span>Start a bulleted list</span></div>
+        <div class="jw-help-kbd-row"><code class="jw-help-code">---</code> + Enter<span>Insert a horizontal rule</span></div>
+        <div class="jw-help-kbd-row"><code class="jw-help-kbd">Esc</code><span>Close the search box and popups</span></div>
+      </div>
+
+      <h2 class="jw-help-title">Notes</h2>
+      <div class="jw-help-sec-body">
+        <p>Your work stays private. The title, the article body, the drafts and the image library are stored only in your browser, in local storage. Nothing is transmitted until you open the War Era editor and paste the copy there yourself.</p>
+        <p>Typewriter output is plain TipTap HTML. The War Era editor accepts it as is, without extra conversion steps.</p>
+        <p>Protected content, such as mention chips, is never altered by formatting and survives saving, loading, copy and pasting.</p>
+        <p>The project is open source: inspect it and report issues at <a href="https://github.com/exwayz/war-era-news-desk" target="_blank" rel="noopener">github.com/exwayz/war-era-news-desk</a>.</p>
+      </div>
+
+    </div>
   </div>
 </div>
 
