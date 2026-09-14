@@ -6,6 +6,118 @@ The format is inspired by Keep a Changelog and follows Semantic Versioning princ
 
 ---
 
+## [2.3.0] - 2026-09-15
+
+### Added
+
+*Typewriter — a new War Era TipTap-compatible rich-text editor replacing Article Jotter. Full formatting toolbar with block types (P, H1, H2, H3), bold/italic/underline/strikethrough, inline code, font and color selects, alignment, horizontal rules, ordered and bulleted lists, indent/outdent, quote blocks, code blocks and collapsible sections, plus YouTube and TikTok embeds.
+*@mention picker inside the editor — type `@` and search any user, country, region or faction; confirmed picks insert locked newsroom chips that survive formatting and are deleted as a whole unit.
+*Editor sidebar — zoom in/out/reset steppers with a remembered zoom level, undo/redo with live enabled-state tracking, find and replace with a live match count and replace-one/replace-all, a spellcheck toggle that re-scans existing text, and a clear button.
+*Draft and image libraries in the Typewriter side panel — draft cards with save-to/rename/delete actions and date-time stamps, and an image library fed by direct imgur/giphy/tenor links with click-to-insert thumbnails.
+*Automatic title and body persistence in the browser — the headline and content are restored when News Desk reopens, with a one-click title clear.
+*Save-to-draft overwrites an existing draft with the current editor state and refreshes its timestamp.
+*Typewriter Help modal — collapsible guides for every feature and a complete keyboard shortcut reference in Atkinson Hyperlegible with Fira Code keycaps.
+*Open-source privacy note in the intro API box — the key is used only for authentication, stored locally, with a link to the public repository.
+*Ctrl + mouse-wheel zoom, Tab/Shift+Tab indentation, smart list start (`1.`/`-` followed by space) and `---` + Enter horizontal-rule shortcuts.
+
+### Improved
+
+*Battle card ground-point bars split into defender and attacker half-lanes; fills now scale to their lane so the counter always matches the bar.
+*Battle card and round styling refined to match the revised damage/share design.
+*Intro screen compacted — tighter API box padding with refined title and eyebrow placement.
+*Formatting commands guard locked chips so no toolbar action can break protected content.
+
+### Fixed
+
+*Battle card GP fill width mapped to the 50% split lanes — 300 GP fills the full lane and 150 fills half.
+*Typewriter toolbar live style recognition — active states follow the caret.
+*Selection preserved across toolbar interactions, with default-left alignment.
+*Notepad-accurate line counting and caret-stable formatting.
+
+### Technical
+
+*`withSelection()` entity guard — chips are temporarily replaced with protected markers during formatting and restored exactly.
+*TipTap-compatible serialization for paragraphs, headings, lists, quotes, code blocks, collapsibles, images and embeds.
+*Debounced editor persistence with a `pagehide` flush so the last keystrokes always stick.
+*`protectEntities()`/`locateMark()` helpers with portable `NodeFilter` constants for the formatting guard.
+*Offline lookups refreshed (5 scheduled refreshes).
+
+### UX
+
+*Your headline, article and caret position survive tab switches and full reloads.
+*Every draft, image and the article itself stays in your browser, in local storage.
+*The full typewriter workflow fits in one screen: write, format, save, copy HTML and open the War Era editor in a tab.
+
+---
+
+## [2.2.0] - 2026-09-09
+
+### Added
+
+*Table of Contents now detects collapsible section headers written as TipTap `details`/`summary` blocks.
+*Chevron indicator on collapsible sections that rotates with the open state in the article reader.
+*Copy mentionable URL button in the reader modal for sharing entity links.
+*Government role labels and icons updated, and the production region list rebuilt around a responsive grid.
+
+### Improved
+
+*ToC jumps land exactly on the section header with a target flash indicator.
+*Reader floating-action buttons reflowed into a cleaner layout.
+*Region production lists use a `details`/`summary` structure with grid columns that adapt to the layout.
+
+### Fixed
+
+*Collapsible chevrons point right when closed and down when open.
+
+### Technical
+
+*War Era editor reverse-engineering reference added under `docs/warera-editor-reference.md`.
+*Offline lookups refreshed (8 scheduled refreshes).
+
+### UX
+
+*Collapsible article sections reveal their contents with a clear rotating chevron, and ToC entries jump precisely to each section.
+
+---
+
+## [2.1.0] - 2026-08-31
+
+### Added
+
+*Newsroom Studio refresh — profile and articles are re-fetched from the API on demand, with a manual refresh button and a five-minute auto-refresh interval.
+*Subscriber gains tracker in the Studio audience section with per-article gains and a running total.
+*Battle type filter pills (All / Wars / MU Tournaments / Country Tournaments).
+*OVERSEER button in the profile panel with a scanning animation, Kode Mono label and mustard accent.
+*Game-time clock mode with countdowns and a settings toggle.
+*Global instant custom tooltips in Atkinson Hyperlegible with Fira Code styling, replacing native title tooltips.
+
+### Improved
+
+*Studio modal restyled with theming — header spacing tightened, close button moved to the top-right with a red-glow hover, enlarged title.
+*Profile badge moved to the bottom-left with a thickened stroke outline.
+*Ticker shows only the indicator and percentage, scrolls slower (60s) and updates silently without restarting its animation.
+*Gem revenue counters no longer subtract the BTC system fee.
+
+### Fixed
+
+*Newsroom Studio total and overview gem revenue no longer apply the 3 BTC system fee.
+*Studio subscriber count reads from `rankings.userSubscribers` instead of a top-level field.
+*Studio refresh always re-fetches articles from the API so stats are never stale; the article list uses the library cache with a parallel API backfill for fresh numbers.
+*`tournament.getById` now uses api2 and `party.getById` uses the api5 gateway, since gateway does not serve those endpoints.
+*sw.js 206 partial-response error fixed; dead Supabase market-history and Belmo cache-server code removed.
+*Tooltip markup styled correctly when appended to the body instead of inside the modal.
+
+### Technical
+
+*Custom tooltips built on CSS variables and Fira Code; the Studio calendar keeps its own specialized tooltip.
+*Offline lookups refreshed (11 scheduled refreshes).
+
+### UX
+
+*Studio stats are always fresh, tooltips appear instantly everywhere, and battle tracking filters by type in one click.
+
+---
+
 ## [2.0.0] - 2026-08-19
 
 ### Added
