@@ -968,6 +968,7 @@ function promptRow({ label, placeholder, initial, onSubmit }) {
   const input = document.createElement("input");
   input.type = "text";
   input.className = "j-prompt-input";
+  input.autocomplete = "off";
   input.placeholder = placeholder;
   input.value = initial || "";
   const ok = document.createElement("button");
@@ -1779,6 +1780,7 @@ function startRename(card, d) {
   const input = document.createElement("input");
   input.type = "text";
   input.className = "j-draft-rename";
+  input.autocomplete = "off";
   input.value = d.title || "";
   const check = makeIconBtn("akar-icons:check", "Save name");
   const del = makeIconBtn("ep:delete", "Delete");

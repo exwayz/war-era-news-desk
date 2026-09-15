@@ -224,22 +224,22 @@ function ensureStudioDom(container) {
         <div class="prod-field"><label class="prod-field-label">Wage</label>
           <span class="prod-inline">
             <select id="psWageMode" class="prod-input"><option value="net">Net</option><option value="gross">Gross</option></select>
-            <input id="psWage" type="number" step="0.001" min="0" value="0.12" class="prod-input">
+            <input id="psWage" type="number" step="0.001" min="0" value="0.12" class="prod-input" autocomplete="off">
           </span>
         </div>
         <div class="prod-field"><label class="prod-field-label">Fidelity %</label>
           <span class="prod-inline">
-            <input id="psFidMin" type="number" min="1" max="10" step="1" value="1" class="prod-input">
-            <input id="psFidMax" type="number" min="1" max="10" step="1" value="10" class="prod-input">
+            <input id="psFidMin" type="number" min="1" max="10" step="1" value="1" class="prod-input" autocomplete="off">
+            <input id="psFidMax" type="number" min="1" max="10" step="1" value="10" class="prod-input" autocomplete="off">
           </span>
         </div>
         <div class="prod-field"><label class="prod-field-label">Raw price (₿)</label>
           <span class="prod-inline">
-            <input id="psRawMin" type="number" step="0.0001" class="prod-input">
-            <input id="psRawMax" type="number" step="0.0001" class="prod-input">
+            <input id="psRawMin" type="number" step="0.0001" class="prod-input" autocomplete="off">
+            <input id="psRawMax" type="number" step="0.0001" class="prod-input" autocomplete="off">
           </span>
         </div>
-        <div class="prod-field"><label class="prod-field-label">Sell price (₿)</label><input id="psSell" type="number" step="0.0001" class="prod-input"></div>
+        <div class="prod-field"><label class="prod-field-label">Sell price (₿)</label><input id="psSell" type="number" step="0.0001" class="prod-input" autocomplete="off"></div>
         <div class="prod-acc" style="grid-column:1/-1">
           <button type="button" class="prod-acc-head"><iconify-icon icon="mdi:map-marker-multiple" class="lu"></iconify-icon><span>Regions</span><iconify-icon icon="mdi:chevron-down" class="lu prod-acc-caret"></iconify-icon></button>
           <details class="prod-acc-body"><summary class="prod-field-label">Regions</summary><div class="prod-field wide"><div id="psRegions" class="prod-region-list"></div></div></details>
@@ -413,7 +413,7 @@ export function renderWorkerYield(container, data) {
         <div class="prod-yield-bar">
           <label class="prod-field-label">Wage</label>
           <select id="psYieldMode" class="prod-input"><option value="net">Net</option><option value="gross">Gross</option></select>
-          <input id="psYieldWage" class="prod-input" type="number" step="0.001" min="0" value="0.12">
+          <input id="psYieldWage" class="prod-input" type="number" step="0.001" min="0" value="0.12" autocomplete="off">
           <span class="prod-yield-note">Net benefit per production point per resource, at each region's best bonus. Click a row to drill into fidelity curves.</span>
         </div>
       </div>
