@@ -1000,7 +1000,7 @@ function onEditorKeydown(e) {
     return;
   }
   if (constrainEntityCaret(e)) return;
-  if (e.key === "Backspace" && tryLiftListItem(e)) return;
+  if (e.key === "Backspace" && tryMergeListItem(e)) return;
   if (e.key === "Tab") {
     e.preventDefault();
     apply(e.shiftKey ? "outdent" : "indent");
@@ -1065,13 +1065,14 @@ function onEditorInput() {
   if (mention) hideMention();
 }
 
-/* ── LIST LIFT-ON-BACKSPACE ────────────────────────────── */
+/* ── LIST MERGE-ON-BACKSPACE ────────────────────────────── */
 
-// Backspace at the very start of a list item (or inside a textless item) lifts
-// the item out of its list into an indented paragraph instead of merging it
-// with the previous item. The paragraph keeps the item's indent, so a second
-// Backspace is what finally deletes the line.
-function tryLiftListItem(e) {
+// Backspace at the very start of a list item (or inside a textless item)
+// removes the item's marker the way War Era does: the line merges into the
+// line above. A non-first item appends its blocks into the previous item and
+// the list stays intact (the numbering simply collapses); the first item is
+// lifted out into a paragraph of its own in front of the list.
+function tryMergeListItem(e) {
   const sel = window.getSelection();
   if (!sel?.rangeCount) return false;
   const r = sel.getRangeAt(0);
@@ -1090,63 +1091,71 @@ function tryLiftListItem(e) {
   if (!atStart) return false;
 
   e.preventDefault();
-  liftListItem(list, li);
+  mergeListItem(list, li);
   updateInfoBar();
   schedulePersist();
   return true;
 }
 
-function liftListItem(list, li) {
-  const isOl = list.tagName === "OL";
-  const idx = Array.prototype.indexOf.call(list.children, li);
-  const base = isOl ? Math.max(1, parseInt(list.getAttribute("start"), 10) || 1) : 1;
+function mergeListItem(list, li) {
+  const prev = li.previousElementSibling;
+  if (prev && prev.tagName === "LI") mergeIntoItem(prev, li);
+  else liftFirstItem(list, li);
+}
 
+function mergeIntoItem(prev, li) {
+  const list = li.parentElement;
   const kids = [...li.childNodes];
   const nested = kids.filter((n) => n.nodeType === 1 && (n.tagName === "OL" || n.tagName === "UL"));
   const rest = kids.filter((n) => !nested.includes(n));
-
-  // Reuse the item's own block when it holds a single paragraph/div, otherwise
-  // wrap its content into a fresh <p class="tiptap-block">.
-  let p = null;
-  if (rest.length === 1 && rest[0].nodeType === 1 && (rest[0].tagName === "P" || rest[0].tagName === "DIV")) {
-    p = rest[0];
-    if (!p.className) p.className = "tiptap-block";
-  } else {
-    p = document.createElement("p");
-    p.className = "tiptap-block";
-    for (const n of rest) p.appendChild(n);
-  }
-  if (!p.hasChildNodes()) p.appendChild(document.createElement("br"));
-  // Match the list-text indent (each list level is one 1.4em step in the CSS).
-  p.style.marginLeft = "1.4em";
-
-  // Split the list around the lifted item; the trailing part continues
-  // numbering from the lifted item's slot.
-  const after = Array.prototype.slice.call(list.children, idx + 1);
-  let tail = null;
-  if (after.length) {
-    tail = document.createElement(isOl ? "ol" : "ul");
-    for (const a of ["type", "class", "dir", "style"]) if (list.hasAttribute(a)) tail.setAttribute(a, list.getAttribute(a));
-    if (isOl) tail.setAttribute("start", String(base + idx));
-    for (const n of after) tail.appendChild(n);
-  }
-
   li.remove();
-  const parent = list.parentNode;
-  parent.insertBefore(p, list.nextSibling);
+
+  // Append the item's blocks into the previous item, before any trailing
+  // nested list that already lives there.
+  const tailNested = [...prev.children].filter((n) => n.tagName === "OL" || n.tagName === "UL");
+  const anchor = tailNested[0] ?? null;
+  const put = (n) => { if (anchor) prev.insertBefore(n, anchor); else prev.appendChild(n); };
+  for (const n of rest) put(n);
+  for (const n of nested) put(n);
+  if (!list.children.length) list.remove();
+
+  // Caret goes to the start of the line that just lost its marker.
+  const sel = window.getSelection();
+  const r = document.createRange();
+  const target = rest[0];
+  if (target && target.nodeType === 1) r.selectNodeContents(target);
+  else if (target && target.nodeType === 3 && target.data.length) r.setStart(target, 0);
+  else { r.selectNodeContents(prev); r.collapse(false); }
+  r.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(r);
+}
+
+function liftFirstItem(list, li) {
+  const kids = [...li.childNodes];
+  const nested = kids.filter((n) => n.nodeType === 1 && (n.tagName === "OL" || n.tagName === "UL"));
+  const rest = kids.filter((n) => !nested.includes(n));
+  li.remove();
+
+  const p = document.createElement("p");
+  p.className = "tiptap-block";
+  for (const n of rest) p.appendChild(n);
+  if (!rest.length) p.appendChild(document.createElement("br"));
+
+  list.parentNode.insertBefore(p, list);
   let anchor = p;
-  for (const n of [...nested, tail].filter(Boolean)) {
-    parent.insertBefore(n, anchor.nextSibling);
+  for (const n of nested) {
+    list.parentNode.insertBefore(n, anchor.nextSibling);
     anchor = n;
   }
   if (!list.children.length) list.remove();
 
   const sel = window.getSelection();
-  const cr = document.createRange();
-  cr.selectNodeContents(p);
-  cr.collapse(true);
+  const r = document.createRange();
+  r.selectNodeContents(p);
+  r.collapse(true);
   sel.removeAllRanges();
-  sel.addRange(cr);
+  sel.addRange(r);
 }
 
 /* ── MENTIONS ──────────────────────────────────────────── */
