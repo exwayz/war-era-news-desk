@@ -484,6 +484,25 @@ function blockAt(node) {
   return node.nodeType === 1 ? node.closest?.("p,div,h1,h2,h3,h4,h5,h6,li,pre,blockquote,summary,td") : node.parentElement?.closest?.("p,div,h1,h2,h3,h4,h5,h6,li,pre,blockquote,summary,td");
 }
 
+// The auto-list trigger ("1." / "-") typed at the end of a paragraph must be
+// consumed before converting, otherwise the list marker shows up twice ("1. 1.").
+// Delete the trigger text up to the caret and leave the caret in the now-empty
+// block, then execCommand wraps the empty block into a fresh list item.
+function consumeTriggerText(block) {
+  const sel = window.getSelection();
+  const r = document.createRange();
+  r.selectNodeContents(block);
+  if (sel?.rangeCount) r.setEnd(sel.getRangeAt(0).endContainer, sel.getRangeAt(0).endOffset);
+  else r.collapse(false);
+  r.deleteContents();
+  r.collapse(true);
+  sel?.removeAllRanges();
+  sel?.addRange(r);
+  // Re-sync the command's saved selection so execCommand converts the now-empty
+  // block (a stale saved range could otherwise target the wrong paragraph).
+  syncSelection();
+}
+
 function unstyleInline(prop) {
   const sel = window.getSelection();
   if (!sel.rangeCount) return;
@@ -981,6 +1000,7 @@ function onEditorKeydown(e) {
     return;
   }
   if (constrainEntityCaret(e)) return;
+  if (e.key === "Backspace" && tryLiftListItem(e)) return;
   if (e.key === "Tab") {
     e.preventDefault();
     apply(e.shiftKey ? "outdent" : "indent");
@@ -997,8 +1017,20 @@ function onEditorKeydown(e) {
     const block = blockAt(window.getSelection()?.focusNode);
     if (block) {
       const t = (block.innerText || block.textContent).trim();
-      if (/^\d+\.$/.test(t) || /^1\.$/.test(t)) { e.preventDefault(); apply("insertOrderedList"); return; }
-      if (t === "-" ) { e.preventDefault(); apply("insertUnorderedList"); return; }
+      if (/^\d+\.$/.test(t) || /^1\.$/.test(t)) {
+        e.preventDefault();
+        consumeTriggerText(block);
+        apply("insertOrderedList");
+        schedulePersist();
+        return;
+      }
+      if (t === "-") {
+        e.preventDefault();
+        consumeTriggerText(block);
+        apply("insertUnorderedList");
+        schedulePersist();
+        return;
+      }
     }
     return;
   }
@@ -1031,6 +1063,90 @@ function onEditorInput() {
   // Text typed in the document while the pill is open means the caret left the
   // "@" anchor — drop the popup (the pill input owns mention typing now).
   if (mention) hideMention();
+}
+
+/* ── LIST LIFT-ON-BACKSPACE ────────────────────────────── */
+
+// Backspace at the very start of a list item (or inside a textless item) lifts
+// the item out of its list into an indented paragraph instead of merging it
+// with the previous item. The paragraph keeps the item's indent, so a second
+// Backspace is what finally deletes the line.
+function tryLiftListItem(e) {
+  const sel = window.getSelection();
+  if (!sel?.rangeCount) return false;
+  const r = sel.getRangeAt(0);
+  if (!r.collapsed) return false;
+  const startEl = r.startContainer.nodeType === 1 ? r.startContainer : r.startContainer.parentElement;
+  const li = startEl?.closest?.("li");
+  if (!li || !J.editor.contains(li)) return false;
+  const list = li.parentElement;
+  if (!list || (list.tagName !== "OL" && list.tagName !== "UL")) return false;
+
+  // Caret must sit before any text in the item (an empty item counts).
+  const pre = document.createRange();
+  pre.selectNodeContents(li);
+  pre.setEnd(r.startContainer, r.startOffset);
+  const atStart = !pre.toString().replace(/\u200b/g, "").trim();
+  if (!atStart) return false;
+
+  e.preventDefault();
+  liftListItem(list, li);
+  updateInfoBar();
+  schedulePersist();
+  return true;
+}
+
+function liftListItem(list, li) {
+  const isOl = list.tagName === "OL";
+  const idx = Array.prototype.indexOf.call(list.children, li);
+  const base = isOl ? Math.max(1, parseInt(list.getAttribute("start"), 10) || 1) : 1;
+
+  const kids = [...li.childNodes];
+  const nested = kids.filter((n) => n.nodeType === 1 && (n.tagName === "OL" || n.tagName === "UL"));
+  const rest = kids.filter((n) => !nested.includes(n));
+
+  // Reuse the item's own block when it holds a single paragraph/div, otherwise
+  // wrap its content into a fresh <p class="tiptap-block">.
+  let p = null;
+  if (rest.length === 1 && rest[0].nodeType === 1 && (rest[0].tagName === "P" || rest[0].tagName === "DIV")) {
+    p = rest[0];
+    if (!p.className) p.className = "tiptap-block";
+  } else {
+    p = document.createElement("p");
+    p.className = "tiptap-block";
+    for (const n of rest) p.appendChild(n);
+  }
+  if (!p.hasChildNodes()) p.appendChild(document.createElement("br"));
+  // Match the list-text indent (each list level is one 1.4em step in the CSS).
+  p.style.marginLeft = "1.4em";
+
+  // Split the list around the lifted item; the trailing part continues
+  // numbering from the lifted item's slot.
+  const after = Array.prototype.slice.call(list.children, idx + 1);
+  let tail = null;
+  if (after.length) {
+    tail = document.createElement(isOl ? "ol" : "ul");
+    for (const a of ["type", "class", "dir", "style"]) if (list.hasAttribute(a)) tail.setAttribute(a, list.getAttribute(a));
+    if (isOl) tail.setAttribute("start", String(base + idx));
+    for (const n of after) tail.appendChild(n);
+  }
+
+  li.remove();
+  const parent = list.parentNode;
+  parent.insertBefore(p, list.nextSibling);
+  let anchor = p;
+  for (const n of [...nested, tail].filter(Boolean)) {
+    parent.insertBefore(n, anchor.nextSibling);
+    anchor = n;
+  }
+  if (!list.children.length) list.remove();
+
+  const sel = window.getSelection();
+  const cr = document.createRange();
+  cr.selectNodeContents(p);
+  cr.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(cr);
 }
 
 /* ── MENTIONS ──────────────────────────────────────────── */
@@ -1131,8 +1247,62 @@ function onPillInput() {
   mention.results = [];
   mention.active = -1;
   mention.lastErr = "";
-  renderMentionList();
+  const text = mention.text.trim();
+  if (text) {
+    // Instant IntelliSense-style suggestions: index the typed text against
+    // offlineLookups + userLookups and render matches before the API round-trip.
+    tryLocalSearch(mention.text);
+    if (!mention.results.length) renderMentionList();   // "Searching…" pending the API
+    if (userIndexPromise) {
+      const q = mention.text.trim();
+      userIndexPromise
+        .then(() => { if (mention && mention.text.trim() === q) tryLocalSearch(q); })
+        .catch(() => {});
+    }
+  } else {
+    renderMentionList();
+  }
   scheduleSearch();
+}
+
+// Present any offlineLookups/userLookups matches for the typed text immediately,
+// so suggestions render in a fraction of a second instead of waiting on the API.
+function tryLocalSearch(text) {
+  if (!mention) return;
+  const rows = localSearchRows(text);
+  if (!rows.length) return;
+  mention.results = rows;
+  mention.searched = mention.text.trim();
+  mention.lastErr = "";
+  mention.active = 0;
+  renderMentionList();
+}
+
+// IntelliSense-style ranking over the local maps — exact, then prefix, then
+// substring matches, capped at 80 rows. This is the first suggestion source;
+// searchAnything then augments with matches the local maps don't cover.
+function localSearchRows(text) {
+  const q = String(text || "").trim().toLowerCase();
+  if (!q) return [];
+  const cap = 80;
+  const exact = [], prefix = [], contains = [];
+  const sources = [["user", userIndex]];
+  for (const [type, key] of Object.entries(OFFLINE_KEY)) sources.push([type, offlineLookups[key]]);
+  for (const [type, map] of sources) {
+    if (!map) continue;
+    for (const id in map) {
+      if (!Object.prototype.hasOwnProperty.call(map, id)) continue;
+      const name = String(map[id] || "");
+      if (!name) continue;
+      const nl = name.toLowerCase();
+      if (nl === q) exact.push({ type, id, name });
+      else if (nl.startsWith(q)) prefix.push({ type, id, name });
+      else if (nl.includes(q)) contains.push({ type, id, name });
+    }
+  }
+  const byName = (a, b) => a.name.localeCompare(b.name);
+  exact.sort(byName); prefix.sort(byName); contains.sort(byName);
+  return exact.concat(prefix, contains).slice(0, cap);
 }
 
 function onPillKeydown(e) {
@@ -1192,12 +1362,22 @@ function runSearch() {
       ]) {
         for (const id of (ids || [])) rows.push({ type, id, name: "" });
       }
-      mention.results = rows.slice(0, 80);
+      // Local offlineLookups/userLookups matches stay first; the endpoint is the
+      // fallback for anything the local maps don't know about yet.
+      const merged = mention.results.slice();
+      const seen = new Set(merged.map((r) => r.type + ":" + r.id));
+      for (const row of rows) {
+        const key = row.type + ":" + row.id;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        merged.push(row);
+      }
+      mention.results = merged.slice(0, 80);
       mention.lastErr = "";
       mention.searched = text;
       mention.active = 0;
       renderMentionList();
-      fillNames(rows);
+      fillNames(merged);
     })
     .catch(() => {
       if (!mention || mention.seq !== seq) return;
