@@ -165,20 +165,20 @@
             <div class="panel-head"><h2><span id="globalEventsTitle">Global Events</span></h2></div>
             <div class="tl-filter-bar">
               <div class="input-wrap" style="flex:1;min-width:80px">
-                <input id="countryInput" type="text" list="countryOptions" placeholder="Country" autocomplete="off">
+                <input id="countryInput" type="text" list="countryOptions" placeholder="Country" autocomplete="one-time-code">
                 <button class="clear-btn" data-clears="countryInput" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
               </div>
               <datalist id="countryOptions"></datalist>
               <div class="input-wrap" style="max-width:160px">
                 <iconify-icon icon="mdi:earth" class="lu" style="position:absolute;left:5px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--ink-dim);z-index:1;font-size:12px"></iconify-icon>
-                <input id="timelineRegionFilter" type="text" list="timelineRegionOptions" placeholder="Region…" style="padding-left:20px" autocomplete="off">
+                <input id="timelineRegionFilter" type="text" list="timelineRegionOptions" placeholder="Region…" style="padding-left:20px" autocomplete="one-time-code">
                 <button class="clear-btn" data-clears="timelineRegionFilter" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
               </div>
               <datalist id="timelineRegionOptions"></datalist>
               <select id="eventTypeSelect"><option value="">All types</option></select>
-              <input id="startTimeInput" type="datetime-local" title="From" autocomplete="off">
-              <input id="endTimeInput" type="datetime-local" title="To" autocomplete="off">
-              <input id="eventLimitInput" type="number" value="50" min="20" max="100" title="Limit" autocomplete="off">
+              <input id="startTimeInput" type="datetime-local" title="From" autocomplete="one-time-code">
+              <input id="endTimeInput" type="datetime-local" title="To" autocomplete="one-time-code">
+              <input id="eventLimitInput" type="number" value="50" min="20" max="100" title="Limit" autocomplete="one-time-code">
               <button id="eventLoadMini" class="btn-icon-sm" title="More">More</button>
               <button class="btn-icon-sm" id="copyTimelineBtn" title="Copy"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon></button>
               <button class="btn-icon-sm" id="applyFiltersButton" title="Refresh"><iconify-icon icon="mdi:refresh" class="lu"></iconify-icon></button>
@@ -213,7 +213,7 @@
               <div class="panel-head"><h2><iconify-icon icon="mdi:newspaper-variant" class="lu"></iconify-icon> Articles</h2><p id="articleFeedMeta" class="meta-text">Ready.</p></div>
               <div class="sticky-toolbar">
                 <div class="input-wrap search-bar">
-                  <input id="articleSearch" type="text" placeholder="Search articles…" autocomplete="off">
+                  <input id="articleSearch" type="text" placeholder="Search articles…" autocomplete="one-time-code">
                   <button class="clear-btn" data-clears="articleSearch" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
                 </div>
                 <button id="articleLoadMini" class="btn-icon-sm" title="More">More</button>
@@ -307,7 +307,7 @@
           </div>
         </div>
         <div class="jobs-search-bar" id="jobMarketFilters">
-          <div class="input-wrap"><input id="jobSearch" type="text" placeholder="Filter by company or skill…" autocomplete="off"><button class="clear-btn" data-clears="jobSearch" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button></div>
+          <div class="input-wrap"><input id="jobSearch" type="text" placeholder="Filter by company or skill…" autocomplete="one-time-code"><button class="clear-btn" data-clears="jobSearch" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button></div>
           <div class="input-wrap wage-slider-wrap">
             <div class="wage-slider-head">
               <label for="jobWageFilter">Min wage</label>
@@ -338,9 +338,9 @@
         <div class="politics-layout">
           <div class="politics-toolbar panel-head">
             <h2><iconify-icon icon="mdi:bank" class="lu"></iconify-icon> Politics</h2>
-            <div class="input-wrap" style="max-width:240px"><input id="politicsCountryInput" type="text" list="politicsCountryOptions" placeholder="Search country…" autocomplete="off"><button class="clear-btn" data-clears="politicsCountryInput" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button></div>
+            <div class="input-wrap" style="max-width:240px"><input id="politicsCountryInput" type="text" list="politicsCountryOptions" placeholder="Search country…" autocomplete="one-time-code"><button class="clear-btn" data-clears="politicsCountryInput" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button></div>
             <datalist id="politicsCountryOptions"></datalist>
-            <div class="input-wrap" style="max-width:140px"><iconify-icon icon="mdi:earth" class="lu" style="position:absolute;left:5px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--ink-dim);z-index:1;font-size:12px"></iconify-icon><input id="politicsRegionFilter" type="text" list="politicsRegionOptions" placeholder="Region…" style="padding-left:20px" autocomplete="off"><button class="clear-btn" data-clears="politicsRegionFilter" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button></div>
+            <div class="input-wrap" style="max-width:140px"><iconify-icon icon="mdi:earth" class="lu" style="position:absolute;left:5px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--ink-dim);z-index:1;font-size:12px"></iconify-icon><input id="politicsRegionFilter" type="text" list="politicsRegionOptions" placeholder="Region…" style="padding-left:20px" autocomplete="one-time-code"><button class="clear-btn" data-clears="politicsRegionFilter" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button></div>
             <datalist id="politicsRegionOptions"></datalist>
             <div class="btn-row" style="margin-left:auto">
               <button class="btn-secondary" id="copyPoliticsReportBtn"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon> Copy Report</button>
@@ -410,15 +410,15 @@
               <button class="pill-btn" data-lib-search="author">Author</button>
             </div>
             <div class="input-wrap search-bar library-search">
-              <input id="librarySearch" type="text" placeholder="Search articles…" autocomplete="off">
+              <input id="librarySearch" type="text" placeholder="Search articles…" autocomplete="one-time-code">
               <button class="clear-btn" data-clears="librarySearch" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
             </div>
             <div class="tab-pill-group">
               <button class="pill-btn active" data-lib-sort="date">Date <span class="sort-arrow">▼</span></button>
               <button class="pill-btn" data-lib-sort="score">Score <span class="sort-arrow">▼</span></button>
             </div>
-            <input type="datetime-local" id="libraryTimeFrom" title="From" class="art-date" autocomplete="off">
-            <input type="datetime-local" id="libraryTimeTo" title="To" class="art-date" disabled autocomplete="off">
+            <input type="datetime-local" id="libraryTimeFrom" title="From" class="art-date" autocomplete="one-time-code">
+            <input type="datetime-local" id="libraryTimeTo" title="To" class="art-date" disabled autocomplete="one-time-code">
             <div class="lang-dropdown" id="libraryLangFilter">
               <button class="lang-dropdown-trigger" type="button">All Languages</button>
               <div class="lang-dropdown-menu hidden"></div>
@@ -467,7 +467,7 @@
           <div class="jotter-grid">
             <div class="jotter-main">
               <div class="j-title-row">
-                <input class="j-title-input" id="jTitleInput" type="text" placeholder="Title…" autocomplete="off">
+                <input class="j-title-input" id="jTitleInput" type="text" placeholder="Title…" autocomplete="one-time-code">
                 <button class="j-title-clear" id="jTitleClear" type="button" title="Clear title"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
               </div>
               <div class="j-toolbar" id="jToolbar" role="toolbar" aria-label="Formatting">
@@ -540,7 +540,7 @@
                 </div>
                 <div class="j-find-pop" id="jFindPop" hidden>
                   <div class="j-find-row">
-                    <input class="j-find-input" id="jFindInput" type="text" placeholder="Find…" autocomplete="off" spellcheck="false">
+                    <input class="j-find-input" id="jFindInput" type="text" placeholder="Find…" autocomplete="one-time-code" spellcheck="false">
                     <span class="j-find-count" id="jFindCount">0/0</span>
                     <button class="j-find-x" id="jFindClose" type="button" title="Close (Esc)">✕</button>
                   </div>
@@ -548,7 +548,7 @@
                     <input type="checkbox" id="jFindReplaceChk"> Replace
                   </label>
                   <div class="j-find-replace-box" id="jFindReplaceBox" hidden>
-                    <input class="j-find-input" id="jReplaceInput" type="text" placeholder="Replace with…" autocomplete="off" spellcheck="false">
+                    <input class="j-find-input" id="jReplaceInput" type="text" placeholder="Replace with…" autocomplete="one-time-code" spellcheck="false">
                   </div>
                   <div class="j-find-btns">
                     <button class="j-find-btn" id="jFindNextBtn" type="button">Next</button>
@@ -566,7 +566,7 @@
               <div class="j-side-sec j-image-sec">
                 <div class="j-side-head">Image Library</div>
                 <div class="j-img-add">
-                  <input id="jImageUrlInput" type="text" placeholder="https://i.imgur.com/…" autocomplete="off" spellcheck="false">
+                  <input id="jImageUrlInput" type="text" placeholder="https://i.imgur.com/…" autocomplete="one-time-code" spellcheck="false">
                   <button id="jImageAddBtn" type="button"><iconify-icon icon="wpf:add-image" class="lu"></iconify-icon></button>
                 </div>
                 <div class="j-images" id="jImageGrid"></div>
@@ -604,7 +604,7 @@
       <h2><iconify-icon icon="mdi:account" class="lu"></iconify-icon> Register Profile</h2>
       <p style="font-size:.78rem;color:var(--ink-dim)">Enter your War Era username, user ID, or profile URL.</p>
       <div class="profile-form" style="display:flex;flex-direction:column;gap:6px">
-        <input id="regUserInput" type="text" placeholder="e.g. roostre or app.warera.io/user/69bd43..." autocomplete="off">
+        <input id="regUserInput" type="text" placeholder="e.g. roostre or app.warera.io/user/69bd43..." autocomplete="one-time-code">
         <div id="regProfileStatus" class="status-msg" hidden></div>
         <button class="btn-primary" id="resolveProfileBtn" style="width:100%">Resolve &amp; Save</button>
       </div>
@@ -874,7 +874,7 @@
 <div id="wallPostModal" class="overlay hidden">
   <div class="modal-card">
     <h2><iconify-icon icon="mdi:pencil" class="lu"></iconify-icon> Post Message</h2>
-    <input id="wallAuthorInput" type="text" placeholder="Your name" maxlength="40" autocomplete="off" style="padding:6px 8px;border:1px solid var(--line);background:var(--surface)">
+    <input id="wallAuthorInput" type="text" placeholder="Your name" maxlength="40" autocomplete="one-time-code" style="padding:6px 8px;border:1px solid var(--line);background:var(--surface)">
     <textarea id="wallMessageInput" maxlength="500" placeholder="Type your message (max 500 chars)" style="width:100%;min-height:90px;resize:vertical;padding:6px;border:1px solid var(--line);background:var(--surface)"></textarea>
     <span id="wallCharCount" style="font-size:.7rem;color:var(--ink-dim);text-align:right">0/500</span>
     <button class="btn-primary" id="wallPublishBtn" style="width:100%">Publish</button>

@@ -308,7 +308,7 @@ export async function initJotter() {
   J.pop.style.display = "none";
   J.pop.innerHTML =
     '<div class="j-mention-pill"><span class="j-mention-at">@</span>' +
-    '<input type="text" class="j-mention-input" placeholder="Type to search user, country, region…" autocomplete="off" spellcheck="false" data-lpignore="true">' +
+    '<input type="text" class="j-mention-input" placeholder="Type to search user, country, region…" autocomplete="one-time-code" spellcheck="false" data-lpignore="true">' +
     "</div><div class=\"j-mention-list\"></div>";
   J.popInput = J.pop.querySelector(".j-mention-input");
   J.popList = J.pop.querySelector(".j-mention-list");
@@ -968,7 +968,7 @@ function promptRow({ label, placeholder, initial, onSubmit }) {
   const input = document.createElement("input");
   input.type = "text";
   input.className = "j-prompt-input";
-  input.autocomplete = "off";
+  input.autocomplete = "one-time-code";
   input.placeholder = placeholder;
   input.value = initial || "";
   const ok = document.createElement("button");
@@ -1780,7 +1780,7 @@ function startRename(card, d) {
   const input = document.createElement("input");
   input.type = "text";
   input.className = "j-draft-rename";
-  input.autocomplete = "off";
+  input.autocomplete = "one-time-code";
   input.value = d.title || "";
   const check = makeIconBtn("akar-icons:check", "Save name");
   const del = makeIconBtn("ep:delete", "Delete");

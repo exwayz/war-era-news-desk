@@ -52,7 +52,7 @@ function injectJobsCountryFilter() {
   wrap.className = "input-wrap";
   wrap.style.flex = "1";
   wrap.innerHTML = `
-<input id="jobCountryFilter" type="text" list="jobCountryOptions" placeholder="Filter by country…" autocomplete="off">
+<input id="jobCountryFilter" type="text" list="jobCountryOptions" placeholder="Filter by country…" autocomplete="one-time-code">
 <button class="clear-btn" data-clears="jobCountryFilter" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
 <datalist id="jobCountryOptions"></datalist>
 `;

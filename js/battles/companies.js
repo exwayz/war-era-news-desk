@@ -212,7 +212,7 @@ export function injectBattleSearchBar() {
   wrap.className = "sticky-toolbar battle-toolbar";
   wrap.innerHTML = `
 <div class="input-wrap search-bar">
-  <input id="battleSearch" type="text" placeholder="Search by battle ID, URL, or name…" autocomplete="off">
+  <input id="battleSearch" type="text" placeholder="Search by battle ID, URL, or name…" autocomplete="one-time-code">
   <button class="clear-btn" id="clearBattleSearch" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
 </div>
 <button id="battleLoadMini" class="btn-load-mini" title="Load more battles">More</button>
@@ -223,11 +223,11 @@ export function injectBattleSearchBar() {
 </div>
 <div class="input-wrap">
   <iconify-icon icon="mdi:earth" class="lu" style="position:absolute;left:5px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--ink-dim);z-index:1;font-size:12px"></iconify-icon>
-  <input id="battlesRegionFilter" type="text" list="battlesRegionOptions" placeholder="Region…" style="padding-left:20px" autocomplete="off">
+  <input id="battlesRegionFilter" type="text" list="battlesRegionOptions" placeholder="Region…" style="padding-left:20px" autocomplete="one-time-code">
   <button class="clear-btn" data-clears="battlesRegionFilter" type="button"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
 </div>
-<input type="date" id="battleDateFrom" title="Ended from" autocomplete="off">
-<input type="date" id="battleDateTo" title="Ended to" disabled autocomplete="off">
+<input type="date" id="battleDateFrom" title="Ended from" autocomplete="one-time-code">
+<input type="date" id="battleDateTo" title="Ended to" disabled autocomplete="one-time-code">
 <button id="resetBattleFiltersBtn" class="btn-icon-sm" title="Reset search, sort and filters"><iconify-icon icon="mdi:close-box" class="lu"></iconify-icon></button>
 <datalist id="battlesRegionOptions"></datalist>
 <div class="tab-pill-group battle-type-pills">
