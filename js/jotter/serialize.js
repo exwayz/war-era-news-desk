@@ -4,7 +4,6 @@
 //   - empty "enter space" blocks between paragraphs are dropped
 //   - a spacer that follows an image/embed is absorbed as a leading <br> in the
 //     next paragraph (War Era merges them)
-//   - the document always ends with one empty <p class="tiptap-block">…<br></p>
 //   - a multi-line <pre> keeps its first line in <code>, the rest become paragraphs
 //   - inline styles are normalized (font-family first, no system-ui fallback,
 //     single-family names unquoted)
@@ -356,7 +355,7 @@ function blockChunks(node, leadPending) {
 
 // Condensed, no-whitespace serialization of a (already cloned) container.
 // Spacer blocks are skipped; a spacer behind an image/embed becomes a leading
-// <br> in the next paragraph; the top-level doc ends with an empty paragraph.
+// <br> in the next paragraph.
 function emit(container, top, leadPending) {
   const out = [];
   let lastLeaf = false;
@@ -383,7 +382,6 @@ function emit(container, top, leadPending) {
       lastLeaf = LEAF_RE.test(s) || s.startsWith("<div data-youtube-video") || s.startsWith('<div class="tiptap-tiktok"');
     }
   }
-  if (top) out.push('<p class="tiptap-block" style="text-align: left;"><br></p>');
   return out.join("");
 }
 
@@ -440,5 +438,9 @@ export function serializeEditorHtml(root) {
   const clone = root.cloneNode(true);
   wrapTopLevelRuns(clone);
   // A raw nbsp in text content must serialize as the &nbsp; entity War Era emits.
-  return mergeEntityParagraphs(emit(clone, true).replace(/\u00A0/g, "&nbsp;"));
+  const html = mergeEntityParagraphs(emit(clone, true).replace(/\u00A0/g, "&nbsp;"));
+  // War Era trims the fabricated trailing empty block on paste, so only the
+  // real content is copied; an empty document still round-trips as one empty
+  // paragraph (the shape War Era's own empty doc serializes to).
+  return html || '<p class="tiptap-block" style="text-align: left;"><br></p>';
 }
