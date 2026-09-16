@@ -1043,6 +1043,10 @@ mark.reader-highlight {
 .sig-row:hover { background: var(--surface); }
 .sig-head { cursor: default; color: var(--ink-dim); font-weight: 700; text-transform: uppercase; font-size: .66rem; letter-spacing: .04em; }
 .sig-head:hover { background: none; }
+.sig-head-cell { cursor: pointer; user-select: none; }
+.sig-head-cell:hover { color: var(--ink); }
+.sig-head-cell.active { color: var(--accent); }
+.sig-sort-hint { font-style: normal; font-size: .68em; margin-left: 3px; text-transform: none; letter-spacing: 0; }
 .sig-name { font-weight: 600; }
 .sig-price { font-family: var(--font-mono); }
 .sig-chg { font-family: var(--font-mono); }

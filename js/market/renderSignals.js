@@ -18,6 +18,126 @@ const LEVEL_COLOR = {
   hold: "var(--accent)", reduce: "var(--orange)", sell: "var(--red)", strongSell: "var(--red)",
 };
 
+// ── Signals table sorting ───────────────────────────────────────────────────
+// Column headers act as sort toggles. The Signal column has no dropdowns:
+// repeated clicks cycle placement band → buy/hold/sell range → signal strength
+// (each with ↑/↓), wrapping back around.
+const SIG_MODES = ["level", "range", "strength"];
+const SIG_MODE_ABBR = { level: "band", range: "range", strength: "str." };
+const LEVEL_RANK = { strongBuy: 0, buy: 1, accumulate: 2, hold: 3, reduce: 4, sell: 5, strongSell: 6 };
+const RANGE_RANK = { strongBuy: 0, buy: 0, accumulate: 0, hold: 1, reduce: 2, sell: 2, strongSell: 2 };
+const STRENGTH_RANK = { hold: 0, accumulate: 1, reduce: 1, buy: 2, sell: 2, strongBuy: 3, strongSell: 3 };
+
+let _sort = { key: "score", dir: -1 };
+
+function numSort(x, y, dir) {
+  if (x == null && y == null) return 0;
+  if (x == null) return 1;
+  if (y == null) return -1;
+  return (x < y ? -1 : x > y ? 1 : 0) * dir;
+}
+
+function signalRankCmp(a, b) {
+  const m = _sort.mode === "range" ? RANGE_RANK : _sort.mode === "strength" ? STRENGTH_RANK : LEVEL_RANK;
+  const ra = m[a.levelKey] ?? 3, rb = m[b.levelKey] ?? 3;
+  return ra < rb ? -1 : ra > rb ? 1 : 0;
+}
+
+function sortedSignals(list) {
+  const key = _sort.key, dir = _sort.dir;
+  return list.slice().sort((a, b) => {
+    const tie = () => b.score - a.score;
+    switch (key) {
+      case "name": return (a.name || "").localeCompare(b.name || "") * dir || tie();
+      case "signal": return signalRankCmp(a, b) * dir || tie();
+      case "price": return numSort(a.price, b.price, dir) || tie();
+      case "d1": return numSort(a.d1, b.d1, dir) || tie();
+      case "d7": return numSort(a.d7, b.d7, dir) || tie();
+      case "rsi": return numSort(a.rsi, b.rsi, dir) || tie();
+      case "spread": return numSort(a.spread, b.spread, dir) || tie();
+      case "imbalance": return numSort(a.imbalance, b.imbalance, dir) || tie();
+      case "confidence": return numSort(a.confidence, b.confidence, dir) || tie();
+      default: return numSort(a.score, b.score, dir) || tie();
+    }
+  });
+}
+
+function signalRowData() {
+  const rows = [];
+  for (const s of (S.market.signals || new Map()).values()) {
+    const hist = getItemHistory(s.code);
+    const closes = hist ? hist.values.map(v => v.avg) : [];
+    const d1 = pctChange(closes, 1), d7 = pctChange(closes, 7);
+    const spr = s.book && s.book.spreadPct != null ? s.book.spreadPct * 100 : null;
+    const imb = s.book && s.book.imbalance != null ? s.book.imbalance * 100 : null;
+    rows.push({
+      code: s.code,
+      name: marketItemName(s.code),
+      price: Number(s.price),
+      d1, d7,
+      rsi: s.rsi != null ? s.rsi : null,
+      spread: spr,
+      imbalance: imb,
+      levelKey: s.level.key,
+      levelName: s.level.name,
+      confidence: Math.round(s.confidence * 100),
+      score: s.score,
+    });
+  }
+  return rows;
+}
+
+function signalRowHTML(s) {
+  const color = LEVEL_COLOR[s.levelKey] || "var(--ink)";
+  const d1 = s.d1, d7 = s.d7, spr = s.spread, imb = s.imbalance;
+  return `<div class="sig-row" data-commodity-code="${s.code}">
+    <span class="sig-name" data-l="Commodity">${s.name}</span>
+    <span class="sig-price" data-l="Price">${fmtMoney(s.price)}</span>
+    <span class="sig-chg ${d1 > 0 ? "up" : d1 < 0 ? "down" : ""}" data-l="1D">${fmtPct(d1)}</span>
+    <span class="sig-chg ${d7 > 0 ? "up" : d7 < 0 ? "down" : ""}" data-l="7D">${fmtPct(d7)}</span>
+    <span class="sig-num" data-l="RSI">${s.rsi != null ? s.rsi.toFixed(0) : "—"}</span>
+    <span class="sig-num" data-l="Spread">${spr == null ? "—" : spr.toFixed(1) + "%"}</span>
+    <span class="sig-num" data-l="Imbal.">${imb == null ? "—" : (imb > 0 ? "+" : "") + imb.toFixed(0) + "%"}</span>
+    <span class="sig-badge" style="color:${color};border-color:${color}" data-signal-key="${s.levelKey}" data-l="Signal">${s.levelName}</span>
+    <span class="sig-conf" data-l="Confidence"><i style="width:${s.confidence}%"></i></span>
+    <span class="sig-num sig-score" data-l="Score">${s.score.toFixed(3)}</span>
+  </div>`;
+}
+
+function sigSortSuffix() {
+  const arrow = _sort.dir > 0 ? "↑" : "↓";
+  if (_sort.key === "signal") return `<i class="sig-sort-hint">${arrow} ${SIG_MODE_ABBR[_sort.mode] || ""}</i>`;
+  return `<i class="sig-sort-hint">${arrow}</i>`;
+}
+
+function sigHeadCell(key, label) {
+  const active = _sort.key === key;
+  const tip = key === "signal"
+    ? "Signal: band ↑/↓ → range ↑/↓ → strength ↑/↓ (keep clicking)"
+    : `Sort by ${label}`;
+  return `<span class="sig-head-cell${active ? " active" : ""}" data-sig-sort="${key}" title="${tip}">${label}${active ? sigSortSuffix() : ""}</span>`;
+}
+
+function onSignalHeaderClick(key) {
+  if (key === "signal") {
+    if (_sort.key === "signal") {
+      if (_sort.dir === 1) _sort.dir = -1;
+      else {
+        const i = SIG_MODES.indexOf(_sort.mode);
+        _sort.mode = SIG_MODES[(i + 1) % SIG_MODES.length];
+        _sort.dir = 1;
+      }
+    } else {
+      _sort.key = "signal"; _sort.mode = "level"; _sort.dir = 1;
+    }
+  } else {
+    if (_sort.key === key) _sort.dir *= -1;
+    else { _sort.key = key; _sort.mode = null; _sort.dir = key === "name" ? 1 : -1; }
+  }
+  const section = document.querySelector(".signals-section");
+  if (section && !section.hidden && section.offsetParent !== null) section.innerHTML = signalsHTML();
+}
+
 // Reference material shown when hovering a signal badge — what the level means,
 // the math/logic behind the score band, and the indicator concepts used.
 const SIGNAL_REFERENCE = {
@@ -251,42 +371,20 @@ function signalsHTML() {
   const idx = S.market.compositeIndex;
   const idxVal = idx && idx.daily.length ? idx.daily[idx.daily.length - 1].value : null;
   const trend = indexTrend();
-  const signals = [...(S.market.signals || new Map()).values()].sort((a, b) => b.score - a.score);
+  const rows = sortedSignals(signalRowData()).map(signalRowHTML).join("");
 
   const head = `<div class="sig-row sig-head">
-    <span class="sig-name">Commodity</span>
-    <span class="sig-price">Price</span>
-    <span class="sig-chg">1D</span>
-    <span class="sig-chg">7D</span>
-    <span class="sig-num">RSI</span>
-    <span class="sig-num">Spread</span>
-    <span class="sig-num">Imbal.</span>
-    <span class="sig-badge">Signal</span>
-    <span class="sig-num">Confidence</span>
-    <span class="sig-num">Score</span>
+    ${sigHeadCell("name", "Commodity")}
+    ${sigHeadCell("price", "Price")}
+    ${sigHeadCell("d1", "1D")}
+    ${sigHeadCell("d7", "7D")}
+    ${sigHeadCell("rsi", "RSI")}
+    ${sigHeadCell("spread", "Spread")}
+    ${sigHeadCell("imbalance", "Imbal.")}
+    ${sigHeadCell("signal", "Signal")}
+    ${sigHeadCell("confidence", "Confidence")}
+    ${sigHeadCell("score", "Score")}
   </div>`;
-
-  const rows = signals.map(s => {
-    const hist = getItemHistory(s.code);
-    const closes = hist ? hist.values.map(v => v.avg) : [];
-    const d1 = pctChange(closes, 1), d7 = pctChange(closes, 7);
-    const spr = s.book && s.book.spreadPct != null ? s.book.spreadPct * 100 : null;
-    const imb = s.book && s.book.imbalance != null ? s.book.imbalance * 100 : null;
-    const color = LEVEL_COLOR[s.level.key] || "var(--ink)";
-    const conf = Math.round(s.confidence * 100);
-    return `<div class="sig-row" data-commodity-code="${s.code}">
-      <span class="sig-name" data-l="Commodity">${marketItemName(s.code)}</span>
-      <span class="sig-price" data-l="Price">${fmtMoney(s.price)}</span>
-      <span class="sig-chg ${d1 > 0 ? "up" : d1 < 0 ? "down" : ""}" data-l="1D">${fmtPct(d1)}</span>
-      <span class="sig-chg ${d7 > 0 ? "up" : d7 < 0 ? "down" : ""}" data-l="7D">${fmtPct(d7)}</span>
-      <span class="sig-num" data-l="RSI">${s.rsi != null ? s.rsi.toFixed(0) : "—"}</span>
-      <span class="sig-num" data-l="Spread">${spr == null ? "—" : spr.toFixed(1) + "%"}</span>
-      <span class="sig-num" data-l="Imbal.">${imb == null ? "—" : (imb > 0 ? "+" : "") + imb.toFixed(0) + "%"}</span>
-      <span class="sig-badge" style="color:${color};border-color:${color}" data-signal-key="${s.level.key}" data-l="Signal">${s.level.name}</span>
-      <span class="sig-conf" data-l="Confidence"><i style="width:${conf}%"></i></span>
-      <span class="sig-num sig-score" data-l="Score">${s.score.toFixed(3)}</span>
-    </div>`;
-  }).join("");
 
   return `
     <div class="market-card signals-index-card">
@@ -303,7 +401,7 @@ function signalsHTML() {
     <div class="market-card signals-table-card">
       <div class="market-card-header">
         <span class="market-card-title">Commodity Signals</span>
-        <span style="color:var(--ink-dim);font-size:.72rem">click a row for the intelligence dossier</span>
+        <span style="color:var(--ink-dim);font-size:.72rem">click a row for the intelligence dossier · click a column header to sort</span>
       </div>
       <div class="sig-table">${head}${rows || '<p style="color:var(--ink-dim);padding:12px">No signals computed yet.</p>'}</div>
     </div>`;
@@ -544,6 +642,8 @@ export function closeCommodityModal() {
 }
 
 document.addEventListener("click", e => {
+  const th = e.target.closest("[data-sig-sort]");
+  if (th) { onSignalHeaderClick(th.dataset.sigSort); return; }
   const row = e.target.closest("[data-commodity-code]");
   if (row) { openCommodityModal(row.dataset.commodityCode); return; }
   if (e.target.closest("#closeCommodityModal")) closeCommodityModal();
