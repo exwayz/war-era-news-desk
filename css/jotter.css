@@ -94,7 +94,8 @@
     overflow-y: auto;
 }
 .j-editor:focus { border-color: transparent; }
-.j-editor:empty::before { content: "Start writing…"; color: var(--ink-caption); pointer-events: none; }
+.j-editor:empty::before,
+.j-editor.is-empty::before { content: "Start writing…"; color: var(--ink-caption); pointer-events: none; }
 .j-editor p { margin: 0 0 .6em; }
 
 .j-editor h1 { font-size: 2.05em; margin: .7em 0 .4em; font-weight: 700; }

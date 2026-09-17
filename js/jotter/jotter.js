@@ -13,6 +13,7 @@ const LS_IMAGES = "wa-nd-jotter-images";
 const LS_TITLE = "wa-nd-jotter-title";
 const LS_EDITOR = "wa-nd-jotter-editor";
 const LS_JOTTER_ZOOM = "wa-nd-jotter-zoom";
+const LS_JOTTER_SPELL = "wa-nd-jotter-spell";
 const ZOOM_MIN = 60, ZOOM_MAX = 180, ZOOM_STEP = 5, ZOOM_DEFAULT = 100;
 
 function loadStr(key, fb) { try { const v = localStorage.getItem(key); return v == null ? fb : JSON.parse(v); } catch { return fb; } }
@@ -244,12 +245,24 @@ export async function initJotter() {
   J.redoBtn?.addEventListener("click", () => apply("redo"));
   J.spellBtn?.addEventListener("click", () => {
     J.editor.spellcheck = !J.editor.spellcheck;
+    saveStr(LS_JOTTER_SPELL, J.editor.spellcheck);
     J.spellBtn.classList.toggle("is-active", !!J.editor.spellcheck);
     if (J.editor.spellcheck) forceSpellcheckRescan();
     J.editor.focus({ preventScroll: true });
   });
+  J.editor.spellcheck = !!loadStr(LS_JOTTER_SPELL, false);
   J.spellBtn?.classList.toggle("is-active", !!J.editor.spellcheck);
+  if (J.editor.spellcheck) forceSpellcheckRescan();
   J.clearBtn?.addEventListener("click", () => clearEditor());
+
+  // Keep the .is-empty class on J.editor in sync with actual editor emptiness so
+  // the ::before placeholder ("Start writing…") appears whenever the editor has
+  // no meaningful content — after init, clear, undo, draft load, etc.
+  if (typeof MutationObserver !== "undefined") {
+    const _emptyObs = new MutationObserver(syncEditorEmpty);
+    _emptyObs.observe(J.editor, { childList: true, characterData: true, subtree: true });
+  }
+  syncEditorEmpty();
 
   // Find & replace
   J.findBtn?.addEventListener("click", () => { if (J.findPop && J.findPop.hidden) openFind(); else hideFind(); });
@@ -1896,6 +1909,7 @@ function forceSpellcheckRescan() {
 
 function clearEditor() {
   J.editor.innerHTML = '<p class="tiptap-block"><br></p>';
+  syncEditorEmpty();
   findState.matches = [];
   findState.idx = -1;
   findState.term = "";
@@ -1903,6 +1917,31 @@ function clearEditor() {
   persistEditor();
   updateInfoBar();
   J.editor.focus({ preventScroll: true });
+  // The sole <p> still holds a trailing <br>, and browsers default the caret
+  // AFTER that <br> (i.e. the second line). Pin the caret to the very start of
+  // the paragraph so it sits on the first line, right where the "Start
+  // writing…" placeholder is — just like a never-touched editor.
+  const firstBlock = J.editor.firstElementChild;
+  if (firstBlock) {
+    const sel = window.getSelection();
+    const r = document.createRange();
+    r.setStart(firstBlock, 0);
+    r.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(r);
+  }
+}
+
+/* ── EMPTY-STATE PLACEHOLDER ──────────────────────────────── */
+
+function editorIsEmpty() {
+  if (!J.editor) return true;
+  if (/\S/.test(J.editor.textContent || "")) return false;
+  return !J.editor.querySelector("img, iframe, video, audio, canvas, hr, table, object, embed, svg");
+}
+
+function syncEditorEmpty() {
+  if (J.editor) J.editor.classList.toggle("is-empty", editorIsEmpty());
 }
 
 /* ── FIND & REPLACE ────────────────────────────────────── */
