@@ -311,10 +311,28 @@ function authorName(id) {
   return (S.lookups.usersById.get(id)?.username || S.lookups.usersById.get(id)?.name) || "Unknown";
 }
 
+let _loadMoreLibraryBtn = null;
+function libraryLoadMoreBtn() {
+  if (_loadMoreLibraryBtn && _loadMoreLibraryBtn.isConnected) return _loadMoreLibraryBtn;
+  _loadMoreLibraryBtn = document.getElementById("loadMoreLibraryBtn");
+  if (!_loadMoreLibraryBtn) {
+    _loadMoreLibraryBtn = document.createElement("button");
+    _loadMoreLibraryBtn.id = "loadMoreLibraryBtn";
+    _loadMoreLibraryBtn.className = "btn-load";
+    _loadMoreLibraryBtn.hidden = true;
+    _loadMoreLibraryBtn.textContent = "Load More";
+    _loadMoreLibraryBtn.addEventListener("click", () => {
+      L.visible += VISIBLE_STEP;
+      renderLibrary();
+    });
+  }
+  return _loadMoreLibraryBtn;
+}
+
 export function renderLibrary() {
   const listEl = document.getElementById("libraryList");
-  const loadMoreBtn = document.getElementById("loadMoreLibraryBtn");
   if (!listEl) return;
+  const loadMoreBtn = libraryLoadMoreBtn();
   const arts = getFiltered();
   L.visible = Math.max(VISIBLE_STEP, L.visible);
   const shown = arts.slice(0, L.visible);
@@ -325,13 +343,15 @@ export function renderLibrary() {
     resolveUsers(pendingIds, apiKey()).then(() => renderLibrary()).catch(() => {});
   }
 
+  const frag = document.createDocumentFragment();
   if (!shown.length) {
-    const msg = L.category === "bookmarks"
+    const msg = document.createElement("p");
+    msg.className = "library-empty";
+    msg.textContent = L.category === "bookmarks"
       ? "No bookmarks yet. Open an article and hit the bookmark icon."
       : (L.index.length ? "No articles match the current filters." : "The library is still indexing…");
-    listEl.innerHTML = `<p class="library-empty">${msg}</p>`;
+    frag.append(msg);
   } else {
-    listEl.innerHTML = "";
     for (const a of shown) {
       const stats = a.stats || {};
       const card = E.tplArticle.content.firstElementChild.cloneNode(true);
@@ -343,10 +363,11 @@ export function renderLibrary() {
         window.open(`https://app.warera.io/article/${a._id}`, "_blank", "noopener");
       });
       card.querySelector(".ac-read").addEventListener("click", () => openReader(a));
-      listEl.append(card);
+      frag.append(card);
     }
   }
 
+  listEl.replaceChildren(frag, loadMoreBtn);
   loadMoreBtn.hidden = shown.length >= arts.length;
   const metaEl = document.getElementById("libraryMeta");
   if (metaEl) {
@@ -438,7 +459,6 @@ async function resolveAuthorTerm(term) {
 export function initLibrary() {
   const searchInput = document.getElementById("librarySearch");
   const shelf = document.getElementById("libraryShelf");
-  const loadMoreBtn = document.getElementById("loadMoreLibraryBtn");
   const langCont = document.getElementById("libraryLangFilter");
 
   const libSortBtns = document.querySelectorAll("[data-lib-sort]");
@@ -545,14 +565,6 @@ export function initLibrary() {
   tFrom?.addEventListener("change", () => { syncLibDateToDisabled(); applyLibDate(); });
   tTo?.addEventListener("change", applyLibDate);
   syncLibDateToDisabled();
-
-
-  if (loadMoreBtn) {
-    loadMoreBtn.addEventListener("click", () => {
-      L.visible += VISIBLE_STEP;
-      renderLibrary();
-    });
-  }
 
   document.getElementById("libraryRebuildBtn")?.addEventListener("click", async () => {    if (L.building) { status("Library is already syncing — please wait.", "error"); return; }
     await clearStore();

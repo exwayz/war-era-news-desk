@@ -1639,6 +1639,7 @@ button#libraryRebuildBtn.pill-btn:hover{ border-color: var(--dark-red);  backgro
 .library-list .ac-title { min-height: 0; }
 .library-list .ac-actions { margin-top: auto; padding-top: 6px; }
 .library-empty { color: var(--ink-dim); font-size: .8rem; padding: 18px; text-align: center; }
+.library-list > .btn-load { grid-column: 1 / -1; }
 
 /* ── TABLE MAKER TAB ────────────────────────────────── */
 .tablemaker-layout { display: flex; flex-direction: column; height: 100%; min-height: 0; flex: 1; padding: 10px 12px; }
