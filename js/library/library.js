@@ -244,9 +244,8 @@ export function renderBookshelf() {
     const meta = c === "all" ? { label: "All", icon: "mdi:bookshelf" } : CATEGORY_META[c];
     const count = counts[c] || 0;
     const label = (c === "all" ? "All Articles" : meta.label) || c;
-    return `<button class="lib-book${isActive(c) ? " active" : ""}" data-lib-cat="${c}" title="${escapeHtml(label)} — ${count} articles">
+    return `<button class="lib-book${isActive(c) ? " active" : ""}" data-lib-cat="${c}" data-tip="${escapeHtml(label)} - ${count} articles">
       <iconify-icon icon="${meta.icon}" class="lu"></iconify-icon>
-      <span class="lib-book-name">${escapeHtml(label)}</span>
       <span class="lib-book-count">${fmtNum(count)}</span>
     </button>`;
   }).join("");

@@ -154,7 +154,7 @@ button iconify-icon.lu { pointer-events: none; }
 .clear-btn:hover { color: var(--accent); }
 
 /* ── META TEXT ──────────────────────────────────────── */
-.meta-text { margin: 2px 0 0; color: var(--ink-dim); font-size: .8rem; }
+.meta-text { margin: 2px 0 0; color: var(--ink-dim); font-size: 10px; }
 
 /* ── BUTTON ROW ────────────────────────────────────── */
 .btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
