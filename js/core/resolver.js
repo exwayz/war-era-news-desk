@@ -29,6 +29,32 @@ export function offlineResolve(type, id) {
   return stub;
 }
 
+// All entity types a War Era URL/path can carry. This mirrors the reader's
+// ContentLink table (docs/warera-editor-reference.md §3.2/§3.5).
+const WAR_ERA_ENTITY_NAMES = ["article", "company", "battle", "country", "region", "party", "mu", "alliance", "user"];
+
+// Recognize a warp-era-app URL or bare path as one entity mention:
+//   https://app.warera.io/article/6a9b33dbe6b0d5b675a25581
+//   http://app.warera.io/user/…            (www. is allowed too)
+//   /article/6a9b33dbe6b0d5b675a25581      (no host — the "mentionable URL")
+// A single trailing punctuation mark (. , ; : ! ? ' " ) ] } > …) from the paste
+// is tolerated so "…article/xxx." still resolves. Anything prose-like around the
+// path, unknown types, or extra path/query segments return null.
+// Returns { type, id, fullMatch } with fullMatch in the canonical "/type/id" form.
+export function parseWarEraEntityPath(text) {
+  const cleaned = String(text || "")
+    .trim()
+    .replace(/^["'\u2018\u2019\u201C\u201D]+|["'\u2018\u2019\u201C\u201D]+$/g, "")
+    .trim()
+    .replace(/[.,;:!?'"\u2018\u2019\u201C\u201D\u2026)\]}>]+$/, "")
+    .trim();
+  if (!cleaned) return null;
+  const m = /^(?:(?:https?:\/\/)?(?:www\.)?app\.warera\.io)?\/(article|company|battle|country|region|party|mu|alliance|user)\/([A-Za-z0-9_-]+)$/.exec(cleaned);
+  if (!m) return null;
+  const [, type, id] = m;
+  return { type, id, fullMatch: `/${type}/${id}` };
+}
+
 export async function resolveEntityByType(type, id, k) {
   k = k || apiKey();
   if (!id) return null;

@@ -4,7 +4,7 @@
 import { serializeEditorHtml } from "./serialize.js";
 import { offlineLookups } from "../../data/offlineLookups.js";
 import { toast } from "../ui/toast.js";
-import { resolveEntityByType } from "../core/resolver.js";
+import { resolveEntityByType, parseWarEraEntityPath } from "../core/resolver.js";
 import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
 import { debounce, entityDisplayName } from "../core/utils.js";
 
@@ -47,7 +47,7 @@ const FONTS = [
 ];
 
 const OFFLINE_KEY = { country: "countries", region: "regions", alliance: "alliances", party: "parties", mu: "mus" };
-const DATA_KEY = { user: "userId", country: "countryId", region: "regionId", alliance: "allianceId", mu: "muId", party: "partyId" };
+const DATA_KEY = { user: "userId", country: "countryId", region: "regionId", alliance: "allianceId", mu: "muId", party: "partyId", battle: "battleId", company: "companyId", article: "articleId" };
 
 const TRUSTED_HOSTS = [
   "imgur.com", "i.imgur.com",
@@ -238,7 +238,7 @@ export async function initJotter() {
   J.editor.addEventListener("keydown", (e) => onEditorKeydown(e));
   J.editor.addEventListener("keyup", () => { syncSelection(); updateInfoBar(); });
   J.editor.addEventListener("mouseup", () => { syncSelection(); updateInfoBar(); });
-  J.editor.addEventListener("paste", (e) => { e.preventDefault(); const t = (e.clipboardData || window.clipboardData)?.getData("text/plain") || ""; insertTextSanitized(t); });
+  J.editor.addEventListener("paste", (e) => { e.preventDefault(); const t = (e.clipboardData || window.clipboardData)?.getData("text/plain") || ""; pasteWithLinks(t); });
 
   // Sidebar buttons
   J.zoomIn?.addEventListener("click", () => { J.zoom = clampZoom(J.zoom + ZOOM_STEP); applyZoom(); });
@@ -2681,14 +2681,156 @@ async function copyHtml() {
   toast("TipTap HTML copied.");
 }
 
-function insertTextSanitized(text) {
+/* ── PASTE & AUTO-LINK ─────────────────────────────────── */
+
+// War Era turns pasted URLs into inline <a> links (its TipTap Link paste rule):
+//   - a bare URL pasted at the caret becomes an anchor whose text is the URL,
+//   - a URL pasted over selected text "manifests" the selection as the link
+//     label (the text stays, the clipboard URL becomes its href),
+//   - URLs embedded in otherwise-plain pasted text are linked inline too.
+// The token regex stops at whitespace/HTML brackets; trailing "conversational"
+// punctuation (comma, period, quote…) is peeled off and stays as plain text.
+
+const URL_TOKEN_RE = /https?:\/\/[^\s<>"'`]+/gi;
+const URL_TAIL_RE = /[.,;:!?'"\u201C\u201D\u2018\u2019)\]}>]/;
+
+function splitLinkText(text) {
+  const parts = [];
+  let last = 0;
+  let m;
+  URL_TOKEN_RE.lastIndex = 0;
+  while ((m = URL_TOKEN_RE.exec(text))) {
+    let body = m[0];
+    let trailing = "";
+    while (body.length && URL_TAIL_RE.test(body[body.length - 1])) {
+      trailing = body[body.length - 1] + trailing;
+      body = body.slice(0, -1);
+    }
+    if (body) {
+      if (m.index > last) parts.push({ text: text.slice(last, m.index) });
+      parts.push({ text: body, url: body });
+    }
+    if (trailing) parts.push({ text: trailing });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push({ text: text.slice(last) });
+  return parts;
+}
+
+function linkAnchorHtml(href, label) {
+  return `<a href="${esc(href)}" class="tiptap-link" target="_blank" rel="noopener noreferrer nofollow">${esc(label)}</a>`;
+}
+
+function linkifyPlainText(text) {
+  const parts = splitLinkText(text);
+  if (!parts.some((p) => p.url)) return null;
+  return parts.map((p) => (p.url ? linkAnchorHtml(p.url, p.text) : esc(p.text))).join("").replace(/\n/g, "<br>");
+}
+
+function singleUrlOf(text) {
+  const parts = splitLinkText(String(text || "").trim());
+  let url = null;
+  for (const p of parts) {
+    if (p.url) { if (url) return null; url = p.url; }
+    // Only whitespace / "trailing punctuation" may accompany the URL — anything
+    // else (real words) means the clipboard holds plain text, not a bare URL.
+    else if (/[^\s.,;:!?'"\u201C\u201D\u2018\u2019…)\]}>-]/.test(p.text)) return null;
+  }
+  return url || null;
+}
+
+function pasteWithLinks(text) {
   syncSelection();
-  const safe = document.createElement("div");
-  safe.textContent = text;
-  const d = document.createElement("span");
-  d.textContent = "";
-  document.execCommand("insertHTML", false, esc(safe.textContent).replace(/\n/g, "<br>"));
+  const sel = window.getSelection();
+  let range = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
+  range = range && J.editor.contains(range.startContainer) ? range : null;
+
+  // War Era entity URL/path → the same entity mention chip a name mention makes.
+  // (URL mention is the universal alternative input: any of the nine entity types.)
+  const we = parseWarEraEntityPath(text);
+  if (we) {
+    if (insertEntityChip(we.type, we.id, we.fullMatch, range)) return;
+    return; // selection overlapped a chip/media — drop the paste rather than corrupt it
+  }
+
+  const url = singleUrlOf(text);
+
+  if (url && range && !range.collapsed) {
+    const startBlock = blockAt(range.startContainer);
+    const touchesAtomic = [...J.editor.querySelectorAll("[data-content-link], img, iframe, details")].some((n) => {
+      if (range.intersectsNode) return range.intersectsNode(n);
+      return n.contains(range.startContainer) || n.contains(range.endContainer);
+    });
+    if (!touchesAtomic) {
+      const startA = range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement;
+      const endA = range.endContainer.nodeType === 1 ? range.endContainer : range.endContainer.parentElement;
+      const existingA = startA?.closest?.("a");
+      if (existingA && existingA === endA?.closest?.("a")) {
+        // Selecting inside an existing link re-points it instead of nesting anchors.
+        existingA.setAttribute("href", url);
+        syncSelection();
+        updateInfoBar();
+        schedulePersist();
+        return;
+      }
+      if (startBlock && startBlock === blockAt(range.endContainer)) {
+        // Manifest: the selected text becomes the link label, its clipboard URL the href.
+        document.execCommand("insertHTML", false, linkAnchorHtml(url, range.toString()));
+        syncSelection();
+        updateInfoBar();
+        schedulePersist();
+        return;
+      }
+    }
+  }
+
+  document.execCommand("insertHTML", false, linkifyPlainText(text) || esc(text).replace(/\n/g, "<br>"));
   syncSelection();
   updateInfoBar();
   schedulePersist();
+}
+
+// URL mention — a War Era entity URL/path pasted at the caret becomes the exact
+// same data-content-link chip a resolved name mention produces (data-content-type,
+// data-content-data with "<type>Id"+fullMatch, data-original-text, atomic caret).
+// The display name fills in asynchronously through the article-reader resolver
+// (resolveEntityByType, cached in S.lookups); until then the chip shows the
+// recognized path so the author always sees what was detected. The chip is valid
+// even unresolved — War Era resolves ids at render time.
+// Returns false when the paste was refused (non-collapsed selection touching a
+// chip/images/media) so the caller can bail without corrupting content.
+function insertEntityChip(type, id, fullMatch, range) {
+  range = range || (window.getSelection()?.rangeCount ? window.getSelection().getRangeAt(0) : null);
+  range = range && J.editor.contains(range.startContainer) ? range : null;
+  if (!range) return false;
+  if (!range.collapsed) {
+    const touchesAtomic = [...J.editor.querySelectorAll("[data-content-link], img, iframe, details")].some((n) => {
+      if (range.intersectsNode) return range.intersectsNode(n);
+      return n.contains(range.startContainer) || n.contains(range.endContainer);
+    });
+    if (touchesAtomic) return false;
+  }
+  const ent = document.createElement("span");
+  ent.setAttribute("data-content-link", "");
+  ent.setAttribute("data-content-type", type);
+  ent.setAttribute("data-content-data", JSON.stringify({ [DATA_KEY[type]]: id, fullMatch }));
+  ent.setAttribute("data-original-text", fullMatch);
+  // Locked chip — same atomic behavior as name mentions (backspace/delete whole,
+  // caret held out, formatting never touches it).
+  ent.setAttribute("contenteditable", "false");
+  ent.textContent = localName(type, id) || fullMatch;
+  if (!range.collapsed) range.deleteContents();
+  range.insertNode(ent);
+  placeCaretAfter(ent);
+  updateInfoBar();
+  schedulePersist();
+  const k = apiKey();
+  resolveEntityByType(type, id, k)
+    .then((data) => {
+      if (!data || !ent.isConnected) return;
+      const name = entityDisplayName(type, id, data);
+      if (name && !/^Unknown /.test(name) && name !== ent.textContent) ent.textContent = name;
+    })
+    .catch(() => {});
+  return true;
 }

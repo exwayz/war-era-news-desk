@@ -32,12 +32,21 @@
 .bullet-sep { color: var(--ink-dim); font-size: .7rem; }
 
 .theme-toggle {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 30px; height: 30px; flex-shrink: 0;
-  border: 1px solid var(--line); background: transparent; color: var(--ink);
-  cursor: pointer;
+    display: inline-flex;
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+    align-content: center;
+    justify-content: center;
+    align-items: center;
 }
 .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+button#themeToggleBtn .side-icon {
+    font-size: 20px;
+}
 
 .menu-toggle {
   display: none;

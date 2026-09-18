@@ -544,7 +544,7 @@
                     <div class="j-gutter" id="jGutter" aria-hidden="true"></div>
                     <div class="j-editor" id="jEditor" contenteditable="true" spellcheck="false"></div>
                   </div>
-                  <div class="j-editor-placeholder" id="jEditorPlaceholder">Start writing… type @ to mention names…</div>
+                  <div class="j-editor-placeholder" id="jEditorPlaceholder">Start writing… type @ to mention names, or paste a War Era entity link…</div>
                   <div class="j-info-bar" id="jInfoBar" aria-live="polite">0 chars &nbsp;·&nbsp; 0 words &nbsp;·&nbsp; 1 line &nbsp;·&nbsp; Ln 1, Col 1, Pos 0</div>
                 </div>
                 <div class="j-editor-sidebar" aria-label="Editor tools">
@@ -798,7 +798,7 @@
           <h3>Quote, code and collapsible</h3>
           <p><b>Quote block</b> styles the paragraph as an editorial quote. <b>Code block</b> wraps it in a monospace, preformatted block. <b>Collapsible section</b> inserts an expandable <code class="jw-help-code">details</code> block that the War Era editor renders with a built in toggle.</p>
           <h3>Insert</h3>
-          <p><b>Link</b> asks for a URL and wraps the selection in a hyperlink. <b>Image</b> asks for an image URL and inserts the image. <b>YouTube</b> and <b>TikTok</b> embed a video from its share link, ready for the War Era player.</p>
+          <p><b>Link</b> asks for a URL and wraps the selection in a hyperlink. Pasting a URL also turns it into a link — and pasting over selected text makes that text the link label. <b>Image</b> asks for an image URL and inserts the image. <b>YouTube</b> and <b>TikTok</b> embed a video from its share link, ready for the War Era player.</p>
         </div>
       </details>
 
@@ -808,6 +808,7 @@
           <p>The large area is a full rich text surface. Most formatting is inherited from the toolbar, and a few behaviors are built in.</p>
           <h3>Mentions and locked chips</h3>
           <p>Type <code class="jw-help-kbd">@</code> anywhere to open the mention picker. Search any user, country, region or faction, then pick one to insert it as a locked newsroom chip. Chips are protected: formatting and even backspace never damage them, the whole chip is deleted at once, and the caret snaps safely around it.</p>
+          <p>Pasting a War Era entity link (e.g. <code class="jw-help-code">app.warera.io/article/6a9b33dbe6b0d5b675a25581</code> or just <code class="jw-help-code">/article/6a9b33dbe6b0d5b675a25581</code>) works as a mention too — any entity type resolves into the same locked chip.</p>
           <h3>Smart typing</h3>
           <p><code class="jw-help-code">1.</code> then space starts a numbered list. <code class="jw-help-code">-</code> then space starts a bulleted list. <code class="jw-help-code">---</code> then Enter inserts a horizontal rule. Enter inside the summary of a collapsible section moves the caret into the collapsible body.</p>
           <h3>Live status</h3>
