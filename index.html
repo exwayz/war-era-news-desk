@@ -436,16 +436,16 @@
       <!-- TABLE MAKER -->
       <div class="tab-panel" id="tab-table-maker">
         <div class="tablemaker-layout">
-          <div class="panel-head"><h2><iconify-icon icon="mdi:table" class="lu"></iconify-icon> Table Maker</h2><p class="meta-text">Paste text — auto-detects format &amp; converts to a table</p></div>
+          <div class="panel-head"><h2><iconify-icon icon="mdi:table" class="lu"></iconify-icon> Table Maker<button class="tm-help-btn" id="tmHelpBtn" type="button" data-tip="How to use the Table Maker"><iconify-icon icon="ic:twotone-help" class="lu"></iconify-icon></button></h2><p class="meta-text">Paste text — auto-detects format &amp; converts to a table</p></div>
           <div class="tm-input-area">
             <textarea id="tmInput" spellcheck="false" placeholder="Paste your data here...&#10;&#10;Supported formats:&#10;• Markdown tables&#10;• Tab-separated values&#10;• Comma-separated values&#10;• Numbered lists&#10;• Bulleted lists (&#8226;, -, *)&#10;• Plain text with delimiters"></textarea>
             <div class="tm-btn-row">
-              <button class="btn-primary" id="tmConvertBtn" type="button">Convert</button>
-              <button class="btn-secondary" id="tmClearBtn" type="button">Clear</button>
-              <button class="tm-btn-copy" id="tmCopyHtmlBtn" type="button">Copy HTML</button>
-              <button class="tm-btn-copy" id="tmCopyMdBtn" type="button">Copy Markdown</button>
-              <button class="tm-btn-copy" id="tmPngBtn" type="button">Download PNG</button>
-              <button class="tm-btn-upload" id="tmAddToLibraryBtn" type="button">Add to Image Library</button>
+              <button class="btn-primary" id="tmConvertBtn" type="button" data-tip="Convert the text into table">Convert</button>
+              <button class="btn-secondary" id="tmClearBtn" type="button" data-tip="Clear everything">Clear</button>
+              <button class="tm-btn-copy" id="tmCopyHtmlBtn" type="button" data-tip="Copy the HTML form of the table to clipboard">Copy HTML</button>
+              <button class="tm-btn-copy" id="tmCopyMdBtn" type="button" data-tip="Copy the markdown text form of the table to clipboard">Copy Markdown</button>
+              <button class="tm-btn-copy" id="tmPngBtn" type="button" data-tip="Save the generated table as .png image to local storage">Download PNG</button>
+              <button class="tm-btn-upload" id="tmAddToLibraryBtn" type="button" data-tip="Add the generated table to Typewriter's image library">Add to Image Library</button>
             </div>
             <div id="tmStatus" class="status-msg" hidden></div>
           </div>
@@ -457,7 +457,7 @@
       <div class="tab-panel" id="tab-jotter">
         <div class="jotter-layout">
           <div class="panel-head">
-            <h2>Typewriter<button class="j-help-btn" id="jHelpBtn" type="button" title="How to use the Typewriter"><iconify-icon icon="ic:twotone-help" class="lu"></iconify-icon></button></h2>
+            <h2>Typewriter<button class="j-help-btn" id="jHelpBtn" type="button" data-tip="How to use the Typewriter"><iconify-icon icon="ic:twotone-help" class="lu"></iconify-icon></button></h2>
             <div class="btn-row">
               <button class="btn-secondary" id="jSaveDraftBtn" type="button" title="Save draft"><iconify-icon icon="fontisto:save-1" class="lu"></iconify-icon></button>
               <button class="btn-secondary" id="jCopyHtmlBtn" type="button" title="Copy TipTap HTML"><iconify-icon icon="fluent-mdl2:copy-edit" class="lu"></iconify-icon> <span>HTML</span></button>
@@ -891,6 +891,113 @@
         <p>Typewriter output is plain TipTap HTML. The War Era editor accepts it as is, without extra conversion steps.</p>
         <p>Protected content, such as mention chips, is never altered by formatting and survives saving, loading, copy and pasting.</p>
         <p>The project is open source: inspect it and report issues at <a href="https://github.com/exwayz/war-era-news-desk" target="_blank" rel="noopener">github.com/exwayz/war-era-news-desk</a>.</p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- TABLE MAKER HELP MODAL -->
+<div id="tmHelpModal" class="overlay hidden">
+  <div class="reader-window reader-window--wide jw-help-window">
+    <div class="reader-head">
+      <div class="reader-head-info">
+        <h2><iconify-icon icon="ic:twotone-help" class="lu" style="color:var(--accent)"></iconify-icon> Table Maker Help</h2>
+        <div class="reader-byline">How to paste data and convert it into styled tables</div>
+      </div>
+      <button id="tmHelpCloseBtn" class="btn-icon-sm reader-head-close" title="Close (Esc)"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
+    </div>
+    <div id="tmHelpBody" class="jw-help-body">
+
+      <details class="jw-help-sec" open>
+        <summary>Quick start</summary>
+        <div class="jw-help-sec-body">
+          <p>Table Maker turns structured text into a styled HTML table in one click. Paste data into the input area, press <b>Convert</b>, and a table appears in the output panel. The format is detected automatically.</p>
+          <h3>The workflow</h3>
+          <p><span class="jw-num">1.</span> Paste or type your data into the large input area.</p>
+          <p><span class="jw-num">2.</span> Press <b>Convert</b>. The tool detects the format and builds the table.</p>
+          <p><span class="jw-num">3.</span> Use the action buttons below the input to copy the table as HTML or Markdown, download it as a PNG image, or send it to the Typewriter Image Library.</p>
+          <p><span class="jw-num">4.</span> Press <b>Clear</b> to reset the input and the output.</p>
+        </div>
+      </details>
+
+      <details class="jw-help-sec">
+        <summary>How it works</summary>
+        <div class="jw-help-sec-body">
+          <p>When you press <b>Convert</b>, Table Maker reads the pasted text line by line. It detects the format from the structure of the text, splits every line into cells, and treats the first line as the header row. The table is then drawn with computed column widths, and short all-numeric columns are centered automatically.</p>
+          <p>If the tool cannot find a header row and at least one data row, it reports an error in the status bar under the buttons instead of producing an empty table.</p>
+        </div>
+      </details>
+
+      <details class="jw-help-sec">
+        <summary>Supported formats</summary>
+        <div class="jw-help-sec-body">
+          <p>Each of these formats is detected automatically. The first line of the data becomes the header row built into the table.</p>
+
+          <h3>Markdown tables</h3>
+          <p>Paste a Markdown table with pipe characters. The header row and its separator line of dashes are recognised automatically.</p>
+          <pre class="jw-help-pre">| Name     | Score | Rank |
+| -------- | ----- | ---- |
+| Alpha    | 1200  | 1    |
+| Bravo    | 980   | 2    |
+| Charlie  | 750   | 3    |</pre>
+
+          <h3>Tab-separated values (TSV)</h3>
+          <p>Columns separated by tab characters. The first line becomes the header row.</p>
+          <pre class="jw-help-pre">Name	Score	Rank
+Alpha	1200	1
+Bravo	980	2
+Charlie	750	3</pre>
+
+          <h3>Comma-separated values (CSV)</h3>
+          <p>Columns separated by commas. The first line becomes the header row.</p>
+          <pre class="jw-help-pre">Name,Score,Rank
+Alpha,1200,1
+Bravo,980,2
+Charlie,750,3</pre>
+
+          <h3>Numbered lists</h3>
+          <p>Each line starts with a number followed by a period or a closing parenthesis. Columns within a line are separated by tabs or double spaces; the first data line becomes the header row.</p>
+          <pre class="jw-help-pre">1. Name	Score	Rank
+2. Alpha	1200	1
+3. Bravo	980	2
+4. Charlie	750	3</pre>
+
+          <h3>Bulleted lists</h3>
+          <p>Each line starts with a bullet (<code class="jw-help-code">&#8226;</code>, <code class="jw-help-code">-</code> or <code class="jw-help-code">*</code>). Columns within a line are separated by tabs or double spaces; the first data line becomes the header row.</p>
+          <pre class="jw-help-pre">&#8226; Name	Score	Rank
+&#8226; Alpha	1200	1
+&#8226; Bravo	980	2
+&#8226; Charlie	750	3</pre>
+
+          <h3>Plain text with delimiters</h3>
+          <p>Lines of text where columns are separated by tabs or three or more spaces. The first line with several columns becomes the header row.</p>
+          <pre class="jw-help-pre">Name    Score   Rank
+Alpha   1200    1
+Bravo   980     2
+Charlie 750     3</pre>
+        </div>
+      </details>
+
+      <details class="jw-help-sec">
+        <summary>Action buttons</summary>
+        <div class="jw-help-sec-body">
+          <p>Once a table has been generated, the buttons under the input area export it in different ways.</p>
+          <p><b>Convert</b> parses the input text and builds the table. If the input is empty or cannot be parsed into a header row plus data, an error appears in the status bar.</p>
+          <p><b>Clear</b> empties both the input area and the output panel.</p>
+          <p><b>Copy HTML</b> copies the raw HTML of the rendered table to your clipboard. Paste it into the War Era article editor or any HTML surface.</p>
+          <p><b>Copy Markdown</b> copies a Markdown-formatted version of the table (header row, separator and padded cells) to your clipboard.</p>
+          <h3>Download PNG</h3>
+          <p>Renders the visible table as a high-resolution PNG image and downloads it to your computer as <code class="jw-help-code">table.png</code>. The message under the buttons reports the render progress.</p>
+          <h3>Add to Image Library</h3>
+          <p>Renders the table as a PNG, uploads it to Imgur, and adds the result to the Typewriter Image Library. The generated image wears a <b>&#9642; Table</b> badge so you can spot auto-generated thumbnails. From there you can insert it into any article, just like any other library image. If the same table was added before, the duplicate is ignored.</p>
+        </div>
+      </details>
+
+      <h2 class="jw-help-title">Notes</h2>
+      <div class="jw-help-sec-body">
+        <p>Everything stays on your machine until you copy the output. The only network calls made here are the Imgur uploads behind <b>Add to Image Library</b> and the html2canvas library that powers PNG rendering.</p>
+        <p>To use a table in a War Era article, press <b>Copy HTML</b>, open the Typewriter, and paste the copied HTML into the article body — or insert the generated image from the Image Library.</p>
       </div>
 
     </div>

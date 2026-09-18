@@ -306,6 +306,18 @@ async function addToImageLibrary() {
   }
 }
 
+function openHelp() {
+  const m = document.getElementById("tmHelpModal");
+  if (!m) return;
+  m.classList.remove("hidden");
+  document.getElementById("tmHelpCloseBtn")?.focus();
+}
+
+function closeHelp() {
+  document.getElementById("tmHelpModal")?.classList.add("hidden");
+  document.getElementById("tmHelpBtn")?.focus();
+}
+
 export function initTableMaker() {
   document.getElementById("tmConvertBtn")?.addEventListener("click", convert);
   document.getElementById("tmClearBtn")?.addEventListener("click", clearAll);
@@ -313,4 +325,12 @@ export function initTableMaker() {
   document.getElementById("tmCopyMdBtn")?.addEventListener("click", copyMarkdown);
   document.getElementById("tmPngBtn")?.addEventListener("click", exportPNG);
   document.getElementById("tmAddToLibraryBtn")?.addEventListener("click", addToImageLibrary);
+  document.getElementById("tmHelpBtn")?.addEventListener("click", openHelp);
+  document.getElementById("tmHelpCloseBtn")?.addEventListener("click", closeHelp);
+  document.getElementById("tmHelpModal")?.addEventListener("click", (e) => { if (e.target === e.currentTarget) closeHelp(); });
+  window.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    const m = document.getElementById("tmHelpModal");
+    if (m && !m.classList.contains("hidden")) closeHelp();
+  });
 }
