@@ -445,6 +445,7 @@
               <button class="tm-btn-copy" id="tmCopyHtmlBtn" type="button">Copy HTML</button>
               <button class="tm-btn-copy" id="tmCopyMdBtn" type="button">Copy Markdown</button>
               <button class="tm-btn-copy" id="tmPngBtn" type="button">Download PNG</button>
+              <button class="tm-btn-upload" id="tmAddToLibraryBtn" type="button">Add to Image Library</button>
             </div>
             <div id="tmStatus" class="status-msg" hidden></div>
           </div>
@@ -533,7 +534,8 @@
                 </div>
                 <div class="j-tb-group" aria-label="Insert">
                   <button class="j-tb-btn" data-cmd="link" type="button" title="Insert link"><iconify-icon icon="mdi:link" class="lu"></iconify-icon></button>
-                  <button class="j-tb-btn" data-cmd="image" type="button" title="Insert image"><iconify-icon icon="gridicons:add-image" class="lu"></iconify-icon></button>
+                  <button class="j-tb-btn" data-cmd="image" type="button" title="Insert image by URL"><iconify-icon icon="gridicons:add-image" class="lu"></iconify-icon></button>
+                  <button class="j-tb-btn" data-cmd="imageUpload" type="button" title="Upload an image and insert it"><iconify-icon icon="mdi:cloud-upload-outline" class="lu"></iconify-icon></button>
                   <button class="j-tb-btn" data-cmd="youtube" type="button" title="Insert YouTube video"><iconify-icon icon="mdi:youtube" class="lu"></iconify-icon></button>
                   <button class="j-tb-btn" data-cmd="tiktok" type="button" title="Insert TikTok video"><iconify-icon icon="mdi:music-note" class="lu"></iconify-icon></button>
                 </div>
@@ -588,7 +590,9 @@
                 <div class="j-side-head">Image Library</div>
                 <div class="j-img-add">
                   <input id="jImageUrlInput" type="text" placeholder="https://i.imgur.com/…" autocomplete="one-time-code" spellcheck="false">
-                  <button id="jImageAddBtn" type="button"><iconify-icon icon="wpf:add-image" class="lu"></iconify-icon></button>
+                  <button id="jImageAddBtn" type="button" title="Add by URL"><iconify-icon icon="wpf:add-image" class="lu"></iconify-icon></button>
+                  <button id="jImageUploadBtn" type="button" class="j-img-upload-btn" title="Upload a local image"><iconify-icon icon="mdi:cloud-upload-outline" class="lu"></iconify-icon></button>
+                  <input id="jImageUploadInput" type="file" accept="image/*" hidden>
                 </div>
                 <div class="j-images" id="jImageGrid"></div>
               </div>
@@ -858,8 +862,9 @@
         <summary>Image Library</summary>
         <div class="jw-help-sec-body">
           <p>The image library reuses the same images across articles instead of hunting URLs every time. It accepts direct image links from imgur, giphy and tenor.</p>
-          <p>Paste a direct image link into the small input and press the add button. Duplicates are ignored, and a toast confirms the image was added.</p>
-          <p>Thumbnails appear in the grid below. Click any thumbnail to insert that image into the article at the caret. The small mark on a thumbnail removes the image from the library only, it never touches the article.</p>
+          <p>Paste a direct image link into the small input and press the add button. Duplicates are ignored, and a toast confirms the image was added. The cloud button next to it uploads a picture from your computer to Imgur and adds the result.</p>
+          <p>You can also drop or paste an image straight into the article — it is uploaded to Imgur, inserted at the caret, and saved to the library at the same time. The toolbar's upload button does the same but only inserts.</p>
+          <p>Thumbnails appear in the grid below. Click any thumbnail to insert that image into the article at the caret. The small mark on a thumbnail removes the image from the library only, it never touches the article. Tables sent from the Table Maker wear a <b>▦ Table</b> badge so you can spot auto-generated images.</p>
         </div>
       </details>
 

@@ -7,6 +7,7 @@ import { toast } from "../ui/toast.js";
 import { resolveEntityByType, parseWarEraEntityPath } from "../core/resolver.js";
 import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
 import { debounce, entityDisplayName } from "../core/utils.js";
+import { uploadImageToImgur, LARGE_IMAGE_BYTES } from "../core/imageUpload.js";
 
 const LS_DRAFTS = "wa-nd-jotter-drafts";
 const LS_IMAGES = "wa-nd-jotter-images";
@@ -100,6 +101,8 @@ export async function initJotter() {
   J.imageGrid = document.getElementById("jImageGrid");
   J.imageUrl = document.getElementById("jImageUrlInput");
   J.imageAdd = document.getElementById("jImageAddBtn");
+  J.imageUpload = document.getElementById("jImageUploadInput");
+  J.imageUploadBtn = document.getElementById("jImageUploadBtn");
   J.blockSelect = document.getElementById("jBlockSelect");
   J.fontSelect = document.getElementById("jFontSelect");
   J.colorWrap = document.getElementById("jColorWrap");
@@ -238,7 +241,40 @@ export async function initJotter() {
   J.editor.addEventListener("keydown", (e) => onEditorKeydown(e));
   J.editor.addEventListener("keyup", () => { syncSelection(); updateInfoBar(); });
   J.editor.addEventListener("mouseup", () => { syncSelection(); updateInfoBar(); });
-  J.editor.addEventListener("paste", (e) => { e.preventDefault(); const t = (e.clipboardData || window.clipboardData)?.getData("text/plain") || ""; pasteWithLinks(t); });
+  J.editor.addEventListener("paste", (e) => onEditorPaste(e));
+
+  // Drag & drop local images — upload to Imgur and insert the CDN URL.
+  let jDragDepth = 0;
+  const dragHasImages = (e) => {
+    const files = [...((e?.dataTransfer?.files) || [])];
+    if (files.length) return files.some((f) => f.type.startsWith("image/"));
+    return [...((e?.dataTransfer?.types) || [])].includes("Files");
+  };
+  J.editor.addEventListener("dragenter", (e) => {
+    if (!dragHasImages(e)) return;
+    e.preventDefault();
+    jDragDepth++;
+    J.editor.classList.add("j-drop");
+  });
+  J.editor.addEventListener("dragover", (e) => {
+    if (!dragHasImages(e)) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+  });
+  J.editor.addEventListener("dragleave", (e) => {
+    if (!dragHasImages(e)) return;
+    jDragDepth = Math.max(0, jDragDepth - 1);
+    if (!jDragDepth) J.editor.classList.remove("j-drop");
+  });
+  J.editor.addEventListener("drop", (e) => {
+    jDragDepth = 0;
+    J.editor.classList.remove("j-drop");
+    const files = [...((e?.dataTransfer?.files) || [])].filter((f) => f.type.startsWith("image/"));
+    if (!files.length) return;
+    e.preventDefault();
+    syncSelection();
+    for (const file of files) uploadLocalImage(file, { source: "editor", insert: true });
+  });
 
   // Sidebar buttons
   J.zoomIn?.addEventListener("click", () => { J.zoom = clampZoom(J.zoom + ZOOM_STEP); applyZoom(); });
@@ -328,6 +364,15 @@ export async function initJotter() {
   // Image library
   J.imageAdd.addEventListener("click", () => addImageFromInput());
   J.imageUrl.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addImageFromInput(); } });
+  J.imageUploadBtn?.addEventListener("click", () => J.imageUpload?.click());
+  J.imageUpload?.addEventListener("change", (e) => {
+    const file = e.target.files?.[0];
+    if (e.target) e.target.value = "";
+    if (file) {
+      J.imageUploadBtn.disabled = true;
+      uploadLocalImage(file, { source: "" }).finally(() => { if (J.imageUploadBtn) J.imageUploadBtn.disabled = false; });
+    }
+  });
 
   // Mention popup scaffolding — a "@" pill input + live suggestion list
   J.pop = document.createElement("div");
@@ -1276,6 +1321,7 @@ function runCommand(cmd) {
     case "collapsible": insertCollapsible(); break;
     case "link": promptRow({ label: "Link URL", placeholder: "https://example.com", onSubmit: (v) => insertLink(v) }); break;
     case "image": promptRow({ label: "Image URL", placeholder: "https://i.imgur.com/…", onSubmit: (v) => insertImage(v) }); break;
+    case "imageUpload": if (J.imageUpload) J.imageUpload.click(); break;
     case "youtube": promptRow({ label: "YouTube URL", placeholder: "https://www.youtube.com/watch?v=…", onSubmit: (v) => insertYoutube(v) }); break;
     case "tiktok": promptRow({ label: "TikTok URL", placeholder: "https://www.tiktok.com/@user/video/…", onSubmit: (v) => insertTiktok(v) }); break;
   }
@@ -2311,15 +2357,76 @@ function startRename(card, d) {
 
 /* ── IMAGE LIBRARY ─────────────────────────────────────── */
 
+// Structured asset shape stored in the library:
+//   { id, url, provider, type, width, height, size, name, source, createdAt }
+// Legacy entries only carried { id, url, addedAt } — these are upgraded on load
+// through the normalizer below (provider defaults to "imgur", source to "").
+const SOURCE_LABELS = { "table-maker": "▦ Table" };
+
+// Layer any library entry onto the shared shape, deduping on url. Exported so
+// the Table Maker can push its generated tables straight into the Image Library.
+export function addImageToLibrary(entry) {
+  const url = String(entry?.url || "").trim();
+  if (!url) return null;
+  const dup = images.find((i) => i.url === url);
+  if (dup) return dup;
+  const asset = {
+    id: entry.id || uid(),
+    url,
+    provider: entry.provider || "imgur",
+    type: entry.type || "",
+    width: entry.width || 0,
+    height: entry.height || 0,
+    size: entry.size || 0,
+    name: entry.name || "",
+    source: entry.source || "",
+    createdAt: entry.createdAt || entry.addedAt || Date.now(),
+  };
+  images = [asset, ...images];
+  saveLS(LS_IMAGES, images);
+  renderImages();
+  return asset;
+}
+
 function addImageFromInput() {
   const parsed = validateImageUrl(J.imageUrl.value);
   if (!parsed) { toast("Not a recognised image URL. Use imgur, giphy or tenor direct links."); return; }
   if (images.some((i) => i.url === parsed.url)) { toast("Image already in library."); return; }
-  images = [{ id: uid(), url: parsed.url, addedAt: Date.now() }, ...images];
-  saveLS(LS_IMAGES, images);
+  addImageToLibrary({ url: parsed.url });
   J.imageUrl.value = "";
-  renderImages();
   toast("Image added.");
+}
+
+// Upload a local file to Imgur, then add it to the library and/or insert it at
+// the caret. Every editor entry point — drag/drop, paste, toolbar upload and
+// the library's own upload button — funnels through here.
+async function uploadLocalImage(file, { insert = false, source = "editor" } = {}) {
+  if (!file) return;
+  const label = file.name || "image";
+  toast(source ? `Uploading ${label} to ${source}…` : `Uploading ${label}…`);
+  try {
+    if (file.size > LARGE_IMAGE_BYTES) toast("Image is larger than 1 MB — Imgur may compress it.");
+    const uploaded = await uploadImageToImgur(file, file.name || "image.png");
+    addImageToLibrary({ ...uploaded, name: file.name || "", source, createdAt: Date.now() });
+    if (insert) insertImage(uploaded.url);
+    toast(insert ? "Image uploaded and inserted." : "Image added to library.");
+  } catch (err) {
+    toast(err.message || "Upload failed.");
+  }
+}
+
+// Editor paste: image files win over text; otherwise the usual text flow.
+function onEditorPaste(e) {
+  const cd = e.clipboardData || window.clipboardData;
+  const files = cd ? [...(cd.files || [])].filter((f) => f.type.startsWith("image/")) : [];
+  if (files.length) {
+    e.preventDefault();
+    syncSelection();
+    for (const file of files) uploadLocalImage(file, { source: "editor", insert: true });
+    return;
+  }
+  e.preventDefault();
+  pasteWithLinks(cd?.getData("text/plain") || "");
 }
 
 function removeImage(id) {
@@ -2333,7 +2440,7 @@ function renderImages() {
   if (!images.length) {
     const none = document.createElement("div");
     none.className = "j-img-empty";
-    none.textContent = "No images yet, add a direct imgur/giphy link above.";
+    none.textContent = "No images yet. Add a direct imgur/giphy link or upload an image.";
     J.imageGrid.appendChild(none);
     return;
   }
@@ -2343,13 +2450,20 @@ function renderImages() {
     const img = document.createElement("img");
     img.loading = "lazy";
     img.src = im.url;
-    img.alt = "";
+    img.alt = im.name || "";
     const del = document.createElement("button");
     del.type = "button";
     del.className = "j-img-del";
     del.textContent = "✕";
     del.title = "Remove image";
     item.append(img, del);
+    if (SOURCE_LABELS[im.source]) {
+      const badge = document.createElement("span");
+      badge.className = "j-img-source";
+      badge.textContent = SOURCE_LABELS[im.source];
+      badge.title = im.name || im.source;
+      item.append(badge);
+    }
     del.addEventListener("click", (e) => { e.stopPropagation(); removeImage(im.id); });
     item.addEventListener("click", () => insertImage(im.url));
     J.imageGrid.appendChild(item);
