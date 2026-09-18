@@ -100,7 +100,10 @@ function cleanInline(root) {
     }
     if (el.tagName === "IMG") el.classList.add("tiptap-image");
     if (el.classList?.contains("j-collapse-caret")) {
-      if (el.textContent) el.replaceWith(...el.childNodes); else el.remove();
+      // Layout-only toggle glyph — remove it COMPLETELY (its "▸" text too) so
+      // the caret can never leak into the copied/serialized HTML. The chevron
+      // shown in the editor is pure CSS and re-added by the reader's own icon.
+      el.remove();
       continue;
     }
     if (el.classList?.contains("j-mention-pending")) {
@@ -293,10 +296,13 @@ function emitPreLines(el) {
 
 function emitDetails(el) {
   const summary = [...el.children].find((c) => c.tagName === "SUMMARY");
+  // The stable body marker is the data-collapsible-body attribute (the reader
+  // targets it too); older inline content can carry it WITHOUT the class, so
+  // match the attribute first, else fall back on the class name.
   const body = [...el.children].find((c) =>
-    c.className && /collapsible-body/.test(c.className) && c.tagName !== "SUMMARY"
+    c.tagName !== "SUMMARY" && (c.hasAttribute?.("data-collapsible-body") || (c.className && /collapsible-body/.test(c.className)))
   );
-  const sHtml = summary ? innerHtml(summary).trim() : "Collapsible section";
+  let sHtml = (summary ? innerHtml(summary).trim() : "Collapsible section").replace(/^\u25B8/, "");
   let bHtml = "";
   if (body) {
     const d = makeDiv(el);

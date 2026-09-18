@@ -14,6 +14,8 @@ const LS_TITLE = "wa-nd-jotter-title";
 const LS_EDITOR = "wa-nd-jotter-editor";
 const LS_JOTTER_ZOOM = "wa-nd-jotter-zoom";
 const LS_JOTTER_SPELL = "wa-nd-jotter-spell";
+const LS_JOTTER_COLORS = "wa-nd-jotter-colors";
+const COLOR_HISTORY_MAX = 20;
 const ZOOM_MIN = 60, ZOOM_MAX = 180, ZOOM_STEP = 5, ZOOM_DEFAULT = 100;
 
 function loadStr(key, fb) { try { const v = localStorage.getItem(key); return v == null ? fb : JSON.parse(v); } catch { return fb; } }
@@ -42,33 +44,6 @@ const FONTS = [
   { label: "Skranji", value: "\"Skranji\", system-ui" },
   { label: "Texturina", value: "\"Texturina\", serif" },
   { label: "Tiny5", value: "\"Tiny5\", sans-serif" },
-];
-
-const COLORS = [
-  { label: "Default", value: "" },
-  { label: "Red", value: "#ed676a" },
-  { label: "Deep Orange", value: "#ec8e84" },
-  { label: "Orange", value: "#eb9a7f" },
-  { label: "Light Orange", value: "#e8b17f" },
-  { label: "Amber", value: "#ddba81" },
-  { label: "Yellow", value: "#d5ca7f" },
-  { label: "Olive", value: "#bbda80" },
-  { label: "Lime", value: "#abc799" },
-  { label: "Light Green", value: "#7bc78f" },
-  { label: "Green", value: "#29c58d" },
-  { label: "Emerald", value: "#4fd6af" },
-  { label: "Teal", value: "#39d6c4" },
-  { label: "Cyan", value: "#5ac5ce" },
-  { label: "Light Blue", value: "#5abced" },
-  { label: "Blue", value: "#76a1e3" },
-  { label: "Indigo", value: "#998dd7" },
-  { label: "Purple", value: "#b192d1" },
-  { label: "Violet", value: "#c292cf" },
-  { label: "Pink", value: "#da88bb" },
-  { label: "Deep Pink", value: "#eb8696" },
-  { label: "Brown", value: "#bab0ad" },
-  { label: "Sand", value: "#b7b8ad" },
-  { label: "Gray", value: "#9abbc4" },
 ];
 
 const OFFLINE_KEY = { country: "countries", region: "regions", alliance: "alliances", party: "parties", mu: "mus" };
@@ -118,14 +93,28 @@ export async function initJotter() {
   J.titleClear = document.getElementById("jTitleClear");
   J.toolbar = document.getElementById("jToolbar");
   J.editor = document.getElementById("jEditor");
+  J.placeholder = document.getElementById("jEditorPlaceholder");
   J.infoBar = document.getElementById("jInfoBar");
+  J.gutter = document.getElementById("jGutter");
   J.draftList = document.getElementById("jDraftList");
   J.imageGrid = document.getElementById("jImageGrid");
   J.imageUrl = document.getElementById("jImageUrlInput");
   J.imageAdd = document.getElementById("jImageAddBtn");
   J.blockSelect = document.getElementById("jBlockSelect");
   J.fontSelect = document.getElementById("jFontSelect");
-  J.colorSelect = document.getElementById("jColorSelect");
+  J.colorWrap = document.getElementById("jColorWrap");
+  J.colorTrigger = document.getElementById("jColorTrigger");
+  J.colorIcon = document.getElementById("jColorIcon");
+  J.colorPop = document.getElementById("jColorPop");
+  J.cpSV = document.getElementById("jCPSV");
+  J.cpSVCursor = document.getElementById("jCPSVCursor");
+  J.cpHue = document.getElementById("jCPHue");
+  J.cpHueCursor = document.getElementById("jCPHueCursor");
+  J.cpPreview = document.getElementById("jCPPreview");
+  J.cpHex = document.getElementById("jCPHex");
+  J.colorRecent = document.getElementById("jColorRecent");
+  J.colorReset = document.getElementById("jColorReset");
+  J.colorOk = document.getElementById("jColorOk");
   J.helpBtn = document.getElementById("jHelpBtn");
   J.helpModal = document.getElementById("helpModal");
   J.helpCloseBtn = document.getElementById("jHelpCloseBtn");
@@ -163,10 +152,11 @@ export async function initJotter() {
   const savedTitle = loadStr(LS_TITLE, "");
   if (savedTitle) J.title.value = savedTitle;
   const savedEditor = loadStr(LS_EDITOR, "");
-  if (savedEditor) { J.editor.innerHTML = savedEditor; rehydrateEntityNames(); updateInfoBar(); }
+  if (savedEditor) { J.editor.innerHTML = stripCollapseCarets(savedEditor); rehydrateEntityNames(); updateInfoBar(); }
 
   populateSelect(J.fontSelect, FONTS, (o, f) => { o.value = f.value; o.textContent = f.label; if (f.value) o.style.fontFamily = f.value; });
-  populateSelect(J.colorSelect, COLORS, (o, c) => { o.value = c.value; o.textContent = c.label; if (c.value) o.style.background = c.value; });
+  renderColorHistory(loadColorHistory());
+  setColorIcon("");
   populateSelect(J.blockSelect, [
     { v: "p", label: "P" }, { v: "h1", label: "H1" }, { v: "h2", label: "H2" }, { v: "h3", label: "H3" },
   ], (o, b) => { o.value = b.v; o.textContent = b.label; });
@@ -180,7 +170,9 @@ export async function initJotter() {
   J.helpCloseBtn?.addEventListener("click", closeHelp);
   J.helpModal?.addEventListener("click", (e) => { if (e.target === J.helpModal) closeHelp(); });
   window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && J.helpModal && !J.helpModal.classList.contains("hidden")) closeHelp();
+    if (e.key !== "Escape") return;
+    if (J.helpModal && !J.helpModal.classList.contains("hidden")) closeHelp();
+    else if (J.colorPop && !J.colorPop.classList.contains("hidden")) closeColorPop();
   });
 
   // Title persistence
@@ -210,19 +202,39 @@ export async function initJotter() {
       }
     });
   });
-  J.colorSelect.addEventListener("change", () => {
-    const v = J.colorSelect.value;
-    withSelection(() => {
-      if (v) document.execCommand("foreColor", false, v);
-      else {
-        unstyleInline("color");
-        document.execCommand("foreColor", false, getComputedStyle(J.editor).color);
-      }
-    });
+  // Color picker: an inline HSV picker (saturation/value square + hue bar) that
+  // the user drives directly — no hidden trigger. Every pointermove on the
+  // picker previews the hovered color on the editor text live; the picked color
+  // is applied AND stored when the user confirms (OK) or simply closes the pop
+  // again. The trigger button shows ONLY the palette icon; the icon tints to the
+  // text color at the caret, doubling as the color indicator/recognizer.
+  J.colorTrigger?.addEventListener("click", () => {
+    if (J.colorPop?.classList.contains("hidden")) openColorPop(); else closeColorPop();
+  });
+  J.cpSV?.addEventListener("pointerdown", (e) => { e.preventDefault(); J.cpSV.setPointerCapture?.(e.pointerId); dragTo(J.cpSV, e); });
+  J.cpSV?.addEventListener("pointermove", (e) => { if (J.cpSV.hasPointerCapture?.(e.pointerId)) dragTo(J.cpSV, e); });
+  J.cpSV?.addEventListener("pointerup", (e) => { if (J.cpSV.hasPointerCapture?.(e.pointerId)) J.cpSV.releasePointerCapture?.(e.pointerId); });
+  J.cpHue?.addEventListener("pointerdown", (e) => { e.preventDefault(); J.cpHue.setPointerCapture?.(e.pointerId); dragTo(J.cpHue, e); });
+  J.cpHue?.addEventListener("pointermove", (e) => { if (J.cpHue.hasPointerCapture?.(e.pointerId)) dragTo(J.cpHue, e); });
+  J.cpHue?.addEventListener("pointerup", (e) => { if (J.cpHue.hasPointerCapture?.(e.pointerId)) J.cpHue.releasePointerCapture?.(e.pointerId); });
+  J.cpHex?.addEventListener("input", () => {
+    const v = (J.cpHex.value || "").trim();
+    if (/^#?[0-9a-fA-F]{6}$/.test(v)) pickerColorFromHex((v[0] === "#" ? v : "#" + v));
+  });
+  J.cpHex?.addEventListener("change", () => {
+    const v = (J.cpHex.value || "").trim();
+    if (/^#?[0-9a-fA-F]{6}$/.test(v)) pickerColorFromHex((v[0] === "#" ? v : "#" + v));
+    else J.cpHex.value = hsvToHex(picker);
+  });
+  J.colorOk?.addEventListener("click", () => { commitPendingColor(); closeColorPop(); });
+  J.colorReset?.addEventListener("click", () => { resetColor(); closeColorPop(); });
+  document.addEventListener("click", (e) => {
+    if (!J.colorPop || J.colorPop.classList.contains("hidden")) return;
+    if (!e.target.closest("#jColorWrap")) closeColorPop();
   });
 
   // Editor events
-  J.editor.addEventListener("input", () => { updateInfoBar(); syncSelection(); onEditorInput(); schedulePersist(); });
+  J.editor.addEventListener("input", () => { updateInfoBar(); syncSelection(); onEditorInput(); schedulePersist(); syncEditorEmpty(); });
   J.editor.addEventListener("keydown", (e) => onEditorKeydown(e));
   J.editor.addEventListener("keyup", () => { syncSelection(); updateInfoBar(); });
   J.editor.addEventListener("mouseup", () => { syncSelection(); updateInfoBar(); });
@@ -256,11 +268,13 @@ export async function initJotter() {
   J.clearBtn?.addEventListener("click", () => clearEditor());
 
   // Keep the .is-empty class on J.editor in sync with actual editor emptiness so
-  // the ::before placeholder ("Start writing…") appears whenever the editor has
-  // no meaningful content — after init, clear, undo, draft load, etc.
+  // the overlay placeholder ("Start writing…") appears whenever the editor has
+  // no meaningful content — after init, clear, undo, draft load, etc. The same
+  // mutations (typing, Enter, paste, formatting, undo, loads) also repaint the
+  // line-number gutter, since block structure is what drives logical lines.
   if (typeof MutationObserver !== "undefined") {
-    const _emptyObs = new MutationObserver(syncEditorEmpty);
-    _emptyObs.observe(J.editor, { childList: true, characterData: true, subtree: true });
+    const _obs = new MutationObserver(() => { syncEditorEmpty(); scheduleGutter(); });
+    _obs.observe(J.editor, { childList: true, characterData: true, attributes: true, subtree: true });
   }
   syncEditorEmpty();
 
@@ -342,8 +356,14 @@ export async function initJotter() {
   window.addEventListener("resize", () => { if (mention) positionMentionPopup(); });
   window.addEventListener("scroll", () => { if (mention) positionMentionPopup(); }, true);
 
+  // Window resizes (sidebar collapse, split dragging, browser reflows) change
+  // where the text wraps, so the gutter must re-anchor against the blocks.
+  window.addEventListener("resize", () => scheduleGutter());
+
   if ((J.editor.textContent || "").trim()) rehydrateEntityNames();
   updateNavButtons();
+  normalizeEditorBlocks(); // clean any persisted hr/bare-text sharing a container
+  layoutGutter(); // initial paint (restored content / empty single line)
 }
 
 /* ── SMALL HELPERS ─────────────────────────────────────── */
@@ -555,73 +575,270 @@ function subText(n) {
   for (const k of n.childNodes) {
     if (k.nodeType === 3) s += k.data;
     else if (k.nodeType === 1) {
-      if (k.tagName === "BR" || k.tagName === "HR") s += "\n";
+      if (k.tagName === "HR") s += "\n";
       else s += subText(k);
     }
   }
   return s;
 }
 
-// Line counter model: render the whole editor to a Notepad-style plain string
-// where every visual line ends with "\n" (paragraphs, list items, code-block
-// lines, <hr>, <br>). Structural wrappers (BLOCKQUOTE/DETAILS/PRE/UL/OL) never
-// add lines themselves, so quote/code/collapsible blocks count correctly
-// instead of being double counted or lumped into one "line".
+// ── LOGICAL LINE MODEL ──────────────────────────────────
+// One source of truth for Notepad-style logical lines. The SAME walk produces
+// the plain-text projection (used for Ln/Col/Pos), the per-text-node offsets
+// (caret → line math) and the gutter's numbered lines, so the three can never
+// disagree.
+//
+// The editor document is a tree of block-level boxes. LOGICAL LINES follow the
+// block structure, NOT the visual boxes:
+//   • P/H1-6/TD/DD/DT/SUMMARY/CAPTION/FIGCAPTION → one line (their content)
+//   • an <hr>                                     → its own line, always
+//   • a <pre>                                     → one line per source row
+//   • <ul>/<ol>                                   → one line per <li>
+//   • <li>                                        → one line when it only holds
+//     inline content, otherwise every inner paragraph/run of the item counts
+//   • generic containers (<div>, <blockquote>, <details>, …) add NO line of
+//     their own — they contribute the lines of their descendants. An
+//     inline-only container (<div>text</div>) counts as exactly one line.
+//   • bare text directly inside a mixed container forms one line per contiguous
+//     inline run, so <div><hr>kk</div> → lines: <hr>, then "kk"
+//   • <br> soft breaks and visually wrapped rows NEVER create a line
+// A logical line is only ever born from block structure — the Enter inside the
+// live editor manufactures exactly one of the shapes above, and Chrome's
+// back-filled <div> paragraphs each remain one line.
+const LEAF_LINE = /^(?:P|H[1-6]|TD|TH|DD|DT|SUMMARY|CAPTION|FIGCAPTION)$/i;
+const LIST_TAGS = /^(?:UL|OL)$/i;
+const BLOCK_CONTAINER = /^(?:BLOCKQUOTE|DIV|SECTION|ARTICLE|ASIDE|HEADER|FOOTER|MAIN|NAV|DL|TABLE|TR|DETAILS|FIGURE|FIELDSET|ADDRESS)$/i;
+const BLOCK_TAGS = /^(?:HR|PRE|BLOCKQUOTE|DIV|SECTION|ARTICLE|ASIDE|HEADER|FOOTER|MAIN|NAV|UL|OL|LI|DL|TABLE|TR|DETAILS|FIGURE|FIELDSET|ADDRESS|P|H[1-6]|TD|TH|DD|DT|SUMMARY|CAPTION|FIGCAPTION)$/i;
 const LINE_UNITS = new Set(["P", "H1", "H2", "H3", "H4", "H5", "H6", "LI", "TD", "DD", "DT", "SUMMARY", "PRE"]);
 
-let plainSig = null;
-let plainTextCache = "";
+let docSig = null;
+let docModel = null;
+
+function docSignature() {
+  return J.editor.textContent + "#" + J.editor.querySelectorAll("*").length;
+}
+
+function buildDocModel() {
+  docSig = docSignature();
+  const lines = [];
+  const cellIdx = { v: 0 };
+
+  // Inline text under a block, assembled exactly like subText() — returns the
+  // composed string plus each text node's offset WITHIN it (used to place
+  // caret math for text living inside units).
+  const collect = (el) => {
+    const parts = [];
+    const map = new Map();
+    let o = 0;
+    (function walk(n) {
+      for (const c of n.childNodes) {
+        if (c.nodeType === 3) { parts.push(c.data); map.set(c, o); o += c.data.length; }
+        else if (c.nodeType === 1 && c.tagName !== "BR") walk(c);
+      }
+    })(el);
+    return { text: parts.join(""), map };
+  };
+
+  const pushUnit = (el, allowEmpty) => {
+    const empty = !allowEmpty && !hasVisibleContent(el);
+    if (empty) {
+      // Completely empty blocks still get a line IF they are real blank lines
+      // (they hold a caret position) — but a phantom trailing node created by
+      // contenteditable must never count. Empty markers marked so the trailing
+      // one can be pruned below.
+      lines.push({ kind: "unit", node: el, text: "", nodes: new Map(), anchor: null, count: 1, empty: true });
+      return;
+    }
+    const col = collect(el);
+    const entry = { kind: "unit", node: el, text: col.text, nodes: col.map, anchor: null, count: 1 };
+    entry.ix = cellIdx.v++;
+    lines.push(entry);
+  };
+  const pushHr = (el) => {
+    const entry = { kind: "hr", node: el, text: "", nodes: new Map(), anchor: null, count: 1 };
+    entry.ix = cellIdx.v++;
+    lines.push(entry);
+  };
+  const pushPre = (el) => {
+    // The editor's code block is one <code> row per Enter: count those rows even
+    // when there is no literal "\n" between them (e.g. <pre><code>a</code><code>b</code></pre>),
+    // so each code line gets its own number and the row offsets stay exact.
+    const rowEls = [...el.children].filter(k => /^(?:CODE|DIV|P|PRE)$/i.test(k.tagName));
+    if (rowEls.length) {
+      const texts = [];
+      const map = new Map();
+      let base = 0;
+      for (const r of rowEls) {
+        const col = collect(r);
+        texts.push(col.text);
+        for (const [n, sub] of col.map) map.set(n, base + sub);
+        base += col.text.length + 1;
+      }
+      const entry = { kind: "pre", node: el, text: texts.join("\n"), nodes: map, anchor: null, count: texts.length };
+      entry.ix = cellIdx.v++;
+      lines.push(entry);
+      return;
+    }
+    const col = collect(el);
+    const entry = { kind: "pre", node: el, text: col.text, nodes: col.map, anchor: null, count: Math.max(1, col.text.split("\n").length) };
+    entry.ix = cellIdx.v++;
+    lines.push(entry);
+  };
+  const pushText = (nodes, anchor) => {
+    let text = "";
+    for (const n of nodes) text += n.data;
+    const entry = { kind: "text", text, nodes, anchor, count: 1 };
+    entry.ix = cellIdx.v++;
+    lines.push(entry);
+  };
+
+  // Does this subtree hold only inline content (<br>/entity chips allowed)?
+  const isInlineOnly = (el) => {
+    for (const c of el.childNodes) {
+      if (c.nodeType === 3) continue;
+      if (c.nodeType !== 1) continue;
+      if (c.tagName === "BR") continue;
+      if (BLOCK_TAGS.test(c.tagName)) return false;
+      if (!isInlineOnly(c)) return false;
+    }
+    return true;
+  };
+
+  // Real content for gutter purposes: any text or an explicit caret/media node.
+  // A bare empty <div></div> (no <br>) renders with zero height and is the
+  // phantom contenteditable trailing node — it must not take a number.
+  const hasVisibleContent = (el) => {
+    if (el.textContent.trim()) return true;
+    if (el.querySelector("br,img,hr,svg,canvas,iframe,video,audio")) return true;
+    return false;
+  };
+
+  // Deepest first text node with any non-whitespace content.
+  const firstNonWsText = (el) => {
+    for (const c of el.childNodes) {
+      if (c.nodeType === 3) { if (c.data && !/^\s*$/.test(c.data)) return c; continue; }
+      if (c.nodeType !== 1) continue;
+      if (c.tagName === "BR") continue;
+      if (BLOCK_TAGS.test(c.tagName)) continue;
+      const r = firstNonWsText(c);
+      if (r) return r;
+    }
+    return null;
+  };
+
+  // Fold every text node of an inline subtree into an open run, in order.
+  const appendRun = (cur, el) => {
+    for (const c of el.childNodes) {
+      if (c.nodeType === 3) { cur.nodes.push(c); continue; }
+      if (c.nodeType !== 1) continue;
+      if (c.tagName === "BR") continue;
+      if (BLOCK_TAGS.test(c.tagName)) continue;
+      appendRun(cur, c);
+    }
+  };
+
+  // One logical line per inline-only <li>; multi-paragraph items are walked so
+  // each inner paragraph/run of the item becomes its own line.
+  const emitList = (el) => {
+    for (const li of el.children) {
+      if (li.nodeType !== 1 || li.tagName !== "LI") continue;
+      if (isInlineOnly(li)) pushUnit(li); else emit(li);
+    }
+  };
+
+  // Walk one container: text/run lines at THIS level, blocks each contribute
+  // their own lines, containers recurse. Lines never merge across a boundary.
+  function emit(el) {
+    let cur = null; // open merged-text run (bare inline siblings at this level)
+    const finalize = () => {
+      if (cur) { pushText(cur.nodes, cur.anchor); cur = null; }
+    };
+    for (const c of el.childNodes) {
+      if (c.nodeType === 3) {
+        if (!c.data) continue;
+        if (!cur) {
+          if (/^\s*$/.test(c.data)) continue; // whitespace alone never opens a line
+          cur = { nodes: [], anchor: null };
+        }
+        if (!cur.anchor) cur.anchor = c; // first non-whitespace text node
+        cur.nodes.push(c);
+        continue;
+      }
+      if (c.nodeType !== 1) continue;
+      const tag = c.tagName;
+      if (tag === "BR") continue;
+      if (tag === "HR") { finalize(); pushHr(c); continue; }
+      if (tag === "PRE") { finalize(); pushPre(c); continue; }
+      if (LEAF_LINE.test(tag)) { finalize(); pushUnit(c); continue; }
+      if (LIST_TAGS.test(tag)) { finalize(); emitList(c); continue; }
+      if (tag === "LI") { finalize(); if (isInlineOnly(c)) pushUnit(c); else emit(c); continue; }
+      if (BLOCK_CONTAINER.test(tag)) {
+        finalize();
+        if (isInlineOnly(c)) pushUnit(c); else emit(c);
+        continue;
+      }
+      // Inline element → joins/extends the open text run.
+      if (!cur) {
+        const seed = firstNonWsText(c);
+        if (!seed) continue;
+        cur = { nodes: [], anchor: seed };
+        appendRun(cur, c);
+      } else {
+        appendRun(cur, c);
+      }
+    }
+    finalize();
+  }
+
+  emit(J.editor);
+  // The trailing contenteditable block (the always-present empty tail <div>)
+  // is not a user logical line — prune trailing empty phantoms so the gutter
+  // never shows an un-deletable extra number at the end.
+  while (lines.length && lines[lines.length - 1].empty) lines.pop();
+  if (!lines.length) pushUnit(J.editor, true); // empty editor still owns one logical line
+
+  // Pass 2: exact plain projection + offsets. One "\n" between adjacent lines,
+  // none after the final line, so the newline count always equals the line
+  // count and Ln/Col/Pos line up 1:1 with the gutter numbers.
+  const parts = [];
+  const offsets = new Map();
+  let acc = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const ln = lines[i];
+    if (i > 0) { parts.push("\n"); acc += 1; }
+    if (ln.kind === "text") {
+      for (const n of ln.nodes) { offsets.set(n, acc); parts.push(n.data); acc += n.data.length; }
+    } else {
+      for (const [n, sub] of ln.nodes) offsets.set(n, acc + sub);
+      parts.push(ln.text || "");
+      acc += (ln.text || "").length;
+    }
+  }
+
+  docModel = { plain: parts.join(""), lines, offsets };
+  return docModel;
+}
 
 function plainText() {
-  const sig = J.editor.textContent + "#" + J.editor.querySelectorAll("*").length;
-  if (plainSig === sig) return plainTextCache;
-  plainSig = sig;
-  const parts = [];
-  (function walk(node) {
-    for (const c of node.childNodes) {
-      if (c.nodeType === 3) { parts.push(c.data); continue; }
-      if (c.nodeType !== 1) continue;
-      const t = c.tagName;
-      if (t === "BR" || t === "HR") { parts.push("\n"); continue; }
-      if (LINE_UNITS.has(t)) { parts.push(subText(c)); parts.push("\n"); continue; }
-      walk(c);
-    }
-  })(J.editor);
-  let text = parts.join("");
-  if (text.endsWith("\n")) text = text.slice(0, -1);
-  plainTextCache = text;
-  return plainTextCache;
+  if (docModel && docSig === docSignature()) return docModel.plain;
+  return buildDocModel().plain;
+}
+
+function textNodeStart(target) {
+  if (!docModel || docSig !== docSignature()) buildDocModel();
+  return docModel.offsets.has(target) ? docModel.offsets.get(target) : -1;
 }
 
 function childPlainLen(c) {
   if (c.nodeType === 3) return c.data.length;
   if (c.nodeType !== 1) return 0;
   const t = c.tagName;
-  if (t === "BR" || t === "HR") return 1;
+  if (t === "BR") return 0;
+  if (t === "HR") return 1;
   if (LINE_UNITS.has(t)) return subText(c).length + 1;
   let n = 0;
   for (const k of c.childNodes) n += childPlainLen(k);
   return n;
-}
-
-function textNodeStart(target) {
-  let found = -1, acc = 0;
-  (function walk(node) {
-    if (found >= 0) return;
-    for (const c of node.childNodes) {
-      if (found >= 0) return;
-      if (c.nodeType === 3) {
-        if (c === target) { found = acc; return; }
-        acc += c.data.length;
-      } else if (c.nodeType === 1) {
-        const t = c.tagName;
-        if (t === "BR" || t === "HR") { acc += 1; continue; }
-        if (LINE_UNITS.has(t)) { acc += subText(c).length + 1; continue; }
-        walk(c);
-      }
-    }
-  })(J.editor);
-  return found;
 }
 
 function caretPlainPos(container, offset) {
@@ -635,6 +852,18 @@ function caretPlainPos(container, offset) {
   return sum;
 }
 
+// Logical line + column of a plain-text offset: every "\n" is one line break.
+// This is THE shared definition — the info bar's Ln and the gutter numbers both
+// come from the same plain projection, so they can never disagree.
+function caretLineCol(plain, pos) {
+  if (pos <= 0) return { ln: 1, col: pos + 1 };
+  let nl = 0, lastNL = -1;
+  for (let i = 0; i < pos; i++) {
+    if (plain.charCodeAt(i) === 10) { nl++; lastNL = i; }
+  }
+  return { ln: nl + 1, col: lastNL < 0 ? pos + 1 : pos - lastNL };
+}
+
 function caretMetrics() {
   const sel = window.getSelection();
   const range = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
@@ -642,15 +871,7 @@ function caretMetrics() {
   const plain = plainText();
   let pos = 0;
   if (inEditor) pos = caretPlainPos(range.startContainer, range.startOffset);
-  let ln = 1, col = pos + 1;
-  if (pos > 0) {
-    let nl = 0, lastNL = -1;
-    for (let i = 0; i < pos; i++) {
-      if (plain.charCodeAt(i) === 10) { nl++; lastNL = i; }
-    }
-    ln = nl + 1;
-    col = lastNL < 0 ? pos + 1 : pos - lastNL;
-  }
+  const { ln, col } = caretLineCol(plain, pos);
   const text = editorText();
   const words = text.trim() ? text.trim().split(/\s+/).length : 0;
   let lines = 1;
@@ -662,7 +883,109 @@ function updateInfoBar() {
   const m = caretMetrics();
   if (!J.infoBar) return;
   J.infoBar.textContent = `${m.chars} chars · ${m.words} words · ${m.lines} ${m.lines === 1 ? "line" : "lines"} · Ln ${m.ln}, Col ${m.col}, Pos ${m.pos}`;
+  highlightGutterLine(m.ln);
   updateToolbarState();
+}
+
+/* ── GUTTER (Notepad-style logical line numbers) ─────────
+   One number per LOGICAL line, exactly like the info bar's Ln. The line list
+   comes from the shared logical-line model (see buildDocModel), so numbering
+   and Ln can never disagree. The gutter is a sibling column next to the editor
+   inside one scroll container, so both panes scroll together and cells are
+   re-anchored against the blocks on every mutation/resize/zoom. Each line is
+   anchored at its OWN spot: blocks at their element, bare text runs at the
+   FIRST character of their first text node — measured through a Range so a text
+   run sitting next to an <hr> in the same wrapper still gets its true,
+   non-overlapping position. */
+
+// Debounced gutter repaint while typing/formatting; cheap enough to run on the
+// 80ms cadence of the mutation observer even during fast typing.
+const scheduleGutter = debounce(() => layoutGutter(), 80);
+
+// Render one gutter cell and note which logical line it represents.
+function appendGutterCell(frag, num, top, lineH) {
+  const d = document.createElement("div");
+  d.className = "j-gutter-cell";
+  d.style.top = `${top}px`;
+  d.style.lineHeight = `${lineH}px`;
+  d.textContent = num;
+  d.__ln = num;
+  frag.append(d);
+  return d;
+}
+
+// Vertical top of a text node's first glyph, in document coordinates.
+function measureTextNodeTop(n) {
+  try {
+    if (!n.data) return 0;
+    const r = document.createRange();
+    r.setStart(n, 0);
+    r.setEnd(n, Math.min(1, n.data.length));
+    const cr = r.getBoundingClientRect();
+    return cr ? cr.top : 0;
+  } catch { return 0; }
+}
+
+function lineAnchorTop(line, editorRect) {
+  let top;
+  if (line.anchor && line.anchor.nodeType === 3) top = measureTextNodeTop(line.anchor);
+  else top = line.node.getBoundingClientRect().top;
+  return top - editorRect.top;
+}
+
+function layoutGutter() {
+  if (!J.gutter || !J.editor || !J.editor.isConnected) return;
+  if (!docModel || docSig !== docSignature()) buildDocModel();
+  const editorRect = J.editor.getBoundingClientRect();
+
+  // Default cell row height must match the editor's line box so numbers sit on
+  // the same vertical grid as the (first) line of each block.
+  const cs = getComputedStyle(J.editor);
+  const fs = parseFloat(cs.fontSize) || 14;
+  const rawLh = parseFloat(cs.lineHeight);
+  const baseLH = Number.isFinite(rawLh) && rawLh > 0 ? rawLh : fs * 1.6;
+
+  // If a single unbreakable token overflows horizontally, mirror its extra
+  // width as right padding so wrapped lines below keep the same x-offset and
+  // the re-measured block rects below stay honest.
+  const pad = J.editor.scrollWidth - J.editor.clientWidth;
+  J.editor.style.paddingRight = pad > 0 ? `${14 + Math.min(pad, 30)}px` : "";
+
+  const frag = document.createDocumentFragment();
+  let num = 0;
+  let prevTop = -Infinity, prevLH = baseLH;
+  for (const ln of docModel.lines) {
+    let lh = baseLH;
+    if (ln.kind === "pre") {
+      const pcs = getComputedStyle(ln.node);
+      const pfs = parseFloat(pcs.fontSize) || fs;
+      const praw = parseFloat(pcs.lineHeight);
+      lh = Number.isFinite(praw) && praw > 0 ? praw : pfs * 1.6;
+    }
+    let top;
+    if (ln.kind === "pre") {
+      const base = lineAnchorTop(ln, editorRect);
+      for (let i = 0; i < ln.count; i++) {
+        let t = base + i * lh;
+        if (t <= prevTop) t = prevTop + prevLH; // never let cells stack on each other
+        appendGutterCell(frag, ++num, Math.round(t * 1000) / 1000, lh);
+        prevTop = t; prevLH = lh;
+      }
+      continue;
+    }
+    top = lineAnchorTop(ln, editorRect);
+    if (top <= prevTop) top = prevTop + prevLH; // zero-height blocks must still get their own spot
+    appendGutterCell(frag, ++num, Math.round(top * 1000) / 1000, lh);
+    prevTop = top; prevLH = lh;
+  }
+  J.gutter.replaceChildren(frag);
+}
+
+// Bold the number of whichever logical line the caret is on. Runs on every info
+// bar sync so it tracks every caret move, click and keyboard event.
+function highlightGutterLine(ln) {
+  if (!J.gutter) return;
+  for (const d of J.gutter.children) d.classList.toggle("is-caret-line", d.__ln === ln);
 }
 
 function setActive(cmd, on) {
@@ -683,6 +1006,169 @@ function normFont(s) { return String(s||"").toLowerCase().replace(/["']/g,"").re
 function parseRgb(s) { const m=String(s).match(/rgba?\(([^)]+)\)/); return m ? m[1].split(",").map(x=>Math.round(parseFloat(x))) : [0,0,0]; }
 function sameColor(a,b) { const x=parseRgb(a),y=parseRgb(b); return x[0]===y[0]&&x[1]===y[1]&&x[2]===y[2]; }
 function hexToRgb(hex) { const v=String(hex).replace(/^#/,""); const n=parseInt(v.length===3?[...v].map(c=>c+c).join(""):v,16); return `rgb(${(n>>16)&255},${(n>>8)&255},${n&255})`; }
+function rgbToHex(s) {
+  const [r,g,b] = parseRgb(s);
+  return "#" + [r,g,b].map(x => Math.max(0, Math.min(255, x)).toString(16).padStart(2, "0")).join("");
+}
+
+/* ── COLOR PICKER (inline HSV picker + 20-slot history) ──
+   The popover holds a direct saturation/value square + hue bar — no separate
+   trigger, no native <input type="color">. Dragging/clicking it live-previews
+   the hovered color on the editor text; the picked color is applied AND stored
+   in the 20-slot history when the user confirms (OK) or simply closes the pop
+   again. The toolbar trigger is just the palette icon; its tint mirrors the
+   text color at the caret (the indicator/recognizer). */
+
+let pendingColor = null;   // color last picked in the open pop (stored on close)
+let picker = { h: 0, s: 0, v: 1 };
+let foreColorRAF = 0;
+
+function hsvToRgb(h, s, v) {
+  h = ((h % 360) + 360) % 360;
+  const c = v * s, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = v - c;
+  let r = 0, g = 0, b = 0;
+  if (h < 60) { r = c; g = x; }
+  else if (h < 120) { r = x; g = c; }
+  else if (h < 180) { g = c; b = x; }
+  else if (h < 240) { g = x; b = c; }
+  else if (h < 300) { r = x; b = c; }
+  else { r = c; b = x; }
+  return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
+}
+function rgbToHsv(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  let h = 0;
+  if (d) {
+    if (mx === r) h = ((g - b) / d) % 6;
+    else if (mx === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+  return { h, s: mx ? d / mx : 0, v: mx };
+}
+function hsvToHex(p) { const [r, g, b] = hsvToRgb(p.h, p.s, p.v); return "#" + [r, g, b].map(x => x.toString(16).padStart(2, "0")).join(""); }
+
+function loadColorHistory() {
+  try {
+    const v = JSON.parse(localStorage.getItem(LS_JOTTER_COLORS) || "[]");
+    return Array.isArray(v) ? v.filter(x => typeof x === "string" && /^#[0-9a-f]{6}$/i.test(x)).slice(0, COLOR_HISTORY_MAX) : [];
+  } catch { return []; }
+}
+function saveColorHistory(list) { try { localStorage.setItem(LS_JOTTER_COLORS, JSON.stringify(list)); } catch {} }
+function renderColorHistory(list) {
+  const box = J.colorRecent; if (!box) return;
+  box.innerHTML = "";
+  for (const hex of list) {
+    const sw = document.createElement("button");
+    sw.type = "button";
+    sw.className = "j-color-swatch";
+    sw.style.background = hex;
+    sw.title = hex;
+    sw.style.color = "#fff";
+    sw.addEventListener("mousedown", (e) => e.preventDefault());
+    sw.addEventListener("click", () => applyForeColor(hex));
+    box.appendChild(sw);
+  }
+}
+function pushColorHistory(hex) {
+  const want = rgbToHex(hexToRgb(hex));
+  if (!want || want === "#000000") return;
+  const list = loadColorHistory().filter(x => !sameColor(hexToRgb(x), hexToRgb(want)));
+  list.unshift(want);
+  saveColorHistory(list.slice(0, COLOR_HISTORY_MAX));
+  renderColorHistory(list.slice(0, COLOR_HISTORY_MAX));
+}
+function setColorIcon(hex) { if (J.colorIcon) J.colorIcon.style.color = hex || ""; }
+
+// Reflect `picker` onto the popover controls (sv square, cursors, preview, hex).
+function renderPickerColor() {
+  const hx = hsvToHex(picker);
+  if (J.cpSV) J.cpSV.style.background = `linear-gradient(to top, #000, rgba(0,0,0,0)), linear-gradient(to right, #fff, hsl(${Math.round(picker.h)}, 100%, 50%))`;
+  if (J.cpSVCursor) { J.cpSVCursor.style.left = (picker.s * 100) + "%"; J.cpSVCursor.style.top = ((1 - picker.v) * 100) + "%"; }
+  if (J.cpHueCursor) J.cpHueCursor.style.left = (picker.h / 360 * 100) + "%";
+  if (J.cpPreview) J.cpPreview.style.background = hx;
+  if (J.cpHex && document.activeElement !== J.cpHex) J.cpHex.value = hx;
+}
+function pickerColorFromHex(hex) {
+  const rgb = parseRgb(hexToRgb(hex));
+  picker = rgbToHsv(rgb[0], rgb[1], rgb[2]);
+  pendingColor = hsvToHex(picker);
+  renderPickerColor();
+  applyLiveColor(pendingColor);
+}
+function dragTo(el, e) {
+  const r = el.getBoundingClientRect();
+  if (!r.width || !r.height) return;
+  let x = (e.clientX - r.left) / r.width;
+  let y = (e.clientY - r.top) / r.height;
+  x = Math.max(0, Math.min(1, x)); y = Math.max(0, Math.min(1, y));
+  if (el === J.cpSV) { picker.s = x; picker.v = 1 - y; }
+  else { picker.h = x * 360; }
+  pendingColor = hsvToHex(picker);
+  renderPickerColor();
+  applyLiveColor(pendingColor);
+}
+// Live preview on the editor, throttled to one apply per frame so a drag
+// doesn't flood the undo stack.
+function applyLiveColor(hex) {
+  setColorIcon(hex);
+  if (foreColorRAF) cancelAnimationFrame(foreColorRAF);
+  foreColorRAF = requestAnimationFrame(() => {
+    foreColorRAF = 0;
+    withSelection(() => document.execCommand("foreColor", false, hex));
+  });
+}
+// Finalize whatever color was last picked: apply it for sure, then memorize it.
+function commitPendingColor() {
+  if (!pendingColor) return;
+  const hex = pendingColor;
+  pendingColor = null;
+  withSelection(() => document.execCommand("foreColor", false, hex));
+  pushColorHistory(hex);
+  setColorIcon(hex);
+}
+function openColorPop() {
+  if (!J.colorPop) return;
+  pendingColor = null;
+  const hx = currentCaretColorHex() || rgbToHex(getComputedStyle(J.editor).color);
+  const rgb = parseRgb(hexToRgb(hx));
+  picker = rgbToHsv(rgb[0], rgb[1], rgb[2]);
+  renderPickerColor();
+  J.colorPop.classList.remove("hidden");
+}
+function closeColorPop() {
+  if (!J.colorPop) return;
+  commitPendingColor();
+  J.colorPop.classList.add("hidden");
+}
+function currentCaretColorHex() {
+  const sel = window.getSelection();
+  const r = sel?.rangeCount ? sel.getRangeAt(0) : null;
+  if (!r || !J.editor?.contains(r.startContainer)) return null;
+  const el = r.startContainer.nodeType === 1 ? r.startContainer : r.startContainer.parentElement;
+  const cur = getComputedStyle(el).color;
+  return sameColor(cur, getComputedStyle(J.editor).color) ? null : rgbToHex(cur);
+}
+// Recent-swatch shortcut: apply + memorize + close immediately.
+function applyForeColor(hex) {
+  withSelection(() => document.execCommand("foreColor", false, hex));
+  const rgb = parseRgb(hexToRgb(hex));
+  picker = rgbToHsv(rgb[0], rgb[1], rgb[2]);
+  renderPickerColor();
+  pushColorHistory(hex);
+  setColorIcon(hex);
+  closeColorPop();
+}
+function resetColor() {
+  withSelection(() => {
+    unstyleInline("color");
+    document.execCommand("foreColor", false, getComputedStyle(J.editor).color);
+  });
+  pendingColor = null;
+  setColorIcon("");
+}
 
 function updateToolbarState() {
   updateNavButtons();
@@ -740,8 +1226,8 @@ function updateToolbarState() {
   }
   if (!anyAlign) setActive("justifyLeft",true); // left implicit default
 
-  // Font / color labels
-  if (!J.fontSelect && !J.colorSelect) return;
+  // Font label + color icon
+  if (!J.fontSelect && !J.colorIcon) return;
   const cs = getComputedStyle(el);
   const baseFont = normFont(getComputedStyle(J.editor).fontFamily);
   const baseColor = getComputedStyle(J.editor).color;
@@ -753,13 +1239,11 @@ function updateToolbarState() {
     }
     if (J.fontSelect.value !== fv) J.fontSelect.value = fv;
   }
-  if (J.colorSelect) {
-    const cur = cs.color;
-    let cv = "";
-    if (!sameColor(cur, baseColor)) {
-      for (const c of COLORS) { if (c.value && sameColor(cur, hexToRgb(c.value))) { cv=c.value; break; } }
-    }
-    if (J.colorSelect.value !== cv) J.colorSelect.value = cv;
+  // The palette icon mirrors the text color at the caret: tinted when the text
+  // is colored, neutral when it's the editor's default color.
+  if (J.colorIcon) {
+    if (sameColor(cs.color, baseColor)) setColorIcon("");
+    else setColorIcon(rgbToHex(cs.color));
   }
 }
 
@@ -782,7 +1266,7 @@ function runCommand(cmd) {
     case "justifyCenter": apply("justifyCenter"); break;
     case "justifyRight": apply("justifyRight"); break;
     case "justifyFull": apply("justifyFull"); break;
-    case "hr": apply("insertHorizontalRule"); break;
+    case "hr": insertHr(); break;
     case "orderedList": apply("insertOrderedList"); break;
     case "bulletList": apply("insertUnorderedList"); break;
     case "indent": apply("indent"); break;
@@ -876,12 +1360,23 @@ function insertCollapsible() {
     const summaryText = (sel.toString() || "Collapsible section").trim();
     const html =
       `<details class="tiptap-collapsible" open="open">` +
-      `<summary class="tiptap-collapsible-summary"><span class="j-collapse-caret">▸</span>${esc(summaryText)}</summary>` +
+      // The summary holds ONLY the user's text — the toggle chevron is pure CSS
+      // (summary::before in jotter.css), so it can never leak into copied HTML.
+      `<summary class="tiptap-collapsible-summary">${esc(summaryText)}</summary>` +
       `<div data-collapsible-body="" class="tiptap-collapsible-body"><div class="tiptap-collapsible-body-inner">` +
       `<div class="tiptap-collapsible-body-content"><p class="tiptap-block"><br></p></div></div></div></details>`;
     document.execCommand("insertHTML", false, html);
   });
   schedulePersist();
+}
+
+// Old drafts can still carry the literal "▸" caret span from earlier versions —
+// drop it (and any bare leading "▸" in a summary) the moment content is loaded,
+// so the glyph never re-enters storage or the copied HTML.
+function stripCollapseCarets(html) {
+  return String(html || "")
+    .replace(/<span\b[^>]*class=["'][^"']*\bj-collapse-caret\b[^"']*["'][^>]*>\u25B8?<\/span>/gi, "")
+    .replace(/(<summary[^>]*>)\s*[\u25B8]/g, "$1");
 }
 
 function insertLink(url) {
@@ -1053,7 +1548,7 @@ function onEditorKeydown(e) {
     if (block && (block.innerText || block.textContent).trim() === "---") {
       e.preventDefault();
       block.innerHTML = "";
-      withSelection(() => document.execCommand("insertHorizontalRule"));
+      insertHr();
       return;
     }
     if (block && block.tagName === "SUMMARY") {
@@ -1694,7 +2189,7 @@ function loadDraft(id) {
   const d = drafts.find((x) => x.id === id);
   if (!d) return;
   J.title.value = d.title;
-  J.editor.innerHTML = d.html;
+  J.editor.innerHTML = stripCollapseCarets(d.html);
   rehydrateEntityNames();
   updateInfoBar();
   renderDrafts(id);
@@ -1883,6 +2378,7 @@ function applyZoom() {
   J.editor.closest(".j-editor-wrap")?.style.setProperty("--j-editor-zoom", J.zoom / 100);
   if (J.zoomPct) J.zoomPct.textContent = `${J.zoom}%`;
   localStorage.setItem(LS_JOTTER_ZOOM, String(J.zoom));
+  layoutGutter(); // font size changed → line boxes moved
 }
 
 /* ── CLEAR ─────────────────────────────────────────────── */
@@ -1932,6 +2428,110 @@ function clearEditor() {
   }
 }
 
+/* ── BLOCK-STRUCTURE NORMALIZATION ─────────────────────
+   Contenteditable lets Chrome drop an <hr> and bare text into the SAME div
+   (e.g. `<div><div><hr>kk</div></div>`). That shared container is not a shape
+   the logical-line model should keep, so generic div containers that mix a
+   block-level child with bare/inline siblings are split: each inline run gets
+   wrapped in its own <div> and block elements keep their own <div>. Every
+   logical line then owns a distinct container again, and <hr> + following text
+   are separate blocks by construction. Runs of only whitespace are dropped.
+   Semantic wrappers (blockquote/pre/details/li/…) and unknown nesting are never
+   restructured. */
+
+const GUTTER_BLOCK_ELEMS = /^(?:HR|P|H[1-6]|PRE|BLOCKQUOTE|UL|OL|DL|TABLE|DETAILS|FIGURE|LI|DIV)$/i;
+
+function isInlineNode(n) {
+  if (n.nodeType === 3) return /\S/.test(n.data);
+  if (n.nodeType !== 1) return false;
+  return !GUTTER_BLOCK_ELEMS.test(n.tagName);
+}
+
+function splitMixedContainer(el) {
+  const kids = [...el.childNodes];
+  if (!kids.some(isInlineNode)) return false;
+  if (!kids.some(n => n.nodeType === 1 && GUTTER_BLOCK_ELEMS.test(n.tagName))) return false;
+  const out = document.createDocumentFragment();
+  let run = [];
+  const flush = () => {
+    if (run.some(isInlineNode)) {
+      const w = document.createElement("div");
+      for (const n of run) w.appendChild(n);
+      out.appendChild(w);
+    } else {
+      for (const n of run) if (n.nodeType === 3) out.appendChild(n);
+    }
+    run = [];
+  };
+  for (const n of kids) {
+    if (n.nodeType === 1 && GUTTER_BLOCK_ELEMS.test(n.tagName)) {
+      flush();
+      if (n.tagName === "HR") { const w = document.createElement("div"); w.appendChild(n); out.appendChild(w); }
+      else out.appendChild(n);
+    } else run.push(n);
+  }
+  flush();
+  el.replaceChildren(out);
+  return true;
+}
+
+function normalizeEditorBlocks() {
+  if (!J.editor) return false;
+  // Deepest divs first, then the editor root itself — but NEVER pre blockers:
+  // generic <div> wrappers are the only containers Chrome back-fills with bare
+  // text alongside block-level children.
+  const candidates = [...J.editor.querySelectorAll("div")].reverse();
+  let changed = false;
+  for (const el of candidates) if (splitMixedContainer(el)) changed = true;
+  if (splitMixedContainer(J.editor)) changed = true;
+  if (changed) { updateInfoBar(); syncEditorEmpty(); layoutGutter(); schedulePersist(); }
+  return changed;
+}
+
+/* ── HORIZONTAL RULE ──────────────────────────────────── */
+
+// Insert an <hr> and immediately re-balance the block structure so the rule and
+// whatever the caret types next live in separate containers (the exact shape
+// the logical-line model expects). The caret is then pinned just past the rule.
+function insertHr() {
+  withSelection(() => {
+    document.execCommand("insertHorizontalRule");
+    normalizeEditorBlocks();
+    layoutGutter();
+    pinCaretAfterLastHr();
+  });
+  syncEditorEmpty();
+  schedulePersist();
+}
+
+// Place the caret on the first content that follows the newest <hr>, or at the
+// end of the document when the rule is the last thing.
+function pinCaretAfterLastHr() {
+  const hrs = [...J.editor.querySelectorAll("hr")];
+  if (!hrs.length) return;
+  const hr = hrs[hrs.length - 1];
+  const sel = window.getSelection();
+  const range = document.createRange();
+  const land = () => {
+    sel.removeAllRanges();
+    sel.addRange(range);
+  };
+
+  let next = hr.nextSibling;
+  if (!next && hr.parentElement && hr.parentElement !== J.editor) {
+    let sib = hr.parentElement.nextSibling;
+    while (sib && sib.nodeType === 3 && !/\S/.test(sib.data)) sib = sib.nextSibling;
+    next = sib;
+  }
+  if (next && next.nodeType === 1) { range.selectNodeContents(next); range.collapse(true); land(); return; }
+  if (next && next.nodeType === 3) { range.setStart(next, 0); range.collapse(true); land(); return; }
+
+  const last = J.editor.lastChild;
+  if (last && last.nodeType === 1) { range.selectNodeContents(last); range.collapse(false); }
+  else { range.selectNodeContents(J.editor); range.collapse(true); }
+  land();
+}
+
 /* ── EMPTY-STATE PLACEHOLDER ──────────────────────────────── */
 
 function editorIsEmpty() {
@@ -1941,7 +2541,10 @@ function editorIsEmpty() {
 }
 
 function syncEditorEmpty() {
-  if (J.editor) J.editor.classList.toggle("is-empty", editorIsEmpty());
+  const empty = editorIsEmpty();
+  if (!J.editor) return;
+  J.editor.classList.toggle("is-empty", empty);
+  if (J.placeholder) J.placeholder.hidden = !empty;
 }
 
 /* ── FIND & REPLACE ────────────────────────────────────── */

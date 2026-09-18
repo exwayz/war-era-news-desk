@@ -492,10 +492,28 @@
                   </span>
                 </div>
                 <div class="j-tb-group" aria-label="Color">
-                  <span class="j-tb-wrap">
-                    <iconify-icon icon="eva:color-palette-fill" class="lu j-tb-select-icon"></iconify-icon>
-                    <select class="j-tb-select" id="jColorSelect" title="Text color"></select>
-                  </span>
+                  <div class="j-color-wrap" id="jColorWrap">
+                    <button class="j-tb-btn j-color-trigger" id="jColorTrigger" type="button" title="Text color — pick any color">
+                      <iconify-icon icon="eva:color-palette-fill" class="lu j-color-icon" id="jColorIcon"></iconify-icon>
+                    </button>
+                    <div class="j-color-pop hidden" id="jColorPop" role="dialog" aria-label="Text color picker">
+                      <div class="j-cp">
+                        <div class="j-cp-sv" id="jCPSV" title="Saturation / brightness">
+                          <div class="j-cp-sv-cursor" id="jCPSVCursor"></div>
+                        </div>
+                        <div class="j-cp-hue" id="jCPHue" title="Hue">
+                          <div class="j-cp-hue-cursor" id="jCPHueCursor"></div>
+                        </div>
+                        <input type="text" class="j-cp-hex" id="jCPHex" maxlength="7" spellcheck="false" value="#ed676a" title="Or type any hex color">
+                        <div class="j-cp-preview" id="jCPPreview"></div>
+                      </div>
+                      <div class="j-color-recent" id="jColorRecent" aria-label="Recently used colors"></div>
+                      <div class="j-color-actions">
+                        <button class="j-color-reset" id="jColorReset" type="button">Default</button>
+                        <button class="j-tb-btn j-color-ok" id="jColorOk" type="button" title="Confirm color">OK</button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 <div class="j-tb-group" aria-label="Alignment">
                   <button class="j-tb-btn" data-cmd="justifyLeft" type="button" title="Align left"><iconify-icon icon="mdi:format-align-left" class="lu"></iconify-icon></button>
@@ -522,7 +540,11 @@
               </div>
               <div class="j-editor-wrap">
                 <div class="j-editor-col">
-                  <div class="j-editor" id="jEditor" contenteditable="true" spellcheck="false"></div>
+                  <div class="j-editor-scroll">
+                    <div class="j-gutter" id="jGutter" aria-hidden="true"></div>
+                    <div class="j-editor" id="jEditor" contenteditable="true" spellcheck="false"></div>
+                  </div>
+                  <div class="j-editor-placeholder" id="jEditorPlaceholder">Start writing… type @ to mention names…</div>
                   <div class="j-info-bar" id="jInfoBar" aria-live="polite">0 chars &nbsp;·&nbsp; 0 words &nbsp;·&nbsp; 1 line &nbsp;·&nbsp; Ln 1, Col 1, Pos 0</div>
                 </div>
                 <div class="j-editor-sidebar" aria-label="Editor tools">
@@ -766,7 +788,7 @@
           <p><b>Bold</b> thickens the selection, <b>Italic</b> slants it, <b>Underline</b> underlines it and <b>Strikethrough</b> draws a line through it. <code class="jw-help-kbd">Ctrl+B</code> <code class="jw-help-kbd">Ctrl+I</code> <code class="jw-help-kbd">Ctrl+U</code></p>
           <p><b>Inline code</b> renders the selection in a monospace font, perfect for names, IDs and technical words.</p>
           <h3>Font and color</h3>
-          <p>The <b>font</b> select changes the family of the selected text and matches the fonts the War Era editor understands. The <b>color</b> select applies a War Era themed text color to the selection.</p>
+          <p>The <b>font</b> select changes the family of the selected text and matches the fonts the War Era editor understands. The <b>color</b> button (<iconify-icon icon="eva:color-palette-fill" class="lu" style="vertical-align:-2px"></iconify-icon>) opens a color slider that accepts any hex color — not just presets — and remembers your last 20 picked colors below the slider; the icon tints to the color under the caret.</p>
           <h3>Alignment</h3>
           <p>Align the current block left, center, right or justified. These cover the paragraph, headings and quotes.</p>
           <h3>Ruler, lists and indentation</h3>
