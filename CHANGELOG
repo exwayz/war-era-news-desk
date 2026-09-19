@@ -6,6 +6,59 @@ The format is inspired by Keep a Changelog and follows Semantic Versioning princ
 
 ---
 
+## [2.4.0] - 2026-09-20
+
+### Added
+
+*Table Drawer — a full canvas-based table builder next to the converter. Draw a table from a 10×10 size grid, click a cell and type to edit its text, drag column/row boundaries to resize, and format with the toolbar (B/I/U, the same font list as the Typewriter, text and fill colors, alignment). Cell/Row/Column selection modes apply formatting to whole rows or columns, and the right-side inspector controls cell width/height, vertical alignment and borders.
+*Edit-Table bridge — a converted table can be sent straight into the Table Drawer (*Edit Table*), keeping the first row as a bold header row, then customized by hand and re-exported.
+*Zoom in the Table Drawer — a toolbar zoom slider with a live percentage readout and a reset-to-100% button, plus Ctrl + mouse-wheel zooming anywhere over the canvas.
+*Table Maker Help modal — collapsible guides covering the converter, the drawer, every action button and the full workflow.
+*Imgur-powered image uploads — drag-and-drop, paste or toolbar upload of local images straight into the Typewriter; the Image Library accepts uploaded files directly, and table-generated images carry a source badge.
+*Unified capture/report UI — a shared capture picker and store for battles, jobs, market, politics and rankings, with multi-page PNG rendering and the option to save a report to your device or push it into the Image Library.
+*Entity chips in the Typewriter — pasted War Era entity URLs (articles, companies, battles, countries, regions, parties, MUs, alliances, users) become atomic locked mention chips; pasted plain-text URLs are linkified, and a selected range can be turned into a link.
+*Chip badges — tiny em-sized badges on entity chips showing avatars, flags, alliance colors and type icons, including a dedicated region icon.
+*Custom HSV color picker — replaces the old preset color select, accepts any hex value and remembers your recent picks.
+*Editor gutter and placeholder — a logical line-number gutter with caret highlighting, a live empty-state placeholder, and a persisted spellcheck setting.
+*Sortable Commodity Signals table — click headers to sort by any column, with a multi-mode Signal column (level/range/strength) that cycles on click.
+*Copy-mentionable URL buttons — copy shareable links for profiles, battles and countries in one click.
+*Richer job cards — net wage, boss metadata and a factory icon, alongside a compact settings layout and masked API-key fields.
+
+### Improved
+
+*Report tooling unified across modules — battles, jobs, market, politics and rankings all share the same capture screen, page capture and library upload flow.
+*Geopolitical analysis formatting tightened — generated country analyses are now plain-text 5–7 paragraph briefs with no markdown or list formatting.
+*Politics country cards — smooth color/hover transitions, inline country-color variables and cached lookups for snappier rendering.
+*Battle and job card layouts refined for denser scanning; featured carousel slide padding normalized and author styling improved.
+*Library and toolbar spacing compacted, with shelf categories becoming count-badged tooltip-labeled buttons.
+*Typewriter toolbar sizing and zoom icons refined for clarity.
+
+### Fixed
+
+*Typewriter lists — auto-conversion on `1.` or `-` followed by space, backspace lifts items out of a list, and backspace on a list item removes its marker exactly like War Era.
+*Copy HTML no longer fabricates a trailing empty paragraph.
+*Block normalization for empty and horizontal-rule content; legacy collapse chevrons stripped from serialized HTML.
+*Browser password-save prompts stopped by rendering API-key fields as plain text.
+*Search and filter inputs marked as one-time-code so Brave's email-alias popup stops firing on every field.
+*Library *Load More* layout fixed — the button stays inside the card grid and re-renders with the list atomically.
+
+### Technical
+
+*`js/tablemaker/exporters.js` — shared html2canvas loading, element-to-PNG rendering and Image Library upload used by both the converter and the drawer.
+*`js/core/captureReport.js` refactored — `renderHTMLBlobs`, `elementToBlob`, `openCaptureStore`/`openCapturePicker`, download/upload helpers and loading guards.
+*`parseWarEraEntityPath` in `js/core/resolver.js` — canonical article/company/battle/country/region/party/MU/alliance/user path detection reused by the editor and reader.
+*`js/core/imageUpload.js` — reusable Imgur upload module, with `LS_JOTTER_SPELL` persistence for the editor spellcheck toggle.
+*`DATA_KEY` expanded with battle, company and article mappings so mention chips resolve everywhere.
+*Scheduled offline-lookup refresh (5 data refreshes) and layout polishing across stylesheets.
+
+### UX
+
+*Write or convert — turn pasted text into a styled table, then hand it to the Table Drawer to fine-tune cells, colors, borders and alignment before exporting as HTML, Markdown, PNG or a library image.
+*Reports are one capture away — any module can be captured to a PNG store, a page or a device download, or straight into the Image Library.
+*The Typewriter accepts images by drag-and-drop and paste, and turns pasted War Era links into entity mentions automatically.
+
+---
+
 ## [2.3.0] - 2026-09-15
 
 ### Added

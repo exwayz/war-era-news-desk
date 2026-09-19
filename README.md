@@ -30,52 +30,59 @@ npm run build    # production build to dist/
 | --- | --- |
 | **Timeline** | Real-time global events feed with auto-refresh, country/type/date filters, and journalist-style summaries (`France declared war on Germany`). |
 | **Battles** | Ongoing and ended battle monitoring, attacker/defender rankings (damage + ground points, by user/MU/country), per-round progress, win-score indicator, XLS export. |
-| **Market** | 24h economic overview (wages, payroll, trade volume), commodity prices, recent orders, most-valuable items, executive analytics dashboard with momentum indicators, trend predictions, production cost studio, and a live commodity signal engine. |
-| **Jobs** | Job market tracker with wage/skill/slot details, company links, regional concentration maps, and deposit tracking. |
+| **Market** | 24h economic overview (wages, payroll, trade volume), commodity prices, recent orders, most-valuable items, executive analytics dashboard with momentum indicators, trend predictions, production cost studio, and a live commodity signal engine with fully sortable signals. |
+| **Jobs** | Job market tracker with net-wage handling, boss metadata, skill/slot details, company links, regional concentration maps, and deposit tracking. |
 | **Politics** | Country-by-country government, parties, elections, congress, and an AI-assisted political summary generator. |
 | **Rankings** | Weekly / user / MU / country / alliance leaderboards with avatars and flags. |
 | **Community** | Opt-in community wall backed by a Supabase + Cloudflare Workers backend (posts, upvotes, rate limits). |
-| **Library** | Searchable index of War Era articles with a full reader mode. |
-| **Writer** | Quill-based article editor with @mention entity search, image library, paste-URL auto-resolution, and drafts. |
-| **Table Maker** | Build custom tables from your data. |
+| **Library** | Searchable index of War Era articles with a full reader mode and bookmarks. |
+| **Typewriter** | TipTap-compatible article editor with @mention entity chips, image library, paste-URL auto-resolution, line gutter, custom color picker, and drafts. |
+| **Table Maker** | Two tools in one: convert pasted text into a styled table, then fine-tune it visually in the Table Drawer (canvas grid, resize/format toolbar, zoom) before exporting as HTML, Markdown, PNG, or a library image. |
 
 ### Cross-cutting features
 
 - **Intelligence rendering** — raw payloads are turned into readable sentences instead of dumped as JSON.
 - **Entity resolution** — IDs auto-resolve to country/region/user/MU/battle names, with an offline lookup fallback.
-- **Reports** — every module has *Copy Report* and PNG capture actions for embedding in articles or Slack.
+- **Reports** — every module has *Copy Report* and PNG capture actions, backed by a unified capture picker/store with multi-page PNGs and optional Image Library upload.
+- **Mentionable links** — profiles, battles, and countries expose one-click *copy mentionable URL* buttons for embedding in articles.
 - **Profile highlighter** — register your character; your username, MU, country, and party get highlighted across rankings, battles, and articles.
 - **Audio** — context-sensitive SFX (read, copy, capture, click) with a volume control.
 - **Themes** — light/dark toggle plus an optional paper-texture mode.
-- **Privacy** — no tracking, no analytics, no third-party scripts (except html2canvas for captures and iconify for icons).
+- **Privacy** — no tracking, no analytics, no third-party scripts (except html2canvas for captures, Imgur for image uploads, and iconify for icons).
 
 ## Tech stack
 
 - Vanilla ES modules, HTML5 templates, CSS custom properties
 - [Vite](https://vitejs.dev) for dev server + production build
 - War Era TRPC API (`gateway.warerastats.io`, `api2.warera.io`) with multi-endpoint fallback
+- TipTap-compatible rich-text editor (`js/jotter`) with TipTap-compatible serialization
 - html2canvas for PNG report capture
-- Quill 1.3.6 for the writer editor
+- Imgur for editor/image-library image uploads
 - Supabase (community wall) behind a Cloudflare Worker
 
 ## Project layout
 
 ```
 js/
-  core/        api, constants, dom, resolver, state, storage, utils
+  core/        api, captureReport, constants, dom, imageUpload, profileHighlighter,
+               regionClassification, resolver, state, storage, utils
   timeline/    timeline, articles, events, filters, featured
-  battles/     battles, battleDetail, companies
+  battles/     battles, battleDetail, companies, bounty
   market/      market, analytics, marketHistory, predictions, signals,
-               production, renderStudio, itemHistory
+               production, renderAnalytics, renderPredictions, renderSignals,
+               renderStudio, itemHistory
   jobs/        jobs, concentration
   politics/    politics
   rankings/    rankings
-  library/     library
-  writer/      writer
-  tablemaker/  tablemaker
+  library/     library, libraryStore, bookmarks
+  jotter/      jotter, serialize
+  tablemaker/  tablemaker, tableDrawer, exporters
+  studio/      studio
+  pinned/      guideArticle
   community/   wall, policy
   user/        profile, profileHighlighter
-  ui/          tabs, toast, theme
+  ui/          changelog, tabs, theme, toast, tooltip, imageViewer,
+               readerHighlight, readerNav, readerZoom
   visuals/     clock, oscilloscope
   audio/       audio
   intro/       intro
