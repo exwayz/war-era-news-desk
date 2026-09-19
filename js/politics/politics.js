@@ -1034,7 +1034,9 @@ ${countryContext}
 ${eventSection || "\n\nNo recent political events involving this country were found."}
 ${articleSection}
 
-Based strictly on the country snapshot${eventSection ? " and recent events" : ""}${hasArticleSection ? " and news articles" : ""} above, provide a concise geopolitical analysis covering: diplomatic relationships and alliances, international standing and conflict involvement, domestic political situation, economic patterns, and potential future developments. Only draw conclusions directly supported by the data.`;
+Based strictly on the country snapshot${eventSection ? " and recent events" : ""}${hasArticleSection ? " and news articles" : ""} above, provide a concise geopolitical analysis covering: diplomatic relationships and alliances, international standing and conflict involvement, domestic political situation, economic patterns, and potential future developments. Only draw conclusions directly supported by the data.
+
+Formatting rules: Return the analysis in 5-7 short paragraphs, one topic per paragraph, in the order listed above. Separate every paragraph with a blank line. Use plain text only — no markdown, no headers, no bullet or numbered lists, no bold, no asterisks, no thinking tags, no preamble, and no concluding filler. Output only the analysis itself.`;
 
     body.innerHTML = `<span style="color:var(--ink-dim);font-size:.82rem">Generating analysis...</span>`;
 
