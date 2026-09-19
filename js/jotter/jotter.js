@@ -6,8 +6,10 @@ import { offlineLookups } from "../../data/offlineLookups.js";
 import { toast } from "../ui/toast.js";
 import { resolveEntityByType, parseWarEraEntityPath } from "../core/resolver.js";
 import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
+import { S } from "../core/state.js";
 import { debounce, entityDisplayName } from "../core/utils.js";
 import { uploadImageToImgur, LARGE_IMAGE_BYTES } from "../core/imageUpload.js";
+import { allianceColor } from "../battles/companies.js";
 
 const LS_DRAFTS = "wa-nd-jotter-drafts";
 const LS_IMAGES = "wa-nd-jotter-images";
@@ -49,6 +51,13 @@ const FONTS = [
 
 const OFFLINE_KEY = { country: "countries", region: "regions", alliance: "alliances", party: "parties", mu: "mus" };
 const DATA_KEY = { user: "userId", country: "countryId", region: "regionId", alliance: "allianceId", mu: "muId", party: "partyId", battle: "battleId", company: "companyId", article: "articleId" };
+const CHIP_BADGES = {
+  mu:      { icon: "hugeicons:electric-tower-02", color: "#fca5a5" },
+  party:   { icon: "mdi:lectern",                 color: "#93c5fd" },
+  company: { icon: "at-icons:factory",            color: "#fde047" },
+  article: { icon: "famicons:newspaper-sharp",    color: "#d1d5db" },
+};
+const CHIP_NEUTRAL = "var(--ink-caption)";
 
 const TRUSTED_HOSTS = [
   "imgur.com", "i.imgur.com",
@@ -2030,6 +2039,58 @@ function fillNames(rows) {
   }
 }
 
+// Chip badges — a tiny em-sized glyph before every recognized entity name so
+// chips that share a display name (e.g. an MU vs a user) stay distinguishable.
+// User → avatar, country → flag, alliance → handshake in the alliance color
+// scheme, the rest → a fixed type icon.
+function chipBadgeHtml(type, id) {
+  if (type === "user") {
+    const u = S.lookups.usersById.get(id);
+    const av = u?.avatarUrl || u?.avatar;
+    if (av) return `<img class="j-chip-badge j-chip-avatar" src="${esc(av)}" alt="" draggable="false">`;
+    return `<iconify-icon icon="mdi:account-circle" class="j-chip-badge" style="color:${CHIP_NEUTRAL}"></iconify-icon>`;
+  }
+  if (type === "country") {
+    const c = S.lookups.countriesById.get(id);
+    if (c?.code) return `<img class="j-chip-badge j-chip-avatar j-chip-flag" src="https://media.warera.io/images/flags/${String(c.code).toLowerCase()}.svg" alt="" draggable="false">`;
+    return `<iconify-icon icon="mdi:flag-variant" class="j-chip-badge" style="color:${CHIP_NEUTRAL}"></iconify-icon>`;
+  }
+  if (type === "alliance") {
+    const ac = allianceColor(id);
+    return `<iconify-icon icon="mdi:handshake" class="j-chip-badge" style="color:${ac || CHIP_NEUTRAL}"></iconify-icon>`;
+  }
+  const B = CHIP_BADGES[type];
+  if (!B) return "";
+  return `<iconify-icon icon="${B.icon}" class="j-chip-badge" style="color:${B.color}"></iconify-icon>`;
+}
+
+// Fill a chip with its badge + display name. The name text node stays the FIRST
+// child (badge appended after it and drawn first via CSS row-reverse) so the
+// caret/atomicity logic that targets the chip text node keeps working.
+function renderChip(ent, name, type, id) {
+  const wrap = document.createElement("span");
+  wrap.className = "j-chip-badge-wrap";
+  wrap.innerHTML = chipBadgeHtml(type, id);
+  ent.textContent = "";
+  ent.appendChild(document.createTextNode(name || ""));
+  if (wrap.firstChild) ent.appendChild(wrap.firstChild);
+}
+
+// Resolve the entity so badges needing API data (user avatar, country flag,
+// alliance color) fill in once the lookup map holds the full record.
+function upgradeChip(ent, type, id, resolveName = false) {
+  const k = apiKey();
+  if (!k) return;
+  resolveEntityByType(type, id, k)
+    .then((data) => {
+      if (!data || !ent.isConnected) return;
+      const name = entityDisplayName(type, id, data);
+      const current = ent.firstChild?.nodeType === 3 ? ent.firstChild.data : "";
+      renderChip(ent, resolveName && name && !/^Unknown /.test(name) ? name : current, type, id);
+    })
+    .catch(() => {});
+}
+
 function compleMention(id, type) {
   if (!mention) return;
   const anchor = { node: mention.anchorNode, off: mention.anchorOffset };
@@ -2053,9 +2114,10 @@ function compleMention(id, type) {
   // split paragraphs around an inline contenteditable=false span, so the copy
   // serializer heals that back at export time (see mergeEntityParagraphs).
   ent.setAttribute("contenteditable", "false");
-  ent.textContent = name;
+  renderChip(ent, name, type, id);
   r.insertNode(ent);
   placeCaretAfter(ent);
+  upgradeChip(ent, type, id);
   updateInfoBar();
   schedulePersist();
 }
@@ -2210,7 +2272,7 @@ function rehydrateEntityNames() {
       (data && data.fullMatch || "").split("/").filter(Boolean).pop() || "";
     const name = (type && id && localName(type, id)) || data?.fullMatch || "";
     if (name) {
-      ent.textContent = name;
+      renderChip(ent, name, type, id);
       if (ent.getAttribute("contenteditable") !== "false") ent.setAttribute("contenteditable", "false");
     }
   }
@@ -2932,19 +2994,12 @@ function insertEntityChip(type, id, fullMatch, range) {
   // Locked chip — same atomic behavior as name mentions (backspace/delete whole,
   // caret held out, formatting never touches it).
   ent.setAttribute("contenteditable", "false");
-  ent.textContent = localName(type, id) || fullMatch;
+  renderChip(ent, localName(type, id) || fullMatch, type, id);
   if (!range.collapsed) range.deleteContents();
   range.insertNode(ent);
   placeCaretAfter(ent);
+  upgradeChip(ent, type, id, true);
   updateInfoBar();
   schedulePersist();
-  const k = apiKey();
-  resolveEntityByType(type, id, k)
-    .then((data) => {
-      if (!data || !ent.isConnected) return;
-      const name = entityDisplayName(type, id, data);
-      if (name && !/^Unknown /.test(name) && name !== ent.textContent) ent.textContent = name;
-    })
-    .catch(() => {});
   return true;
 }

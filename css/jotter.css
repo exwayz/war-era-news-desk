@@ -266,6 +266,15 @@ padding: 2px 14px 12px;
   background: color-mix(in srgb, var(--entity) 12%, transparent);
   padding: 0 2px; cursor: default;
 }
+.j-editor span[data-content-link] {
+  display: inline-flex; align-items: center; flex-direction: row-reverse;
+  gap: 3px; vertical-align: baseline;
+}
+.j-chip-badge {
+  width: 1em; height: 1em; flex: 0 0 auto; display: inline-block;
+  border-radius: 50%; object-fit: cover;
+}
+.j-chip-flag { border-radius: 2px; }
 
 /* ── MENTION POPUP ─────────────────────────────────────── */
 /* The popup lives inside .j-editor-wrap (position: relative, overflow: hidden)

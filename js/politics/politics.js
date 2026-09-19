@@ -40,6 +40,7 @@ export async function loadPolitics(force = false) {
     const r = await fetchTrpc("country.getAllCountries", {}, k);
     const d = unwrap(r);
     _countries = Array.isArray(d) ? d : (d?.items || d?.results || []);
+    for (const c of _countries) { if (c?._id) S.lookups.countriesById.set(c._id, c); }
     populateCountryList(_countries);
 
     document.getElementById("politicsStatus").hidden = true;
@@ -387,7 +388,8 @@ function renderCountryGrid() {
     <div class="pol-country-grid">
       ${sorted.map(c => {
         const flag = c.code ? `<img class="pol-grid-flag" src="https://media.warera.io/images/flags/${c.code.toLowerCase()}.svg" alt="" loading="lazy">` : "";
-        return `<button class="pol-country-card" data-id="${c._id}">${flag}<span class="pol-country-name">${escHtml(c.name || "?")}</span></button>`;
+        const cc = countryColor(c._id);
+        return `<button class="pol-country-card" data-id="${c._id}"${cc ? ` style="--cc:${cc}"` : ""}>${flag}<span class="pol-country-name">${escHtml(c.name || "?")}</span></button>`;
       }).join("")}
     </div>
   `;

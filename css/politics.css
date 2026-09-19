@@ -344,6 +344,9 @@
   color: var(--ink);
 }
 .pol-country-card:hover { border-color: var(--accent); background: var(--surface-hi); }
+.pol-country-card:hover .pol-country-name { color: var(--cc, var(--ink)); }
+.pol-country-card { transition: border-color .15s ease, background .15s ease; }
+.pol-country-name { transition: color .15s ease; }
 .pol-grid-flag { width: 32px; height: 24px; object-fit: cover; display: block; }
 .pol-country-name { font-size: .78rem; font-weight: 700; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 
