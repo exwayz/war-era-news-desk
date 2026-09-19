@@ -216,7 +216,15 @@ export async function renderJobs() {
     const escCountry = esc(countryName), escBoss = esc(boss), escItem = esc(itemCode), escCid = esc(cid);
 
     card.innerHTML=`
-      <p class="job-company">${escCompany}${escLoc?` <span style="color:var(--ink-dim);font-weight:500;font-size:.68rem">${escLoc}</span>`:""}</p>
+      <p class="job-company">
+    <span class="job-company-name">
+        <iconify-icon icon="clarity:factory-solid" class="uci"></iconify-icon>
+        ${escCompany}
+    </span>
+    <span class="job-company-location">
+        ${escLoc}
+    </span>
+	</p>
       ${escSkill?`<p class="job-title">${escSkill} Worker</p>`:""}
 	  ${escBoss?`<p class="job-boss">${jobBossAvatarHtml(job)} ${escBoss}</p>`:""}
       <div class="job-chips">
@@ -231,8 +239,8 @@ export async function renderJobs() {
       </div>
       <div class="job-actions">
         ${escCid ?`<button class="job-btn" data-cid="${escCid}"><iconify-icon icon="mdi:factory" class="lu"></iconify-icon> View Company</button>` :`<button class="job-btn" disabled title="Company ID not available" style="opacity:.4;cursor:not-allowed"><iconify-icon icon="mdi:factory" class="lu"></iconify-icon> View Company</button>`}
-        ${escCid ?`<button class="job-btn copy-mention" data-cid="${escCid}" title="Copy mentionable URL"><iconify-icon icon="icon-park-outline:copy-link" class="lu"></iconify-icon> Copy Mention</button>` :""}
         <button class="job-btn copy-job" data-wage="${wage}" data-company="${escCompany}" data-skill="${escSkill}" data-loc="${escLoc}"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon> Copy Brief</button>
+		${escCid ?`<button class="job-btn copy-mention" data-cid="${escCid}" title="Copy mentionable URL"><iconify-icon icon="icon-park-outline:copy-link" class="lu"></iconify-icon></button>` :""}
       </div>`;
 
     card.querySelector("[data-cid]")?.addEventListener("click", function() {

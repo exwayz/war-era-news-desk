@@ -729,6 +729,14 @@ mark.reader-highlight {
 .settings-group label { flex: 1; font-size: .82rem; font-weight: 700; }
 .settings-group input[type="range"] { flex: 2; height: 6px; appearance: none; }
 .settings-group input[type="range"]::-webkit-slider-thumb { appearance: none; width: 14px; height: 14px; background: var(--accent); border: none; cursor: pointer; }
+.modal-card h2 {
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
 .settings-val { min-width: 36px; text-align: right; font-size: .8rem; font-weight: 800; font-family: var(--font-num); }
 .settings-group .settings-toggle { display: inline-flex; align-items: center; gap: 8px; flex: 2; font-size: .82rem; color: var(--ink-dim); }
 .settings-group .settings-toggle input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); cursor: pointer; }
@@ -1200,7 +1208,32 @@ details.prod-acc-body[open] > summary.prod-field-label::before { transform: rota
 
 /* ── JOB CARD ───────────────────────────────────────── */
 .job-card { padding: 10px; border: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px; }
-.job-company { display: grid; font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-dim); margin-bottom: 0; }
+.job-company {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    font-size: .88rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--ink-dim);
+    margin-bottom: 0;
+}
+
+.job-company-name {
+    grid-row: 1;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.job-company-location {
+    grid-row: 2;
+    color: var(--ink-dim);
+    font-weight: 500;
+    font-size: 8px;
+}
+.uci {font-size: 14px;}
 .job-title { font-size: .88rem; font-weight: 700; }
 .job-chips {
     display: grid;
@@ -1208,6 +1241,7 @@ details.prod-acc-body[open] > summary.prod-field-label::before { transform: rota
 }
 p.job-boss {
     margin: 0;
+	margin-bottom: 2px;
     font-family: var(--font-article);
     color: var(--ink-dim);
     display: flex;

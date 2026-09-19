@@ -80,7 +80,7 @@
   <header class="topbar">
     <div class="topbar-left">
       <button class="menu-toggle" id="menuBtn" title="Menu" aria-label="Open menu"><iconify-icon icon="mdi:menu" class="lu"></iconify-icon></button>
-      <div class="clock" id="clockDisplay"><span class="clock-date" id="clockDate"></span><span id="clockTime">--:--:--</span><span id="clockGameBadge" class="clock-game-badge" style="display:none">GAME</span></div>
+      <div class="clock" id="clockDisplay"><span class="clock-date" id="clockDate"></span><span id="clockTime">--:--:--</span></div>
       <button class="theme-toggle" id="themeToggleBtn" title="Toggle theme" aria-label="Toggle theme"><span class="side-icon"><iconify-icon icon="mdi:weather-night" class="lu"></iconify-icon></span></button>
     </div>
     <div class="topbar-center">
@@ -812,7 +812,7 @@
     <h2><iconify-icon icon="mdi:cog" class="lu"></iconify-icon> Settings</h2>
     <div class="settings-group">
       <label>API Key</label>
-      <input type="text" id="settingsApiKeyInput" placeholder="War Era API key" autocomplete="off" spellcheck="false" style="flex:2;padding:4px 8px;font-size:.8rem">
+      <input type="password" id="settingsApiKeyInput" placeholder="War Era API key" autocomplete="off" spellcheck="false" style="flex:5;padding:2px 8px;font-size:.8rem">
     </div>
     <p id="settingsStatus" class="error-text" hidden style="margin:0 0 4px"></p>
     <div class="settings-group">
@@ -1296,8 +1296,8 @@ Charlie 750     3</pre>
       <div class="reader-head-actions">
         <button id="refreshBattleReportBtn" class="btn-secondary" style="font-size:.78rem"><iconify-icon icon="mdi:refresh" class="lu"></iconify-icon> Refresh</button>
         <button id="openBattlePageBtn" class="btn-secondary" style="font-size:.78rem"><iconify-icon icon="mdi:sword-cross" class="lu"></iconify-icon> Open Battle</button>
-        <button id="copyBattleMentionBtn" class="btn-icon-sm" title="Copy mentionable URL"><iconify-icon icon="icon-park-outline:copy-link" class="lu"></iconify-icon></button>
         <button id="copyBattleReportBtn" class="btn-secondary" style="font-size:.78rem"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon> Copy Report</button>
+		<button id="copyBattleMentionBtn" class="btn-icon-sm" title="Copy mentionable URL"><iconify-icon icon="icon-park-outline:copy-link" class="lu"></iconify-icon></button>
       </div>
       <button id="closeBattleReport" class="btn-icon-sm reader-head-close" title="Close"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
     </div>
