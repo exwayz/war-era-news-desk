@@ -31,7 +31,7 @@ const NF = {
   FILTER_ACCEPT: 1, FILTER_REJECT: 2, FILTER_SKIP: 3,
 };
 
-const FONTS = [
+export const FONTS = [
   { label: "Default", value: "" },
   { label: "Times New Roman", value: "\"Times New Roman\", Times, serif" },
   { label: "Arial", value: "Arial, sans-serif" },

@@ -163,7 +163,7 @@ button iconify-icon.lu { pointer-events: none; }
 .toast {
   position: fixed; bottom: 24px; right: 24px;
   padding: 8px 16px; background: var(--ink); color: var(--bg);
-  font-size: .84rem; font-weight: 700; z-index: 99999; border: 1px solid var(--line);
+  font-size: .84rem; font-weight: 700; z-index: 9999999; border: 1px solid var(--line);
 }
 
 /* ── UTILITY ────────────────────────────────────────── */

@@ -192,7 +192,7 @@
   white-space: pre-wrap;
 }
 .j-editor-placeholder[hidden] { display: none !important; }
-.j-editor p { margin: 0; }
+.j-editor p { margin: 0;  font-size: 1em;}
 
 .j-editor h1 { font-size: 2.05em; margin: 0px; font-weight: 700; }
 .j-editor h2 { font-size: 1.75em; margin: 0px; font-weight: 700; }
@@ -264,17 +264,18 @@ padding: 2px 14px 12px;
 .j-editor span[data-content-link] {
   color: var(--entity); font-weight: 700; border-radius: 3px;
   background: color-mix(in srgb, var(--entity) 12%, transparent);
-  padding: 0 2px; cursor: default;
+  padding: 0 2px; cursor: default; font-size: .9em;
 }
 .j-editor span[data-content-link] {
   display: inline-flex; align-items: center; flex-direction: row-reverse;
-  gap: 3px; vertical-align: baseline;
+  gap: 3px; vertical-align: baseline; position: relative; top: 2px;
 }
 .j-chip-badge {
   width: 1em; height: 1em; flex: 0 0 auto; display: inline-block;
   border-radius: 50%; object-fit: cover;
 }
-.j-chip-flag { border-radius: 2px; }
+.j-chip-flag { border-radius: 2px; width: 1.3em; height: 1em; flex: 0 0 auto; display: inline-block; object-fit: cover;}
+.j-chip-flag .j-editor img { max-width: 100%; }
 
 /* ── MENTION POPUP ─────────────────────────────────────── */
 /* The popup lives inside .j-editor-wrap (position: relative, overflow: hidden)
@@ -477,7 +478,7 @@ div#jInfoBar {
   font-weight: 700; font-size: .74rem; cursor: pointer;
 }
 .j-img-add button:hover { background: var(--accent-dk); }
-.j-images { display: grid; grid-template-columns: repeat(3, 1fr); overflow-y: auto; flex: 1; min-height: 0; align-content: start; }
+.j-images { display: grid; grid-template-columns: repeat(4, 1fr); overflow-y: auto; flex: 1; min-height: 0; align-content: start; }
 .j-img-item { position: relative; aspect-ratio: 1; border: 1px solid var(--line); overflow: hidden; cursor: pointer; background: var(--surface-hi); }
 .j-img-item:hover { border-color: var(--accent); }
 .j-img-item img { width: 100%; height: 100%; object-fit: cover; display: block; }

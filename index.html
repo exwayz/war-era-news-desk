@@ -322,7 +322,10 @@
           </div>
         </div>
         <div id="jobsStatus" class="status-msg" hidden></div>
-        <div id="jobsList" class="jobs-grid"></div>
+        <div id="jobsScroll" class="jobs-scroll">
+          <div id="jobsList" class="jobs-grid"></div>
+          <button id="loadMoreJobsButton" class="btn-load" hidden>Load More</button>
+        </div>
         <div id="companyConcentration" class="conc-container" hidden></div>
         <div id="depositConcentration" class="conc-container" hidden>
           <div class="conc-filter-bar">
@@ -330,7 +333,6 @@
           </div>
           <div id="depositList"></div>
         </div>
-        <button id="loadMoreJobsButton" class="btn-load" hidden>Load More</button>
       </div>
 
       <!-- POLITICS -->
@@ -436,20 +438,153 @@
       <!-- TABLE MAKER -->
       <div class="tab-panel" id="tab-table-maker">
         <div class="tablemaker-layout">
-          <div class="panel-head"><h2><iconify-icon icon="mdi:table" class="lu"></iconify-icon> Table Maker<button class="tm-help-btn" id="tmHelpBtn" type="button" data-tip="How to use the Table Maker"><iconify-icon icon="ic:twotone-help" class="lu"></iconify-icon></button></h2><p class="meta-text">Paste text — auto-detects format &amp; converts to a table</p></div>
-          <div class="tm-input-area">
-            <textarea id="tmInput" spellcheck="false" placeholder="Paste your data here...&#10;&#10;Supported formats:&#10;• Markdown tables&#10;• Tab-separated values&#10;• Comma-separated values&#10;• Numbered lists&#10;• Bulleted lists (&#8226;, -, *)&#10;• Plain text with delimiters"></textarea>
-            <div class="tm-btn-row">
-              <button class="btn-primary" id="tmConvertBtn" type="button" data-tip="Convert the text into table">Convert</button>
-              <button class="btn-secondary" id="tmClearBtn" type="button" data-tip="Clear everything">Clear</button>
-              <button class="tm-btn-copy" id="tmCopyHtmlBtn" type="button" data-tip="Copy the HTML form of the table to clipboard">Copy HTML</button>
-              <button class="tm-btn-copy" id="tmCopyMdBtn" type="button" data-tip="Copy the markdown text form of the table to clipboard">Copy Markdown</button>
-              <button class="tm-btn-copy" id="tmPngBtn" type="button" data-tip="Save the generated table as .png image to local storage">Download PNG</button>
-              <button class="tm-btn-upload" id="tmAddToLibraryBtn" type="button" data-tip="Add the generated table to Typewriter's image library">Add to Image Library</button>
+          <div class="panel-head">
+            <h2><iconify-icon icon="mdi:table" class="lu"></iconify-icon> Table Maker<button class="tm-help-btn" id="tmHelpBtn" type="button" data-tip="How to use the Table Maker"><iconify-icon icon="ic:twotone-help" class="lu"></iconify-icon></button></h2>
+            <div class="tm-mode-row">
+              <p class="meta-text">Paste text to convert it, or draw a table by hand with the Table Drawer.</p>
+              <div class="tm-mode-pills" role="tablist">
+                <button class="pill-btn active" id="tmModeConvBtn" type="button" data-tm-mode="converter" data-tip="Convert pasted text into a table">Table Converter</button>
+                <button class="pill-btn" id="tmModeDrawerBtn" type="button" data-tm-mode="drawer" data-tip="Draw and format a table on a canvas">Table Drawer</button>
+              </div>
             </div>
-            <div id="tmStatus" class="status-msg" hidden></div>
           </div>
-          <div id="tmOutput" class="tm-output"><div id="tmEmptyMsg" class="tm-empty">Your table will appear here</div></div>
+
+          <!-- TABLE CONVERTER -->
+          <div class="tm-section" id="tmConverterPanel">
+            <div class="tm-input-area">
+              <textarea id="tmInput" spellcheck="false" placeholder="Paste your data here...&#10;&#10;Supported formats:&#10;• Markdown tables&#10;• Tab-separated values&#10;• Comma-separated values&#10;• Numbered lists&#10;• Bulleted lists (&#8226;, -, *)&#10;• Plain text with delimiters"></textarea>
+              <div class="tm-btn-row">
+                <button class="btn-primary" id="tmConvertBtn" type="button" data-tip="Convert the text into table">Convert</button>
+                <button class="btn-secondary" id="tmClearBtn" type="button" data-tip="Clear everything">Clear</button>
+                <button class="btn-secondary" id="tmEditBtn" type="button" data-tip="Open this table in the Table Drawer for full customization">Edit Table</button>
+                <button class="tm-btn-copy" id="tmCopyHtmlBtn" type="button" data-tip="Copy the HTML form of the table to clipboard">Copy HTML</button>
+                <button class="tm-btn-copy" id="tmCopyMdBtn" type="button" data-tip="Copy the markdown text form of the table to clipboard">Copy Markdown</button>
+                <button class="tm-btn-copy" id="tmPngBtn" type="button" data-tip="Save the generated table as .png image to local storage">Download PNG</button>
+                <button class="tm-btn-upload" id="tmAddToLibraryBtn" type="button" data-tip="Add the generated table to Typewriter's image library">Add to Image Library</button>
+              </div>
+              <div id="tmStatus" class="status-msg" hidden></div>
+            </div>
+            <div id="tmOutput" class="tm-output"><div id="tmEmptyMsg" class="tm-empty">Your table will appear here</div></div>
+          </div>
+
+          <!-- TABLE DRAWER -->
+          <div class="tm-section" id="tdDrawerPanel" hidden>
+            <div class="td-layout">
+              <div class="td-toolbar">
+                <button class="td-tb-btn" id="tdBoldBtn" type="button" title="Bold (Ctrl+B)"><b>B</b></button>
+                <button class="td-tb-btn" id="tdItalicBtn" type="button" title="Italic (Ctrl+I)"><i>I</i></button>
+                <button class="td-tb-btn" id="tdUnderlineBtn" type="button" title="Underline (Ctrl+U)"><u>U</u></button>
+                <select class="td-tb-select" id="tdFontFamily" title="Font family"></select>
+                <select class="td-tb-select" id="tdFontSize" title="Font size">
+                  <option value="12">12</option>
+                  <option value="14" selected>14</option>
+                  <option value="16">16</option>
+                  <option value="18">18</option>
+                  <option value="20">20</option>
+                  <option value="24">24</option>
+                  <option value="28">28</option>
+                  <option value="32">32</option>
+                </select>
+                <span class="td-sep"></span>
+                <span class="td-meta">Text</span>
+                <input type="color" id="tdTextColor" value="#111111" title="Text color">
+                <span class="td-meta">Fill</span>
+                <input type="color" id="tdFillColor" value="#ffffff" title="Cell fill">
+                <span class="td-sep"></span>
+                <button class="td-tb-btn" id="tdAlignLeft" type="button" title="Align left"><iconify-icon icon="mdi:format-align-left" class="lu"></iconify-icon></button>
+                <button class="td-tb-btn" id="tdAlignCenter" type="button" title="Align center"><iconify-icon icon="mdi:format-align-center" class="lu"></iconify-icon></button>
+                <button class="td-tb-btn" id="tdAlignRight" type="button" title="Align right"><iconify-icon icon="mdi:format-align-right" class="lu"></iconify-icon></button>
+                <span class="td-sep"></span>
+                <span class="td-meta">Zoom</span>
+                <input type="range" id="tdZoom" class="td-zoom-slider" min="25" max="300" step="5" value="100" title="Zoom preview (Ctrl + mouse wheel)">
+                <span class="td-zoom-label" id="tdZoomLabel">100%</span>
+                <button class="td-tb-btn" id="tdZoomReset" type="button" title="Reset zoom to 100%"><iconify-icon icon="mdi:restore" class="lu"></iconify-icon></button>
+                <span class="td-spacer"></span>
+                <button class="btn-secondary" id="tdAddRow" type="button" data-tip="Add a row below the current selection">+ Row</button>
+                <button class="btn-secondary" id="tdAddCol" type="button" data-tip="Add a column to the right">+ Col</button>
+                <button class="btn-secondary" id="tdDeleteTable" type="button" data-tip="Clear the whole table">Clear</button>
+              </div>
+              <div class="td-workspace">
+                <aside class="td-sidebar">
+                  <div class="td-side-section">
+                    <h3>Table Drawer</h3>
+                    <div id="tdDrawerGrid" class="td-drawer" aria-label="Table size grid"></div>
+                    <div id="tdDrawerLabel" class="td-drawer-label">Choose table size</div>
+                  </div>
+                  <div class="td-side-section">
+                    <h3>Selection</h3>
+                    <div id="tdSelectionInfo" class="td-selection-info">No table yet.</div>
+                  </div>
+                  <div class="td-side-section">
+                    <h3>Tips</h3>
+                    <ol class="td-tips">
+                      <li>Hover the grid and click to create a table.</li>
+                      <li>Click a cell to select it; drag cell borders to resize.</li>
+                      <li>Double-click or type to edit a cell's text.</li>
+                      <li>Ctrl+B / I / U format the selection.</li>
+                    </ol>
+                  </div>
+                </aside>
+                <main class="td-canvas-wrap" id="tdCanvasWrap">
+                  <div id="tdEmptyHint" class="td-empty-hint" hidden>
+                    <p>Your canvas is empty</p>
+                    <span>Choose a table size on the left, paste text in the Converter and press <b>Edit Table</b>, or hit <b>+ Row</b> to start.</span>
+                  </div>
+                  <div id="tdStage">
+                    <div id="tdZoomWrap">
+                      <canvas id="tdCanvas" width="800" height="500"></canvas>
+                      <div id="tdEditLayer"></div>
+                    </div>
+                  </div>
+                </main>
+                <aside class="td-inspector">
+                  <div class="td-side-section">
+                    <h3>Cell</h3>
+                    <div class="td-insp-row">
+                      <label for="tdCellWidth">Width</label>
+                      <input id="tdCellWidth" type="number" min="30" max="500" value="120">
+                    </div>
+                    <div class="td-insp-row">
+                      <label for="tdCellHeight">Height</label>
+                      <input id="tdCellHeight" type="number" min="25" max="300" value="60">
+                    </div>
+                    <div class="td-insp-row">
+                      <label for="tdVerticalAlign">Vertical align</label>
+                      <select id="tdVerticalAlign">
+                        <option value="top">Top</option>
+                        <option value="middle" selected>Middle</option>
+                        <option value="bottom">Bottom</option>
+                      </select>
+                    </div>
+                    <div class="td-insp-row">
+                      <label for="tdBorderWidth">Border width</label>
+                      <input id="tdBorderWidth" type="number" min="0" max="10" value="1">
+                    </div>
+                    <div class="td-insp-color">
+                      <label for="tdBorderColor">Border</label>
+                      <input id="tdBorderColor" type="color" value="#333333">
+                    </div>
+                  </div>
+                  <div class="td-side-section">
+                    <h3>Selection mode</h3>
+                    <div class="td-mode-row">
+                      <button class="td-mode-btn active" id="tdSelectCell" type="button">Cell</button>
+                      <button class="td-mode-btn" id="tdSelectRow" type="button">Row</button>
+                      <button class="td-mode-btn" id="tdSelectCol" type="button">Column</button>
+                    </div>
+					<h4>Actions</h4>
+					<div class="td-actions">
+						<button class="tm-btn-copy" id="tdCopyHtmlBtn" type="button" data-tip="Copy the HTML form of the table to clipboard" disabled>Copy HTML</button>
+						<button class="tm-btn-copy" id="tdCopyMdBtn" type="button" data-tip="Copy the markdown text form of the table to clipboard" disabled>Copy Markdown</button>
+						<button class="tm-btn-copy" id="tdPngBtn" type="button" data-tip="Save the drawn table as .png image to local storage" disabled>Download PNG</button>
+						<button class="tm-btn-upload" id="tdAddToLibraryBtn" type="button" data-tip="Add the drawn table to Typewriter's image library" disabled>Add to Image Library</button>
+					</div>
+                  </div>
+                </aside>
+              </div>
+              <div id="tdStatus" class="status-msg" hidden></div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -635,6 +770,7 @@
       </div>
     </div>
     <div id="profileDisplayView" class="hidden">
+      <button class="modal-corner-btn" id="copyProfileMentionBtn" style="right:48px" title="Copy mentionable URL"><iconify-icon icon="icon-park-outline:copy-link" class="lu"></iconify-icon></button>
       <button class="modal-corner-btn" id="refreshProfileBtn" title="Refresh profile data"><iconify-icon icon="mdi:refresh" class="lu"></iconify-icon></button>
       <h2><iconify-icon icon="mdi:account" class="lu"></iconify-icon> My Profile</h2>
       <div id="profileDisplay" class="profile-display"></div>
@@ -903,7 +1039,7 @@
     <div class="reader-head">
       <div class="reader-head-info">
         <h2><iconify-icon icon="ic:twotone-help" class="lu" style="color:var(--accent)"></iconify-icon> Table Maker Help</h2>
-        <div class="reader-byline">How to paste data and convert it into styled tables</div>
+        <div class="reader-byline">Convert structured text into tables, or draw custom ones by hand</div>
       </div>
       <button id="tmHelpCloseBtn" class="btn-icon-sm reader-head-close" title="Close (Esc)"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>
     </div>
@@ -912,12 +1048,17 @@
       <details class="jw-help-sec" open>
         <summary>Quick start</summary>
         <div class="jw-help-sec-body">
-          <p>Table Maker turns structured text into a styled HTML table in one click. Paste data into the input area, press <b>Convert</b>, and a table appears in the output panel. The format is detected automatically.</p>
-          <h3>The workflow</h3>
+          <p>Table Maker has two modes, switched from the pills at the top of the tab: <b>Table Converter</b> turns structured text into a styled HTML table in one click, and <b>Table Drawer</b> lets you draw and format a table by hand on a canvas.</p>
+          <h3>The converter workflow</h3>
           <p><span class="jw-num">1.</span> Paste or type your data into the large input area.</p>
           <p><span class="jw-num">2.</span> Press <b>Convert</b>. The tool detects the format and builds the table.</p>
           <p><span class="jw-num">3.</span> Use the action buttons below the input to copy the table as HTML or Markdown, download it as a PNG image, or send it to the Typewriter Image Library.</p>
           <p><span class="jw-num">4.</span> Press <b>Clear</b> to reset the input and the output.</p>
+          <h3>The drawer workflow</h3>
+          <p><span class="jw-num">1.</span> Switch to <b>Table Drawer</b> with the pills at the top.</p>
+          <p><span class="jw-num">2.</span> Hover the 10 × 10 grid on the left and click to set the table size, or press <b>Edit Table</b> in the converter to load your converted data into the drawer.</p>
+          <p><span class="jw-num">3.</span> Click a cell to select it, type to edit its text, and use the toolbar to format it.</p>
+          <p><span class="jw-num">4.</span> Use the action buttons below the workspace to copy the table as HTML or Markdown, download it as a PNG image, or add it to the Image Library.</p>
         </div>
       </details>
 
@@ -926,6 +1067,7 @@
         <div class="jw-help-sec-body">
           <p>When you press <b>Convert</b>, Table Maker reads the pasted text line by line. It detects the format from the structure of the text, splits every line into cells, and treats the first line as the header row. The table is then drawn with computed column widths, and short all-numeric columns are centered automatically.</p>
           <p>If the tool cannot find a header row and at least one data row, it reports an error in the status bar under the buttons instead of producing an empty table.</p>
+          <p>The converter and the drawer share the same export buttons. Pressing <b>Edit Table</b> copies the last converted table into the drawer, ready to be restyled; the first row is kept as a bold header row. The drawer also starts empty, so you can build a table from scratch instead.</p>
         </div>
       </details>
 
@@ -985,6 +1127,7 @@ Charlie 750     3</pre>
           <p>Once a table has been generated, the buttons under the input area export it in different ways.</p>
           <p><b>Convert</b> parses the input text and builds the table. If the input is empty or cannot be parsed into a header row plus data, an error appears in the status bar.</p>
           <p><b>Clear</b> empties both the input area and the output panel.</p>
+          <p><b>Edit Table</b> sends the last converted table into the Table Drawer and switches to it, so you can customize cells, borders, colors and alignment by hand instead of working with the fixed converter output.</p>
           <p><b>Copy HTML</b> copies the raw HTML of the rendered table to your clipboard. Paste it into the War Era article editor or any HTML surface.</p>
           <p><b>Copy Markdown</b> copies a Markdown-formatted version of the table (header row, separator and padded cells) to your clipboard.</p>
           <h3>Download PNG</h3>
@@ -994,9 +1137,35 @@ Charlie 750     3</pre>
         </div>
       </details>
 
+      <details class="jw-help-sec">
+        <summary>Table Drawer</summary>
+        <div class="jw-help-sec-body">
+          <h3>Creating a table</h3>
+          <p>Hover the 10 × 10 grid in the left sidebar and click to pick the number of rows and columns — the table appears on the canvas. To use data you already converted, press <b>Edit Table</b> in the converter instead; the first row arrives as a bold header row.</p>
+
+          <h3>Editing cells</h3>
+          <p>Click a cell to select it. Typing replaces its text (or press <b>Enter</b> or <b>F2</b> to start editing the selected cell). Double-click a cell to edit it directly. Text wraps inside the cell automatically.</p>
+
+          <h3>Resizing rows and columns</h3>
+          <p>Drag a vertical or horizontal cell boundary to resize columns or rows — the pointer turns into a resize cursor over the boundaries. You can also type an exact size in the <b>Cell</b> inspector (Width / Height).</p>
+
+          <h3>Formatting toolbar</h3>
+          <p><b>B</b>, <b>I</b> and <b>U</b> toggle bold, italic and underline (shortcuts <b>Ctrl+B</b>, <b>Ctrl+I</b>, <b>Ctrl+U</b>). The font dropdown lists the same faces as the Typewriter editor. The <b>Text</b> and <b>Fill</b> color pickers set the text and cell background colors, and the alignment buttons align cell text left, center or right.</p>
+
+          <h3>Selection modes</h3>
+          <p>In the right inspector, choose <b>Cell</b>, <b>Row</b> or <b>Column</b>: every formatting action then applies to the whole row or column of the current selection.</p>
+
+          <h3>Add Row / Add Col / Clear</h3>
+          <p><b>+ Row</b> adds a row below the selection, <b>+ Col</b> adds a column to the right, and <b>Clear</b> erases the whole table so you can start over — or load one from the converter again.</p>
+
+          <h3>Exporting from the drawer</h3>
+          <p>The drawer uses the same four buttons as the converter: <b>Copy HTML</b>, <b>Copy Markdown</b>, <b>Download PNG</b> and <b>Add to Image Library</b>. The PNG render matches the canvas exactly, including borders, colors and alignment.</p>
+        </div>
+      </details>
+
       <h2 class="jw-help-title">Notes</h2>
       <div class="jw-help-sec-body">
-        <p>Everything stays on your machine until you copy the output. The only network calls made here are the Imgur uploads behind <b>Add to Image Library</b> and the html2canvas library that powers PNG rendering.</p>
+        <p>Everything stays on your machine until you copy the output. The only network calls made here are the Imgur uploads behind <b>Add to Image Library</b> and the html2canvas library that powers PNG rendering — both in the converter and in the drawer.</p>
         <p>To use a table in a War Era article, press <b>Copy HTML</b>, open the Typewriter, and paste the copied HTML into the article body — or insert the generated image from the Image Library.</p>
       </div>
 
@@ -1127,6 +1296,7 @@ Charlie 750     3</pre>
       <div class="reader-head-actions">
         <button id="refreshBattleReportBtn" class="btn-secondary" style="font-size:.78rem"><iconify-icon icon="mdi:refresh" class="lu"></iconify-icon> Refresh</button>
         <button id="openBattlePageBtn" class="btn-secondary" style="font-size:.78rem"><iconify-icon icon="mdi:sword-cross" class="lu"></iconify-icon> Open Battle</button>
+        <button id="copyBattleMentionBtn" class="btn-icon-sm" title="Copy mentionable URL"><iconify-icon icon="icon-park-outline:copy-link" class="lu"></iconify-icon></button>
         <button id="copyBattleReportBtn" class="btn-secondary" style="font-size:.78rem"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon> Copy Report</button>
       </div>
       <button id="closeBattleReport" class="btn-icon-sm reader-head-close" title="Close"><iconify-icon icon="mdi:close" class="lu"></iconify-icon></button>

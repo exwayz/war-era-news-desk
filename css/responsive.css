@@ -108,7 +108,7 @@
   .battle-list-col { height: auto; overflow: visible; }
   #battleList { flex: none; overflow-y: visible; }
   .market-grid { height: auto; overflow: visible; }
-  .jobs-grid { overflow-y: visible; }
+  .jobs-scroll { flex: none; overflow-y: visible; }
   .analytics-section,
   .signals-section,
   .production-section,
@@ -118,6 +118,13 @@
   #libraryList { flex: none; overflow-y: visible; }
   .tablemaker-layout { height: auto; }
   .tm-output { overflow-y: visible; }
+  .tm-mode-row { flex-direction: column; align-items: flex-start; }
+  .tm-mode-pills { width: 100%; }
+  .tm-mode-pills .pill-btn { flex: 1; }
+  .td-workspace { grid-template-columns: 1fr; }
+  .td-sidebar { border-right: 0; border-bottom: 1px solid var(--line); }
+  .td-inspector { display: none; }
+  #tdStage { margin: 20px; }
 
   /* Timeline: Global Events filters → 3 compact rows
      Row 1: Country | Region | Event Type
@@ -365,4 +372,10 @@
   .toc-sidebar { width: 200px; }
   .toc-sidebar.toc-collapsed { width: 28px; }
   .pinned-guide-title { font-size: .76rem; }
+}
+
+/* ≤1100px: free up canvas space in the Table Drawer */
+@media (max-width: 1100px) {
+  .td-workspace { grid-template-columns: 210px minmax(0, 1fr); }
+  .td-inspector { display: none; }
 }

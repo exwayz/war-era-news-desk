@@ -1,20 +1,6 @@
 import { escapeHtml } from "../core/utils.js";
-import { uploadImageToImgur, LARGE_IMAGE_BYTES } from "../core/imageUpload.js";
-import { addImageToLibrary } from "../jotter/jotter.js";
-
-let _html2canvasPromise = null;
-function loadHtml2Canvas() {
-  if (_html2canvasPromise) return _html2canvasPromise;
-  _html2canvasPromise = new Promise((resolve, reject) => {
-    if (window.html2canvas) { resolve(window.html2canvas); return; }
-    const s = document.createElement("script");
-    s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-    s.onload = () => resolve(window.html2canvas);
-    s.onerror = () => { _html2canvasPromise = null; reject(new Error("Failed to load html2canvas from CDN")); };
-    document.head.appendChild(s);
-  });
-  return _html2canvasPromise;
-}
+import { renderElementPNG, addElementToImageLibrary } from "./exporters.js";
+import { initTableDrawer, loadTableFromData } from "./tableDrawer.js";
 
 function setStatus(msg, type) {
   const el = document.getElementById("tmStatus");
@@ -242,34 +228,12 @@ function copyMarkdown() {
   navigator.clipboard.writeText(toMarkdown(lastHeaders, lastRows)).then(() => setStatus("Markdown copied to clipboard"));
 }
 
-// Render the visible table to a PNG Blob, shared by the download button and the
-// Image Library upload path so the two always produce identical output.
-async function generateTablePNG() {
-  const table = document.querySelector("#tmOutput .tm-table-wrap");
-  if (!table) throw new Error("Nothing to export");
-  const html2canvas = await loadHtml2Canvas();
-  const tableEl = table.querySelector("table");
-  const tableW = tableEl ? tableEl.getBoundingClientRect().width : 0;
-  const clone = table.cloneNode(true);
-  clone.style.position = "fixed";
-  clone.style.left = "-9999px";
-  clone.style.top = "0";
-  clone.style.width = Math.round(tableW) + "px";
-  document.body.appendChild(clone);
-  try {
-    const canvas = await html2canvas(clone, { backgroundColor: null, scale: 2, useCORS: true, logging: false });
-    return await new Promise((resolve, reject) => {
-      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("PNG rendering failed"))), "image/png");
-    });
-  } finally {
-    document.body.removeChild(clone);
-  }
-}
-
 async function exportPNG() {
+  const table = document.querySelector("#tmOutput .tm-table-wrap");
+  if (!table) return setStatus("Nothing to export", "error");
   try {
     setStatus("Rendering PNG...");
-    const blob = await generateTablePNG();
+    const blob = await renderElementPNG(table);
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.download = "table.png";
@@ -284,26 +248,32 @@ async function exportPNG() {
 
 async function addToImageLibrary() {
   const btn = document.getElementById("tmAddToLibraryBtn");
-  if (!lastHeaders) return setStatus("Nothing to add — convert a table first", "error");
+  const table = document.querySelector("#tmOutput .tm-table-wrap");
+  if (!table || !lastHeaders) return setStatus("Nothing to add — convert a table first", "error");
   if (btn) { btn.disabled = true; btn.dataset.loading = "1"; }
   try {
-    setStatus("Rendering PNG...");
-    const blob = await generateTablePNG();
-    if (blob.size > LARGE_IMAGE_BYTES) setStatus("Table is larger than 1 MB — Imgur may compress it. Proceeding anyway.");
-    setStatus("Uploading to Imgur...");
-    const uploaded = await uploadImageToImgur(blob, `war-era-table-${Date.now()}.png`);
     const firstHeading = String(lastHeaders[0] || "").trim().slice(0, 40);
-    const added = addImageToLibrary({
-      ...uploaded,
-      name: firstHeading ? `Table — ${firstHeading}` : `war-era-table-${Date.now()}.png`,
-      source: "table-maker",
-    });
+    const added = await addElementToImageLibrary(table, firstHeading ? `Table — ${firstHeading}` : `war-era-table-${Date.now()}.png`, "war-era-table", setStatus);
     setStatus(added ? "Added to the Image Library." : "This table is already in the Image Library.");
   } catch (err) {
     setStatus(err.message || "Failed to add the table to the Image Library.", "error");
   } finally {
     if (btn) { btn.disabled = false; delete btn.dataset.loading; }
   }
+}
+
+function editTable() {
+  if (!lastHeaders || !lastRows) return setStatus("Convert a table first", "error");
+  loadTableFromData({ headers: lastHeaders, rows: lastRows });
+  setTableMakerMode("drawer");
+}
+
+function setTableMakerMode(mode) {
+  document.querySelectorAll("[data-tm-mode]").forEach(b => b.classList.toggle("active", b.dataset.tmMode === mode));
+  const conv = document.getElementById("tmConverterPanel");
+  const drw = document.getElementById("tdDrawerPanel");
+  if (conv) conv.hidden = mode !== "converter";
+  if (drw) drw.hidden = mode !== "drawer";
 }
 
 function openHelp() {
@@ -321,10 +291,14 @@ function closeHelp() {
 export function initTableMaker() {
   document.getElementById("tmConvertBtn")?.addEventListener("click", convert);
   document.getElementById("tmClearBtn")?.addEventListener("click", clearAll);
+  document.getElementById("tmEditBtn")?.addEventListener("click", editTable);
   document.getElementById("tmCopyHtmlBtn")?.addEventListener("click", copyHTML);
   document.getElementById("tmCopyMdBtn")?.addEventListener("click", copyMarkdown);
   document.getElementById("tmPngBtn")?.addEventListener("click", exportPNG);
   document.getElementById("tmAddToLibraryBtn")?.addEventListener("click", addToImageLibrary);
+  document.querySelectorAll("[data-tm-mode]").forEach(btn => {
+    btn.addEventListener("click", () => setTableMakerMode(btn.dataset.tmMode));
+  });
   document.getElementById("tmHelpBtn")?.addEventListener("click", openHelp);
   document.getElementById("tmHelpCloseBtn")?.addEventListener("click", closeHelp);
   document.getElementById("tmHelpModal")?.addEventListener("click", (e) => { if (e.target === e.currentTarget) closeHelp(); });
@@ -333,4 +307,5 @@ export function initTableMaker() {
     const m = document.getElementById("tmHelpModal");
     if (m && !m.classList.contains("hidden")) closeHelp();
   });
+  initTableDrawer();
 }

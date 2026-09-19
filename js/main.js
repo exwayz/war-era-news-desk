@@ -283,6 +283,10 @@ function bindAll() {
   document.getElementById("closeProfileBtn")?.addEventListener("click",()=>{
     document.getElementById("profileModal").classList.add("hidden");
   });
+  document.getElementById("copyProfileMentionBtn")?.addEventListener("click", ()=>{
+    const profile = loadProfile();
+    if (profile?.userId) navigator.clipboard.writeText(`/user/${profile.userId}`).then(()=>toast("Mention URL copied."));
+  });
   document.getElementById("refreshProfileBtn")?.addEventListener("click", async () => {
     const btn = document.getElementById("refreshProfileBtn");
     const profile = loadProfile();
@@ -568,6 +572,10 @@ function bindAll() {
   E.closeBattleReport?.addEventListener("click", () => clearBattleDetail());
   E.battleReportModal?.addEventListener("click", e => { if (e.target === E.battleReportModal) clearBattleDetail(); });
   E.openBattlePageBtn?.addEventListener("click", () => { const id = E.openBattlePageBtn.dataset.battleId; if (id) window.open(`https://app.warera.io/battle/${id}`, "_blank"); });
+  document.getElementById("copyBattleMentionBtn")?.addEventListener("click", () => {
+    const id = E.openBattlePageBtn?.dataset.battleId;
+    if (id) navigator.clipboard.writeText(`/battle/${id}`).then(()=>toast("Mention URL copied."));
+  });
 
   E.marketRefreshBtn?.addEventListener("click",()=>loadMarketFull(true));
   document.getElementById("marketOpenBtn")?.addEventListener("click", () => {window.open("https://app.warera.io/market", "_blank");});

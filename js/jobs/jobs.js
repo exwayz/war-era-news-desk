@@ -1,6 +1,6 @@
 import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
-import { apiKey, fetchTrpc, unwrap } from "../core/api.js";
+import { apiKey, fetchTrpc, fetchTrpcApi2Post, unwrap } from "../core/api.js";
 import { fmtMoney, fmtNum, fmtDate, escapeHtml } from "../core/utils.js";
 
 import { toast } from "../ui/toast.js";
@@ -90,6 +90,56 @@ function getJobRegionId(job) {
   return rid ? String(rid) : "";
 }
 
+function getJobCountryId(job) {
+  const c = getJobCompany(job);
+  const regionId = (c?.regionId || c?.region?._id || c?.region?.id || c?.region) || getJobRegionId(job) || "";
+  if (!regionId) return "";
+  const region = S.lookups.regionsById.get(String(regionId));
+  if (!region) return "";
+  return region.countryId || region.country?._id || region.country?.id || region.country || "";
+}
+
+function jobIncomeTaxOf(job) {
+  const cid = getJobCountryId(job);
+  if (!cid) return 0;
+  const country = S.lookups.countriesById.get(cid);
+  return country ? Number(country.taxes?.income || 0) || 0 : 0;
+}
+
+async function jobNetWage(job, k) {
+  const wage = Number(job.wage || job.salary || job.pay || 0);
+  let tax = jobIncomeTaxOf(job);
+  if (!tax) {
+    const cid = getJobCountryId(job);
+    if (cid && k) {
+      try {
+        const r = await fetchTrpcApi2Post("country.getCountryById", { countryId: cid }, k);
+        const data = unwrap(r);
+        const country = Array.isArray(data) ? data[0] : data;
+        if (country) {
+          S.lookups.countriesById.set(cid, country);
+          tax = Number(country.taxes?.income || 0) || 0;
+        }
+      } catch {}
+    }
+  }
+  if (tax > 0 && wage > 0) return Math.round(wage * (1 - tax / 100) * 1000) / 1000;
+  return Number(job.wageAfterTax || 0);
+}
+
+function jobNetWageSync(job) {
+  const wage = Number(job.wage || job.salary || job.pay || 0);
+  const tax = jobIncomeTaxOf(job);
+  if (tax > 0 && wage > 0) return Math.round(wage * (1 - tax / 100) * 1000) / 1000;
+  return Number(job.wageAfterTax || 0);
+}
+
+function fmtWage(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return v == null ? "—" : String(v);
+  return new Intl.NumberFormat(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 6 }).format(n);
+}
+
 function jobCapacityChip(job, wage) {
   const rid = getJobRegionId(job);
   if (!rid) return "";
@@ -103,7 +153,7 @@ function jobCapacityChip(job, wage) {
   const cls = ratio > 1 ? "over" : "ok";
   const hint = `Region gross wage capacity ≈ ${fmtMoney(grossCap)} BTC/hit`;
   const live = row.liveDeposit ? ` · active deposit +${row.depositBonus}%` : "";
-  return `<span class="job-chip wage-cap ${cls}" title="${hint}${live}">⚖️ ${ratio.toFixed(2)}× cap</span>`;
+  return `<span class="job-chip wage-cap ${cls}" title="${hint}${live}"><iconify-icon icon="mdi:scale-balance" class="lu"></iconify-icon> ${ratio.toFixed(2)}× cap</span>`;
 }
 
 let _capRequested = false;
@@ -114,7 +164,7 @@ function ensureCapacityData() {
   computeProduction().then(() => { _capRequested = false; renderJobs(); }).catch(() => { _capRequested = false; });
 }
 
-export function renderJobs() {
+export async function renderJobs() {
   const kw=(E.jobSearch?.value||"").toLowerCase();
   const countrySel = (S.jobCountryFilter||"").toLowerCase();
   const wageFilter = Number(S.jobWageFilter||0);
@@ -139,13 +189,17 @@ export function renderJobs() {
   if(!jobs.length){ E.jobsList.innerHTML=`<p style="color:var(--ink-dim)">No job offers found.</p>`; return; }
   if (jobs.some(j => getJobRegionId(j))) ensureCapacityData();
 
-  for(const job of jobs) {
+  const k = apiKey();
+  const nets = await Promise.all(jobs.map(j => jobNetWage(j, k)));
+
+  for(let idx = 0; idx < jobs.length; idx++) {
+    const job = jobs[idx];
     const card=document.createElement("div"); card.className="job-card";
     const company = getJobCompanyName(job) || "Unknown Company";
     const c = getJobCompany(job);
     const skill=job.skill||job.skillName||job.type||"";
     const wage=Number(job.wage||job.salary||job.pay||0);
-    const wageNet=Number(job.wageAfterTax ?? 0);
+    const wageNet=nets[idx]||0;
     const currency=job.currency||"BTC";
     const slots=job.openSlots||job.slots||job.count||1;
     const minSkill=job.minSkill||job.requiredLevel||job.level||0;
@@ -162,26 +216,33 @@ export function renderJobs() {
     const escCountry = esc(countryName), escBoss = esc(boss), escItem = esc(itemCode), escCid = esc(cid);
 
     card.innerHTML=`
-      <p class="job-company">${escCompany}${escLoc?` <span style="color:var(--ink-dim);font-weight:500;font-size:.68rem">· ${escLoc}</span>`:""}</p>
+      <p class="job-company">${escCompany}${escLoc?` <span style="color:var(--ink-dim);font-weight:500;font-size:.68rem">${escLoc}</span>`:""}</p>
       ${escSkill?`<p class="job-title">${escSkill} Worker</p>`:""}
+	  ${escBoss?`<p class="job-boss">${jobBossAvatarHtml(job)} ${escBoss}</p>`:""}
       <div class="job-chips">
-        <span class="job-chip wage">💰 ${fmtMoney(wage)} ${currency}/hit${wageNet?` <span style="color:var(--ink-dim)">(net ${fmtMoney(wageNet)})</span>`:""}</span>
+        <span class="job-chip wage"><iconify-icon icon="mdi:currency-btc" class="lu"></iconify-icon> ${fmtWage(wage)}/hit${wageNet?` <span style="color:var(--ink-dim)">(net ${fmtWage(wageNet)})</span>`:""}</span>
         ${jobCapacityChip(job, wage)}
-        <span class="job-chip">📋 ${slots} slot${slots!==1?"s":""}</span>
-        ${minSkill?`<span class="job-chip">⭐ Min. skill ${minSkill}</span>`:""}
-        ${escItem?`<span class="job-chip">🏭 ${escItem}</span>`:""}
-        ${escCountry?`<span class="job-chip">🌍 ${escCountry}</span>`:""}
-        ${escBoss?`<span class="job-chip">👔 ${escBoss}</span>`:""}
-        ${estVal?`<span class="job-chip">💎 ${fmtMoney(estVal)} BTC</span>`:""}
-        ${created?`<span class="job-chip">🕐 ${created}</span>`:""}
+        <span class="job-chip"><iconify-icon icon="mdi:account-multiple" class="lu"></iconify-icon> ${slots} slot${slots!==1?"s":""}</span>
+        ${minSkill?`<span class="job-chip"><iconify-icon icon="mdi:star" class="lu"></iconify-icon> Min. skill ${minSkill}</span>`:""}
+        ${escItem?`<span class="job-chip"><iconify-icon icon="mdi:factory" class="lu"></iconify-icon> ${escItem}</span>`:""}
+        ${escCountry?`<span class="job-chip"><iconify-icon icon="mdi:earth" class="lu"></iconify-icon> ${escCountry}</span>`:""}
+        ${estVal?`<span class="job-chip"><iconify-icon icon="mdi:diamond-stone" class="lu"></iconify-icon> ${fmtMoney(estVal)} BTC</span>`:""}
+        ${created?`<span class="job-chip"><iconify-icon icon="mdi:clock-outline" class="lu"></iconify-icon> ${created}</span>`:""}
       </div>
       <div class="job-actions">
         ${escCid ?`<button class="job-btn" data-cid="${escCid}"><iconify-icon icon="mdi:factory" class="lu"></iconify-icon> View Company</button>` :`<button class="job-btn" disabled title="Company ID not available" style="opacity:.4;cursor:not-allowed"><iconify-icon icon="mdi:factory" class="lu"></iconify-icon> View Company</button>`}
+        ${escCid ?`<button class="job-btn copy-mention" data-cid="${escCid}" title="Copy mentionable URL"><iconify-icon icon="icon-park-outline:copy-link" class="lu"></iconify-icon> Copy Mention</button>` :""}
         <button class="job-btn copy-job" data-wage="${wage}" data-company="${escCompany}" data-skill="${escSkill}" data-loc="${escLoc}"><iconify-icon icon="mdi:clipboard-text-outline" class="lu"></iconify-icon> Copy Brief</button>
       </div>`;
 
     card.querySelector("[data-cid]")?.addEventListener("click", function() {
       window.open(`https://app.warera.io/company/${this.dataset.cid}`, "_blank", "noopener");
+    });
+
+    card.querySelector(".copy-mention")?.addEventListener("click", function() {
+      const cid = this.dataset.cid;
+      if (!cid) return;
+      navigator.clipboard.writeText(`/company/${cid}`).then(()=>toast("Mention URL copied."));
     });
 
     card.querySelector(".copy-job")?.addEventListener("click", function() {
@@ -203,12 +264,12 @@ export function copyJobsReport() {
     const country = getJobCountryName(j);
     const region = getJobRegionName(j);
     const loc = [region, country].filter(Boolean).join(", ");
-    const wageN = Number(j.wageAfterTax||0);
+    const wageN = jobNetWageSync(j);
     const slotsN = j.openSlots||j.slots||j.count||"";
     const item = c?.itemCode||"";
     const val = c?.estimatedValue ? Number(c.estimatedValue) : 0;
     const boss = getJobBossName(j);
-    r+=`- ${company}${loc?` (${loc})`:""}${boss?` · Boss: ${boss}`:""}${slotsN?` — ${slotsN} slot${slotsN!==1?"s":""}`:""}${item?` — ${item}`:""}: ${fmtMoney(j.wage||0)} BTC/hit${wageN?` (net ${fmtMoney(wageN)})`:""}${val?` · 💎 ${fmtMoney(val)} BTC`:""}\n`;
+    r+=`- ${company}${loc?` (${loc})`:""}${boss?` · Boss: ${boss}`:""}${slotsN?` — ${slotsN} slot${slotsN!==1?"s":""}`:""}${item?` — ${item}`:""}: ${fmtWage(j.wage||0)} BTC/hit${wageN?` (net ${fmtWage(wageN)})`:""}${val?` · Value: ${fmtMoney(val)} BTC`:""}\n`;
   }
   navigator.clipboard.writeText(r).then(()=>toast("Jobs report copied."));
 }
@@ -219,6 +280,14 @@ function getJobBossName(job) {
   if (!uid) return "";
   const u = S.lookups.usersById.get(uid);
   return u?.username || u?.name || "";
+}
+
+function jobBossAvatarHtml(job) {
+  const c = getJobCompany(job);
+  const u = S.lookups.usersById.get(c?.user || "");
+  const av = u?.avatarUrl || u?.avatar || "";
+  if (av) return `<img class="job-boss-avatar" src="${escapeHtml(av)}" alt="" loading="lazy">`;
+  return `<iconify-icon icon="mdi:account-circle" class="job-boss-icon"></iconify-icon>`;
 }
 
 async function resolveBosses(jobs, k) {
@@ -245,11 +314,11 @@ function jobsMarketTable() {
     const country = getJobCountryName(j);
     const region = getJobRegionName(j);
     const loc = [region, country].filter(Boolean).join(", ");
-    const wageN = Number(j.wageAfterTax || 0);
+    const wageN = jobNetWageSync(j);
     const item = c?.itemCode || "";
     const val = c?.estimatedValue ? Number(c.estimatedValue) : 0;
     const boss = getJobBossName(j);
-    return [String(i + 1), company, boss || "—", loc || "—", item || "—", fmtMoney(j.wage || 0) + " BTC/hit", wageN ? fmtMoney(wageN) + " BTC" : "", val ? fmtMoney(val) + " BTC" : ""];
+    return [String(i + 1), company, boss || "—", loc || "—", item || "—", fmtWage(j.wage || 0) + " BTC/hit", wageN ? fmtWage(wageN) + " BTC" : "", val ? fmtMoney(val) + " BTC" : ""];
   });
   return cap.pageOpen("War Era Job Market Report", "", [gen]) +
     cap.section("Top Job Offers", cap.tableBlock("", ["#", "Company", "Boss", "Location", "Item", "Wage", "Net Wage", "Value"], rows, 20)) +
@@ -261,10 +330,12 @@ let _capturePrevJobView = null;
 async function activateJobView(view) {
   const marketFilters = document.getElementById("jobMarketFilters");
   const jobsList = document.getElementById("jobsList");
+  const jobsScroll = document.getElementById("jobsScroll");
   const companyView = document.getElementById("companyConcentration");
   const depositView = document.getElementById("depositConcentration");
   const loadMoreBtn = document.getElementById("loadMoreJobsButton");
   if (marketFilters) marketFilters.style.display = view === "market" ? "" : "none";
+  if (jobsScroll) jobsScroll.style.display = view === "market" ? "" : "none";
   if (jobsList) jobsList.style.display = view === "market" ? "" : "none";
   if (companyView) companyView.hidden = view !== "companies";
   if (depositView) depositView.hidden = view !== "deposits";
@@ -329,7 +400,7 @@ export async function loadJobs(reset=true) {
   E.jobsStatus.hidden=false; E.jobsStatus.textContent="Loading job offers…";
   if(reset){S.jobs=[];S.jobCursor=null;}
   try {
-    const result=await fetchTrpc("workOffer.getWorkOffersPaginated",{limit:50,cursor:reset?undefined:S.jobCursor},k);
+    const result=await fetchTrpc("workOffer.getWorkOffersPaginated",{limit:52,cursor:reset?undefined:S.jobCursor},k);
     const data=unwrap(result);
     let items=Array.isArray(data)?data:(data?.items||data?.offers||[]);
     items = items.filter(j => (j.openSlots||j.slots||j.count||j.quantity||1) > 0);

@@ -164,6 +164,23 @@ export async function fetchTrpcApi2(method, input, apiKeyValue) {
   return r.json();
 }
 
+export async function fetchTrpcApi2Post(method, input, apiKeyValue) {
+  const r = await fetch(
+    `${API2_BASE}/${method}`,
+    {
+      method: "POST",
+      headers: {
+        "X-API-Key": apiKeyValue,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(noUndef(input)),
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
+    }
+  );
+  if (!r.ok) throw new Error(`${method} ${r.status}`);
+  return r.json();
+}
+
 export function unwrap(r) {
   if (Array.isArray(r)) return r[0]?.result?.data?.json??r[0]?.result?.data??r[0]?.json??r[0];
   return r?.result?.data?.json??r?.result?.data??r?.json??r;

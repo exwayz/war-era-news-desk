@@ -180,7 +180,7 @@ function renderPolitics() {
     : "";
   container.innerHTML = `
     <div class="pol-header">
-      <h3>${flagHtml}<span>${escHtml(countryName)}</span></h3>
+      <h3>${flagHtml}<span>${escHtml(countryName)}</span><button id="copyCountryMentionBtn" class="btn-icon-sm" title="Copy mentionable URL"><iconify-icon icon="icon-park-outline:copy-link" class="lu"></iconify-icon></button></h3>
       <button id="backToCountryGridBtn" class="pol-back-btn" title="Back to country selection"><iconify-icon icon="ion:return-up-back-outline" class="lu"></iconify-icon></button>
     </div>
     <div class="pol-grid">
@@ -207,6 +207,10 @@ function renderPolitics() {
     if (!el || !el.innerText.trim()) { toast("No summary available yet."); return; }
     playCopy();
     navigator.clipboard.writeText(el.innerText.trim()).then(() => toast("Political summary copied."));
+  });
+  document.getElementById("copyCountryMentionBtn")?.addEventListener("click", () => {
+    if (!_selectedCountryId) return;
+    navigator.clipboard.writeText(`/country/${_selectedCountryId}`).then(() => toast("Mention URL copied."));
   });
   document.getElementById("backToCountryGridBtn")?.addEventListener("click", backToCountryGrid);
   window.ndMobile?.applyPolitics();
