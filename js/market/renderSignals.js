@@ -409,6 +409,15 @@ function signalsHTML() {
 
 export async function renderSignalsView(section) {
   if (!section) return;
+  // Already computed? Recompute cheaply from cached histories and render right
+  // away — no "Loading" flash (which would otherwise be what a Page capture
+  // snapshots when the capture flow re-opens this view).
+  if (S.market.signals && S.market.signals.size) {
+    computeMarketSignals();
+    computeCompositeIndex();
+    section.innerHTML = signalsHTML();
+    return;
+  }
   section.innerHTML = '<p style="color:var(--ink-dim);padding:12px">Loading market signals…</p>';
   const codes = (S.market.prices || []).map(i => i.itemCode || i.item || i.name).filter(Boolean);
   await ensureHistories(codes, { concurrency: 6 });

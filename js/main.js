@@ -578,7 +578,7 @@ function bindAll() {
   E.copyJobsReportBtn?.addEventListener("click", copyJobsReport);
   document.getElementById("captureJobsReportBtn")?.addEventListener("click", captureJobsReport);
   E.copyJobsConcentrationBtn?.addEventListener("click", copyJobsConcentration);
-  document.getElementById("captureJobsConcentrationBtn")?.addEventListener("click", captureJobsConcentration);
+  document.getElementById("captureJobsConcentrationBtn")?.addEventListener("click", captureJobsReport);
   initJobViews();
   E.copyRankingsReportBtn?.addEventListener("click", copyRankingsReport);
   document.getElementById("captureRankingsReportBtn")?.addEventListener("click", captureRankingsReport);

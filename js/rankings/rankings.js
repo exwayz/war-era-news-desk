@@ -284,6 +284,14 @@ function missingRankingCategories() {
   return Object.keys(CATEGORIES).filter(k => !_loaded[k]);
 }
 
+// Page-capture guard: a ranking board only renders after its category has been
+// opened in the Rankings tab at least once, so don't screenshot the loading
+// state — remind the user to open it first.
+function rankingsReady(catKey) {
+  if (_loaded[catKey]) return null;
+  return `Open the ${CATEGORIES[catKey].label} rankings first so they load, then capture.`;
+}
+
 export function copyRankingsReport() {
   const missing = missingRankingCategories();
   if (missing.length) {
@@ -314,41 +322,68 @@ export function copyRankingsReport() {
   navigator.clipboard.writeText(r).then(() => toast("Rankings report copied."));
 }
 
-export function captureRankingsReport() {
-  const missing = missingRankingCategories();
-  if (missing.length) {
-    toast(`Make sure every ranking has been rendered first. Not loaded yet: ${missing.map(k => CATEGORIES[k].label).join(", ")}.`);
-    return;
+async function rankingsTable(catKey) {
+  const cat = CATEGORIES[catKey];
+  const genTime = "Generated: " + new Date().toUTCString();
+  if (!cat) return cap.pageOpen("War Era Rankings Report", "", [genTime]) + "<div style='font-size:10px;color:var(--ink-dim)'>Unknown ranking category.</div>" + cap.pageClose();
+  if (!_loaded[catKey]) { try { await loadCategory(catKey); } catch {} }
+  const entries = _cache[catKey];
+  if (!entries || !entries.length) {
+    return cap.pageOpen("War Era Rankings Report", cat.label, [genTime]) + "<div style='font-size:10px;color:var(--ink-dim)'>No data loaded yet.</div>" + cap.pageClose();
   }
-
-  const genTime = "Generated: "+new Date().toUTCString();
-
-  for (const [catKey, cat] of Object.entries(CATEGORIES)) {
-    const entries = _cache[catKey];
-    if (!entries || !entries.length) continue;
-
-    const blocks = entries.map(entry => {
-      const items = entry.items || [];
-      const rows = items.slice(0, 10).map((item, i) => {
-        const id = getEntityId(item, entry.type);
-        const data = id ? getLookup(entry.type)?.get(id) : null;
-        const name = getName(entry.type, id, data);
-        const val = getValue(item);
-        return [String(i+1), name, fmtNum(val)];
-      });
-      return cap.tableBlock(entry.title, ["#","Name","Value"], rows, 10);
+  const blocks = entries.map(entry => {
+    const items = entry.items || [];
+    const rows = items.slice(0, 10).map((item, i) => {
+      const id = getEntityId(item, entry.type);
+      const data = id ? getLookup(entry.type)?.get(id) : null;
+      const name = getName(entry.type, id, data);
+      const val = getValue(item);
+      return [String(i + 1), name, fmtNum(val)];
     });
+    return cap.tableBlock(entry.title, ["#", "Name", "Value"], rows, 10);
+  });
+  return cap.pageOpen("War Era Rankings Report", cat.label, [genTime]) +
+    cap.flexRow(cap.flexCol(blocks[0] || "") + cap.flexCol(blocks[1] || "")) +
+    cap.flexRow(cap.flexCol(blocks[2] || "") + cap.flexCol(blocks[3] || "")) +
+    cap.pageClose();
+}
 
-    const html = cap.pageOpen("War Era Rankings Report", cat.label, [genTime]) +
-      cap.flexRow(
-        cap.flexCol(blocks[0] || "") + cap.flexCol(blocks[1] || "")
-      ) +
-      cap.flexRow(
-        cap.flexCol(blocks[2] || "") + cap.flexCol(blocks[3] || "")
-      ) +
-      cap.pageClose();
-    cap.captureHTML(html, "rankings_"+catKey+"_"+cap.ts()+".png");
+let _capturePrevRankCat = null;
+
+async function loadRankingCat(catKey) {
+  const pills = document.querySelectorAll("[data-rank-cat]");
+  if (!_capturePrevRankCat) {
+    const active = [...pills].find(b => b.classList.contains("active"));
+    _capturePrevRankCat = active ? active.dataset.rankCat : "weekly";
   }
+  const pill = document.querySelector(`[data-rank-cat="${catKey}"]`);
+  if (pill) pills.forEach(b => b.classList.toggle("active", b === pill));
+  await loadCategory(catKey);
+  const grid = document.getElementById("rankingsGrid");
+  if (!grid) throw new Error("Rankings grid not available — open the Rankings tab first.");
+  return grid;
+}
+
+function rankingsRestoreCapture() {
+  if (_capturePrevRankCat) {
+    const pills = document.querySelectorAll("[data-rank-cat]");
+    pills.forEach(b => b.classList.toggle("active", b.dataset.rankCat === _capturePrevRankCat));
+    loadCategory(_capturePrevRankCat).catch(() => {});
+    _capturePrevRankCat = null;
+  }
+}
+
+export function captureRankingsReport() {
+  const sections = Object.keys(CATEGORIES).map(catKey => ({
+    label: CATEGORIES[catKey].label,
+    meta: "4 boards",
+    filenameBase: "rankings_" + catKey,
+    table: () => rankingsTable(catKey),
+    page: () => loadRankingCat(catKey),
+    guard: () => rankingsReady(catKey),
+    cleanup: rankingsRestoreCapture,
+  }));
+  cap.openCapturePicker({ title: "Capture Rankings Report", sections });
 }
 
 export function initRankings() {

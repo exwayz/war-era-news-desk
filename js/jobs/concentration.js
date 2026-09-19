@@ -196,6 +196,45 @@ export function copyJobsConcentration() {
   navigator.clipboard.writeText(r).then(() => toast("Concentration report copied."));
 }
 
+export function companyConcentrationTable() {
+  const gen = "Generated: " + new Date().toUTCString();
+  if (!_companyConcentrationData.length) {
+    return cap.pageOpen("War Era Company Concentration", "", [gen]) + "<div style='font-size:10px;color:var(--ink-dim)'>No company data loaded — open the Companies view first.</div>" + cap.pageClose();
+  }
+  const regionCache = {};
+  const rows = _companyConcentrationData.map(([rid, data], i) => {
+    const { rname, cname } = _resolveRegionName(rid, regionCache);
+    const total = data.companies.length;
+    const codes = Object.entries(data.itemCodes).sort((a, b) => b[1] - a[1]);
+    const codeStr = codes.map(([code, count]) => `${code} ${((count / total) * 100).toFixed(0)}%`).join(", ");
+    return [String(i + 1), rname, cname || "—", fmtNum(total), codeStr];
+  });
+  return cap.pageOpen("War Era Company Concentration", "", [gen]) +
+    cap.section("", cap.tableBlock("", ["#", "Region", "Country", "Companies", "Item Codes"], rows, 100)) +
+    cap.pageClose();
+}
+
+export function depositConcentrationTable() {
+  const gen = "Generated: " + new Date().toUTCString();
+  if (!_depositConcentrationData.length) {
+    return cap.pageOpen("War Era Deposit Concentration", "", [gen]) + "<div style='font-size:10px;color:var(--ink-dim)'>No deposit data loaded — open the Deposits view first.</div>" + cap.pageClose();
+  }
+  const regionCache = {};
+  const now = Date.now();
+  const rows = _depositConcentrationData.map((ev, i) => {
+    const ed = ev.data;
+    const rid = ed.region;
+    const { rname, cname } = _resolveRegionName(rid, regionCache);
+    const durationDays = ed.durationDays || 0;
+    const endsAt = new Date(ev.createdAt).getTime() + durationDays * 86400000;
+    const remaining = Math.max(0, Math.ceil((endsAt - now) / 86400000));
+    return [String(i + 1), rname, cname || "—", ed.itemCode || "—", "+" + (ed.bonusPercent || 0) + "%", remaining + "d"];
+  });
+  return cap.pageOpen("War Era Deposit Concentration", "", [gen]) +
+    cap.section("", cap.tableBlock("", ["#", "Region", "Country", "Type", "Bonus", "Remaining"], rows, 100)) +
+    cap.pageClose();
+}
+
 export function captureJobsConcentration() {
   const companyView = document.getElementById("companyConcentration");
   const depositView = document.getElementById("depositConcentration");

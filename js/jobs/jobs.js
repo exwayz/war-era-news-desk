@@ -8,7 +8,7 @@ import * as cap from "../core/captureReport.js";
 import { highlightUserData } from "../core/profileHighlighter.js";
 import { ensureLookups } from "../timeline/filters.js";
 import { nameCountry, nameRegion } from "../battles/companies.js";
-import { loadCompanyConcentration, loadDepositConcentration, populateDepositFilter } from "./concentration.js";
+import { loadCompanyConcentration, loadDepositConcentration, populateDepositFilter, companyConcentrationTable, depositConcentrationTable } from "./concentration.js";
 import { computeProduction, getProductionCache, regionWageCapacity } from "../market/production.js";
 
 function getCompanyId(job) {
@@ -233,24 +233,80 @@ async function resolveBosses(jobs, k) {
   }));
 }
 
-export function captureJobsReport() {
-  const byWage=[...S.jobs].sort((a,b)=>Number(b.wage||0)-Number(a.wage||0));
-  const rows = byWage.slice(0,20).map((j,i) => {
-    const company = getJobCompanyName(j)||"Unknown";
+function jobsMarketTable() {
+  const gen = "Total offers: " + S.jobs.length + " · Generated: " + new Date().toUTCString();
+  if (!S.jobs.length) {
+    return cap.pageOpen("War Era Job Market Report", "", [gen]) + "<div style='font-size:10px;color:var(--ink-dim)'>No job offers loaded — open the Jobs tab first.</div>" + cap.pageClose();
+  }
+  const byWage = [...S.jobs].sort((a, b) => Number(b.wage || 0) - Number(a.wage || 0));
+  const rows = byWage.slice(0, 20).map((j, i) => {
+    const company = getJobCompanyName(j) || "Unknown";
     const c = getJobCompany(j);
     const country = getJobCountryName(j);
     const region = getJobRegionName(j);
     const loc = [region, country].filter(Boolean).join(", ");
-    const wageN = Number(j.wageAfterTax||0);
-    const item = c?.itemCode||"";
+    const wageN = Number(j.wageAfterTax || 0);
+    const item = c?.itemCode || "";
     const val = c?.estimatedValue ? Number(c.estimatedValue) : 0;
     const boss = getJobBossName(j);
-    return [String(i+1), company, boss||"—", loc||"—", item||"—", fmtMoney(j.wage||0)+" BTC/hit", wageN?fmtMoney(wageN)+" BTC":"", val?fmtMoney(val)+" BTC":""];
+    return [String(i + 1), company, boss || "—", loc || "—", item || "—", fmtMoney(j.wage || 0) + " BTC/hit", wageN ? fmtMoney(wageN) + " BTC" : "", val ? fmtMoney(val) + " BTC" : ""];
   });
-  const html = cap.pageOpen("War Era Job Market Report", "", ["Total offers: "+S.jobs.length, "Generated: "+new Date().toUTCString()]) +
-    cap.section("Top Job Offers", cap.tableBlock("", ["#","Company","Boss","Location","Item","Wage","Net Wage","Value"], rows, 20)) +
+  return cap.pageOpen("War Era Job Market Report", "", [gen]) +
+    cap.section("Top Job Offers", cap.tableBlock("", ["#", "Company", "Boss", "Location", "Item", "Wage", "Net Wage", "Value"], rows, 20)) +
     cap.pageClose();
-  cap.captureHTML(html, "jobs_report_"+cap.ts()+".png");
+}
+
+let _capturePrevJobView = null;
+
+async function activateJobView(view) {
+  const marketFilters = document.getElementById("jobMarketFilters");
+  const jobsList = document.getElementById("jobsList");
+  const companyView = document.getElementById("companyConcentration");
+  const depositView = document.getElementById("depositConcentration");
+  const loadMoreBtn = document.getElementById("loadMoreJobsButton");
+  if (marketFilters) marketFilters.style.display = view === "market" ? "" : "none";
+  if (jobsList) jobsList.style.display = view === "market" ? "" : "none";
+  if (companyView) companyView.hidden = view !== "companies";
+  if (depositView) depositView.hidden = view !== "deposits";
+  if (loadMoreBtn) loadMoreBtn.style.display = view === "market" ? "" : "none";
+  if (view === "companies") await loadCompanyConcentration();
+  if (view === "deposits") { populateDepositFilter(); await loadDepositConcentration(""); }
+}
+
+async function jobsViewForCapture(view) {
+  const prevPills = [...document.querySelectorAll("[data-job-view]")];
+  const prevActive = prevPills.find(b => b.classList.contains("active"));
+  if (!_capturePrevJobView) _capturePrevJobView = prevActive ? prevActive.dataset.jobView : "market";
+  document.querySelectorAll("[data-job-view]").forEach(b => b.classList.remove("active"));
+  const pill = document.querySelector(`[data-job-view="${view}"]`);
+  if (pill) pill.classList.add("active");
+  await activateJobView(view);
+  const el = view === "market" ? document.getElementById("jobsList")
+    : view === "companies" ? document.getElementById("companyConcentration")
+    : document.getElementById("depositConcentration");
+  if (!el) throw new Error("Job section not available — open the Jobs tab first.");
+  return el;
+}
+
+function jobsRestoreCapture() {
+  if (_capturePrevJobView) {
+    document.querySelectorAll("[data-job-view]").forEach(b => b.classList.remove("active"));
+    const pill = document.querySelector(`[data-job-view="${_capturePrevJobView}"]`);
+    if (pill) pill.classList.add("active");
+    activateJobView(_capturePrevJobView).catch(() => {});
+    _capturePrevJobView = null;
+  }
+}
+
+export function captureJobsReport() {
+  cap.openCapturePicker({
+    title: "Capture Jobs Report",
+    sections: [
+      { label: "Job Market", filenameBase: "jobs_market", table: jobsMarketTable, page: () => jobsViewForCapture("market"), cleanup: jobsRestoreCapture },
+      { label: "Company Concentration", filenameBase: "jobs_companies", table: companyConcentrationTable, page: () => jobsViewForCapture("companies"), cleanup: jobsRestoreCapture },
+      { label: "Deposit Concentration", filenameBase: "jobs_deposits", table: depositConcentrationTable, page: () => jobsViewForCapture("deposits"), cleanup: jobsRestoreCapture },
+    ],
+  });
 }
 
 export function initJobViews() {
@@ -259,18 +315,7 @@ export function initJobViews() {
       const view = btn.dataset.jobView;
       document.querySelectorAll("[data-job-view]").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
-      const marketFilters = document.getElementById("jobMarketFilters");
-      const jobsList = document.getElementById("jobsList");
-      const companyView = document.getElementById("companyConcentration");
-      const depositView = document.getElementById("depositConcentration");
-      const loadMoreBtn = document.getElementById("loadMoreJobsButton");
-      if (marketFilters) marketFilters.style.display = view === "market" ? "" : "none";
-      if (jobsList) jobsList.style.display = view === "market" ? "" : "none";
-      if (companyView) companyView.hidden = view !== "companies";
-      if (depositView) depositView.hidden = view !== "deposits";
-      if (loadMoreBtn) loadMoreBtn.style.display = view === "market" ? "" : "none";
-      if (view === "companies") loadCompanyConcentration();
-      if (view === "deposits") { populateDepositFilter(); loadDepositConcentration(""); }
+      activateJobView(view);
     });
   });
   document.getElementById("depositTypeFilter")?.addEventListener("change", () => {

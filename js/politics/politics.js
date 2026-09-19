@@ -1224,10 +1224,9 @@ export function copyPoliticsReport() {
   navigator.clipboard.writeText(lines.join("\n")).then(() => toast("Politics report copied."));
 }
 
-export function capturePoliticsReport() {
+function politicsReportHtml() {
   const country = _countries.find(c => c._id === _selectedCountryId);
   const countryName = country?.name || _selectedCountryId.slice(-6);
-  if (!_selectedCountryId) { toast("Select a country first."); return; }
 
   const genLine = "Generated: " + new Date().toUTCString();
   const meta = [genLine];
@@ -1291,13 +1290,35 @@ export function capturePoliticsReport() {
     return [type, start, end, votes];
   });
 
-  const html = cap.pageOpen(`War Era Politics Report — ${countryName}`, "", meta) +
+  return cap.pageOpen(`War Era Politics Report — ${countryName}`, "", meta) +
     cap.section("Government", `<div style="font-size:10px;color:var(--ink-dim);line-height:1.5">${govHtml}</div>`) +
     cap.section("Country Snapshot", `<div style="font-size:10px;color:var(--ink-dim);line-height:1.5">${ctxHtml}</div>`) +
     cap.section("Parties", cap.tableBlock("", ["Party", "Leader", "Members", "Ethics"], partyRows, 50)) +
     cap.section("Elections", cap.tableBlock("", ["Type", "Start", "End", "Votes"], electionRows, 50)) +
     cap.pageClose();
-  cap.captureHTML(html, "politics_report_" + cap.ts() + ".png");
+}
+
+export function capturePoliticsReport() {
+  if (!_selectedCountryId) { toast("Open the Politics tab, select a country, and let it load first."); return; }
+  const country = _countries.find(c => c._id === _selectedCountryId);
+  const countryName = country?.name || _selectedCountryId.slice(-6);
+  cap.openCaptureStore({
+    title: "Capture Politics Report",
+    sectionLabel: countryName,
+    filenameBase: "politics_report",
+    modes: "both",
+    guard: () => {
+      const content = document.getElementById("politicsContent");
+      if (content && content.querySelector(".pol-header")) return null;
+      return "Open the country's Politics detail first and let it load before capturing.";
+    },
+    table: () => politicsReportHtml(),
+    page: async () => {
+      const el = document.getElementById("politicsContent");
+      if (!el) throw new Error("Politics detail isn't rendered — select a country first.");
+      return el;
+    },
+  });
 }
 
 export function loadCountryById(countryId) {

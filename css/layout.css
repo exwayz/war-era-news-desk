@@ -1877,3 +1877,39 @@ button#tmAddToLibraryBtn:hover { border-color: var(--accent); color: var(--ink);
 }
 .reader-btt:hover { background: var(--accent); color: #fff; }
 .reader-btt.hidden { display: none; }
+
+/* ── CAPTURE REPORT MODALS ──────────────────────────── */
+.cap-overlay { padding: 20px; align-items: center; }
+.cap-overlay .modal-card { max-height: 80vh; overflow-y: auto; }
+.cap-picker-card, .cap-store-card { width: min(460px, 100%); }
+.cap-picker-list { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
+.cap-picker-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  border: 1px solid var(--line); background: var(--surface);
+  padding: 10px 12px;
+}
+.cap-picker-label { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cap-picker-name { font-size: .86rem; font-weight: 700; color: var(--ink); }
+.cap-picker-meta { font-size: .7rem; color: var(--ink-dim); }
+.cap-picker-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.cap-picker-actions .btn-secondary,
+.cap-store-grid .btn-primary,
+.cap-store-grid .btn-secondary {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px;
+  font-size: .76rem; border-radius: 4px; cursor: pointer; transition: all .15s;
+}
+.cap-picker-actions .btn-secondary:disabled,
+.cap-store-grid button:disabled { opacity: .45; cursor: default; }
+.cap-mode-toggle { display: flex; gap: 6px; }
+.cap-mode-toggle .pill-btn {
+  display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px;
+  font-size: .72rem; border-radius: 4px;
+}
+.cap-mode-note { font-size: .76rem !important; color: var(--ink-dim) !important; }
+.cap-store-grid { display: flex; flex-direction: column; gap: 8px; }
+.cap-store-grid .btn-primary,
+.cap-store-grid .btn-secondary {
+  justify-content: center; width: 100%;
+}
+.cap-status { font-size: .76rem !important; color: var(--ink-dim) !important; }
+.cap-status.error { color: var(--red) !important; }

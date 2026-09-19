@@ -1036,48 +1036,47 @@ function renderBattleDetail(b, bid, rankUsers, rankMu, rankCountry, gpUsers, gpM
       `${sc.started ? "Started: "+fmtDate(sc.started) : ""}${sc.ended ? "  ·  Ended: "+fmtDate(sc.ended) : ""}${durationStr ? "  ·  "+durationStr : ""}`,
       `Generated: ${new Date().toUTCString()}`,
     ];
-    if (sc.damageUsers.length) {
-      const atkD = sc.damageUsers.filter(r => r._side === "attacker").sort((a,b) => getValue(b) - getValue(a)).slice(0,10);
-      const defD = sc.damageUsers.filter(r => r._side === "defender").sort((a,b) => getValue(b) - getValue(a)).slice(0,10);
-      const atkG = sc.gpUsers.filter(r => r._side === "attacker").sort((a,b) => getPoints(b) - getPoints(a)).slice(0,10);
-      const defG = sc.gpUsers.filter(r => r._side === "defender").sort((a,b) => getPoints(b) - getPoints(a)).slice(0,10);
-      const dm = rowsSideBySide(defD, atkD, r => nameUser(r.userId||r.user)||r.username||"Unknown", getValue);
-      const gp = rowsSideBySide(defG, atkG, r => nameUser(r.userId||r.user)||r.username||"Unknown", getPoints);
-      const subH = `<th colspan="3" style="${ch.STYLE.th};text-align:center">DEFENDER</th><th colspan="3" style="${ch.STYLE.th};text-align:center">ATTACKER</th>`;
-      const html = ch.pageOpen("War Era Battle Report", title2, meta) +
-        ch.section("Top Fighters by Damage", ch.tableBlock("", ["#","Fighter","Damage","#","Fighter","Damage"], dm, 10, subH)) +
-        ch.section("Top Fighters by Total Hits", ch.tableBlock("", ["#","Fighter","Ground Pts","#","Fighter","Ground Pts"], gp, 10, subH)) +
-        ch.pageClose();
-      await ch.captureHTML(html, `battle_${slug}_fighters_${ch.ts()}.png`);
+
+    const typeKey = view.type === "mus" ? "mu" : (view.type === "countries" ? "countries" : "fighters");
+    const damList = typeKey === "fighters" ? sc.damageUsers : typeKey === "mu" ? sc.damageMu : sc.damageCountry;
+    const gpList = typeKey === "fighters" ? sc.gpUsers : typeKey === "mu" ? sc.gpMu : sc.gpCountry;
+    if (!damList.length && !gpList.length) {
+      toast("No ranking data for the active view.");
+      return;
     }
-    if (sc.damageMu.length) {
-      const atkD = sc.damageMu.filter(r => r._side === "attacker").sort((a,b) => getValue(b) - getValue(a)).slice(0,10);
-      const defD = sc.damageMu.filter(r => r._side === "defender").sort((a,b) => getValue(b) - getValue(a)).slice(0,10);
-      const atkG = sc.gpMu.filter(r => r._side === "attacker").sort((a,b) => getPoints(b) - getPoints(a)).slice(0,10);
-      const defG = sc.gpMu.filter(r => r._side === "defender").sort((a,b) => getPoints(b) - getPoints(a)).slice(0,10);
-      const dm = rowsSideBySide(defD, atkD, r => nameMu(r.muId||r.mu)||`MU ${String(r.muId||r.mu).slice(-6)}`, getValue);
-      const gp = rowsSideBySide(defG, atkG, r => nameMu(r.muId||r.mu)||`MU ${String(r.muId||r.mu).slice(-6)}`, getPoints);
-      const subH = `<th colspan="3" style="${ch.STYLE.th};text-align:center">DEFENDER</th><th colspan="3" style="${ch.STYLE.th};text-align:center">ATTACKER</th>`;
-      const html = ch.pageOpen("War Era Battle Report", title2, meta) +
-        ch.section("Top MUs by Damage", ch.tableBlock("", ["#","MU","Damage","#","MU","Damage"], dm, 10, subH)) +
-        ch.section("Top MUs by Total Hits", ch.tableBlock("", ["#","MU","Ground Pts","#","MU","Ground Pts"], gp, 10, subH)) +
-        ch.pageClose();
-      await ch.captureHTML(html, `battle_${slug}_mu_${ch.ts()}.png`);
-    }
-    if (sc.damageCountry.length) {
-      const atkD = sc.damageCountry.filter(r => r._side === "attacker").sort((a,b) => getValue(b) - getValue(a)).slice(0,10);
-      const defD = sc.damageCountry.filter(r => r._side === "defender").sort((a,b) => getValue(b) - getValue(a)).slice(0,10);
-      const atkG = sc.gpCountry.filter(r => r._side === "attacker").sort((a,b) => getPoints(b) - getPoints(a)).slice(0,10);
-      const defG = sc.gpCountry.filter(r => r._side === "defender").sort((a,b) => getPoints(b) - getPoints(a)).slice(0,10);
-      const dm = rowsSideBySide(defD, atkD, r => nameCountry(r.countryId||r.country)||r.countryName||r.name||"Unknown", getValue);
-      const gp = rowsSideBySide(defG, atkG, r => nameCountry(r.countryId||r.country)||r.countryName||r.name||"Unknown", getPoints);
-      const subH = `<th colspan="3" style="${ch.STYLE.th};text-align:center">DEFENDER</th><th colspan="3" style="${ch.STYLE.th};text-align:center">ATTACKER</th>`;
-      const html = ch.pageOpen("War Era Battle Report", title2, meta) +
-        ch.section("Top Countries by Damage", ch.tableBlock("", ["#","Country","Damage","#","Country","Damage"], dm, 10, subH)) +
-        ch.section("Top Countries by Total Hits", ch.tableBlock("", ["#","Country","Ground Pts","#","Country","Ground Pts"], gp, 10, subH)) +
-        ch.pageClose();
-      await ch.captureHTML(html, `battle_${slug}_countries_${ch.ts()}.png`);
-    }
+    const typeName = typeKey === "fighters"
+      ? r => nameUser(r.userId||r.user)||r.username||"Unknown"
+      : typeKey === "mu"
+        ? r => nameMu(r.muId||r.mu)||`MU ${String(r.muId||r.mu).slice(-6)}`
+        : r => nameCountry(r.countryId||r.country)||r.countryName||r.name||"Unknown";
+    const typeLabel = typeKey === "fighters" ? "Fighters" : typeKey === "mu" ? "MUs" : "Countries";
+
+    ch.openCaptureStore({
+      title: "Capture Battle Report",
+      subtitle: title2,
+      sectionLabel: `${battleTypeLabel} · ${typeLabel}`,
+      filenameBase: `battle_${slug}`,
+      modes: "both",
+      table: async () => {
+        const atkD = damList.filter(r => r._side === "attacker").sort((a,b) => getValue(b) - getValue(a)).slice(0,10);
+        const defD = damList.filter(r => r._side === "defender").sort((a,b) => getValue(b) - getValue(a)).slice(0,10);
+        const atkG = gpList.filter(r => r._side === "attacker").sort((a,b) => getPoints(b) - getPoints(a)).slice(0,10);
+        const defG = gpList.filter(r => r._side === "defender").sort((a,b) => getPoints(b) - getPoints(a)).slice(0,10);
+        if (!defD.length && !atkD.length && !defG.length && !atkG.length) throw new Error("No ranking data for the active view.");
+        const dm = rowsSideBySide(defD, atkD, typeName, getValue);
+        const gp = rowsSideBySide(defG, atkG, typeName, getPoints);
+        const subH = `<th colspan="3" style="${ch.STYLE.th};text-align:center">DEFENDER</th><th colspan="3" style="${ch.STYLE.th};text-align:center">ATTACKER</th>`;
+        return ch.pageOpen("War Era Battle Report", title2, meta) +
+          ch.section(`Top ${typeLabel} by Damage`, ch.tableBlock("", ["#", typeLabel === "Fighters" ? "Fighter" : typeLabel, "Damage", "#", typeLabel === "Fighters" ? "Fighter" : typeLabel, "Damage"], dm, 10, subH)) +
+          ch.section(`Top ${typeLabel} by Total Hits`, ch.tableBlock("", ["#", typeLabel === "Fighters" ? "Fighter" : typeLabel, "Ground Pts", "#", typeLabel === "Fighters" ? "Fighter" : typeLabel, "Ground Pts"], gp, 10, subH)) +
+          ch.pageClose();
+      },
+      page: async () => {
+        const bodyEl = document.getElementById(scopeBodyId);
+        if (!bodyEl) throw new Error("Battle detail isn't rendered.");
+        return bodyEl;
+      },
+    });
   });
 
   scheduleLiveRefresh(bid, isLive, tickInfo);

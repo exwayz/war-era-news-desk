@@ -1,7 +1,7 @@
 import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
 import { apiKey, fetchTrpc, fetchTrpcApi2, fetchMarketData, fetchTxPaginated, startTransactionTrueAmount, startTransactionLiteAmount, getBestTxData, onTxUpgrade, unwrap } from "../core/api.js";
-import { fmtMoney, fmtNum, formatShortNumber, marketItemName, commodityBars, miniChart } from "../core/utils.js";
+import { fmtMoney, fmtNum, formatShortNumber, marketItemName, commodityBars, miniChart, escapeHtml } from "../core/utils.js";
 import { toast } from "../ui/toast.js";
 import * as cap from "../core/captureReport.js";
 import { highlightUserData } from "../core/profileHighlighter.js";
@@ -616,64 +616,182 @@ function fmtPct(v) {
   return (v > 0 ? "+" : "") + v.toFixed(1) + "%";
 }
 
-export async function captureMarketReport() {
-  const ec=S.market.econ; const prices=S.market.prices||[]; const orders=S.market.orders||[];
-  const overviewRows = [];
-  if(ec) {
-    overviewRows.push(["Avg Wage", fmtMoney(ec.avgWage, 3)+" BTC/hit"]);
-    if(ec.wageMin!=null) overviewRows.push(["Wage Range", fmtMoney(ec.wageMin,3)+" → "+fmtMoney(ec.wageMax,3)+" BTC/hit"]);
-    if(ec.topOffer) overviewRows.push(["Top Wage Offer", fmtMoney(ec.topOffer,3)+" BTC/hit"]);
-    overviewRows.push(["Total Payroll", fmtMoney(ec.totalPayroll)+" BTC"]);
-    overviewRows.push(["Total Work Done", fmtNum(ec.totalQuantity)+" hits ("+ec.wageCount+" txn)"]);
-    overviewRows.push(["Trade Volume", fmtMoney(ec.tradeVol)+" BTC ("+ec.tradeCount+" txn)"]);
+const MARKET_SECTIONS = {
+  overview:    { label: "Overview",       selector: ".market-grid" },
+  analytics:   { label: "Full Analytics", selector: ".analytics-section" },
+  predictions: { label: "Predictions",    selector: ".prediction-section" },
+  signals:     { label: "Signals",        selector: ".signals-section" },
+  production:  { label: "Production",     selector: ".production-section" },
+};
+
+let _capturePrevView = null;
+
+// Page-capture guards: these sections load asynchronously the first time they
+// are opened in the app, so the screenshot must not run against the loading
+// state. Remind the user to open + let them finish loading first instead.
+function marketSignalsReady() {
+  if (S.market.signals && S.market.signals.size) return null;
+  return "Open the Signals section first so it finishes loading, then capture it.";
+}
+
+function marketProductionReady() {
+  if (S.market._prodData) return null;
+  return "Open the Production section first so it finishes loading, then capture it.";
+}
+
+function marketViewForCapture(view) {
+  if (!_capturePrevView) _capturePrevView = _marketView;
+  loadMarketView(view);
+  const el = document.querySelector(MARKET_SECTIONS[view].selector);
+  if (!el) throw new Error("Market section not available yet — open it once first.");
+  return el;
+}
+
+function marketRestoreCapture() {
+  if (_capturePrevView) {
+    loadMarketView(_capturePrevView);
+    _capturePrevView = null;
   }
-  const priceRows = prices.slice(0,10).map(i => [marketItemName(i.itemCode||i.name), fmtMoney(Number(i.price||0))+" BTC"]);
+}
+
+function marketOverviewTable() {
+  const ec = S.market.econ;
+  const prices = S.market.prices || [];
+  const orders = S.market.orders || [];
+  const gen = ["Generated: " + new Date().toUTCString()];
+  const overviewRows = [];
+  if (ec) {
+    overviewRows.push(["Avg Wage", fmtMoney(ec.avgWage, 3) + " BTC/hit"]);
+    if (ec.wageMin != null) overviewRows.push(["Wage Range", fmtMoney(ec.wageMin, 3) + " → " + fmtMoney(ec.wageMax, 3) + " BTC/hit"]);
+    if (ec.topOffer) overviewRows.push(["Top Wage Offer", fmtMoney(ec.topOffer, 3) + " BTC/hit"]);
+    overviewRows.push(["Total Payroll", fmtMoney(ec.totalPayroll) + " BTC"]);
+    overviewRows.push(["Total Work Done", fmtNum(ec.totalQuantity) + " hits (" + ec.wageCount + " txn)"]);
+    overviewRows.push(["Trade Volume", fmtMoney(ec.tradeVol) + " BTC (" + ec.tradeCount + " txn)"]);
+  }
+  const priceRows = prices.slice(0, 10).map(i => [marketItemName(i.itemCode || i.name), fmtMoney(Number(i.price || 0)) + " BTC"]);
   const commodityScores = {};
-  for(const o of orders){
+  for (const o of orders) {
     const itemCode = o._itemCode || o.itemCode || o.item || "?";
     const qty = Number(o._qty || o.quantity || o.amount || 0);
     const price = Number(o._price || o.price || 0);
-    if(!commodityScores[itemCode]){ commodityScores[itemCode] = { itemCode, value:0 }; }
+    if (!commodityScores[itemCode]) commodityScores[itemCode] = { itemCode, value: 0 };
     commodityScores[itemCode].value += qty * price;
   }
-  const valuable = Object.values(commodityScores).sort((a,b)=>b.value-a.value).slice(0,10);
+  const valuable = Object.values(commodityScores).sort((a, b) => b.value - a.value).slice(0, 10);
   const weeklyMap = {};
   if (S.market._weeklyMVI) for (const w of S.market._weeklyMVI) weeklyMap[w.item] = w.value;
   const nowStr = new Date().toLocaleString();
   const valuableRows = valuable.map(entry => {
     const name = marketItemName(entry.itemCode);
     const wv = weeklyMap[name];
-    return [name, fmtMoney(entry.value)+" BTC", wv ? fmtMoney(wv)+" BTC" : "—"];
+    return [name, fmtMoney(entry.value) + " BTC", wv ? fmtMoney(wv) + " BTC" : "—"];
   });
+  if (!overviewRows.length && !priceRows.length && !valuableRows.length) {
+    return cap.pageOpen("War Era Market Report — Overview", "", gen) + "<div style='font-size:10px;color:var(--ink-dim)'>No market data loaded yet — open the Market tab first.</div>" + cap.pageClose();
+  }
+  return cap.pageOpen("War Era Market Report — Overview", "", gen) +
+    (overviewRows.length ? cap.section("Economic Overview", cap.tableBlock("", ["Metric", "Value"], overviewRows, 99)) : "") +
+    (priceRows.length ? cap.section("Top Commodity Prices", cap.tableBlock("", ["#", "Item", "Price"], priceRows.map((r, i) => [String(i + 1), ...r]), 10)) : "") +
+    (valuableRows.length ? cap.section("Most Valuable Commodities", cap.tableBlock("", ["#", "Item", "Current Value (" + nowStr + ")", "Weekly Value"], valuableRows.map((r, i) => [String(i + 1), ...r]), 10)) : "") +
+    cap.pageClose();
+}
 
+function marketAnalyticsTable() {
+  const a = calculateAnalytics();
+  const gen = ["Generated: " + new Date().toUTCString()];
+  if (!a?.p) return cap.pageOpen("War Era Market Report — Full Analytics", "", gen) + "<div style='font-size:10px;color:var(--ink-dim)'>No analytics data loaded yet.</div>" + cap.pageClose();
+  let html = cap.pageOpen("War Era Market Report — Full Analytics", "", gen) +
+    cap.section("Key Metrics", cap.tableBlock("", ["Metric", "Value"], [
+      ["Economic Status", a.econClass?.label || "N/A"],
+      ["Health Score", a.healthScore ? a.healthScore.score + "/100 (" + a.healthScore.level + ")" : "N/A"],
+      ["Trade Momentum", fmtPct(a.d?.tradeMom)],
+      ["Payroll Momentum", fmtPct(a.d?.payrollMom)],
+      ["Wage Momentum", fmtPct(a.d?.wageMom)],
+      ["Price Momentum", fmtPct(a.d?.priceMom)],
+      ["Purchasing Power", a.d?.pp != null ? fmtMoney(a.d.pp, 4) + " baskets/wage" : "N/A"],
+      ["HHI", a.d?.hhi != null ? a.d.hhi.toFixed(0) : "N/A"],
+      ["Economic Circulation", a.d?.circulation != null ? (a.d.circulation * 100).toFixed(1) + "%" : "N/A"],
+      ["Trade Efficiency", a.d?.tradeEfficiency != null ? fmtMoney(a.d.tradeEfficiency) + " BTC/trade" : "N/A"],
+      ["Total Commodity Value", a.p.Vc > 0 ? fmtMoney(a.p.Vc) + " BTC" : "N/A"],
+    ], 99));
+  if (a.warnings?.length) {
+    html += cap.section("Active Warnings", cap.tableBlock("", ["Level", "Indicator", "Reason"], a.warnings.map(w => [w.level, w.indicator, w.reason]), 50));
+  }
+  if (a.assessment?.summary) {
+    const paras = (a.assessment.paragraphs || []).map(p => `<div style="margin-top:2px"><b>${escapeHtml(p.topic)}:</b> ${escapeHtml(p.text)}</div>`).join("");
+    html += cap.section("Economic Intelligence Assessment", `<div style="font-size:10px;color:var(--ink-dim);line-height:1.6">${escapeHtml(a.assessment.summary)}${paras}</div>`);
+  }
+  return html + cap.pageClose();
+}
+
+function marketPredictionsTable() {
+  const pred = computePredictions();
+  const gen = ["Generated: " + new Date().toUTCString()];
+  if (!pred?.itemsWithHistory?.length) {
+    return cap.pageOpen("War Era Market Report — Predictions", "", gen) + "<div style='font-size:10px;color:var(--ink-dim)'>No prediction data — commodity history needs two snapshots or more.</div>" + cap.pageClose();
+  }
+  let html = cap.pageOpen("War Era Market Report — Predictions", "", gen) +
+    cap.section("Prediction Overview", cap.tableBlock("", ["Metric", "Value"], [
+      ["Prediction Confidence", pred.confidence + "/100"],
+      ["Market Rotation Index", pred.marketRotationIndex + " rank changes"],
+      ["Sentiment", pred.totalBullish + " bullish / " + pred.totalStable + " stable / " + pred.totalBearish + " bearish"],
+    ], 99));
+  if (pred.topBullish.length) {
+    html += cap.section("Top Bullish", cap.tableBlock("", ["#", "Item", "Score"], pred.topBullish.map((k, i) => { const h = pred.heatScores[k]; return [String(i + 1), h?.pred?.itemName || k, h ? h.score.toFixed(1) : "?"]; }), 20));
+  }
+  if (pred.topBearish.length) {
+    html += cap.section("Top Bearish", cap.tableBlock("", ["#", "Item", "Score"], pred.topBearish.map((k, i) => { const h = pred.heatScores[k]; return [String(i + 1), h?.pred?.itemName || k, h ? h.score.toFixed(1) : "?"]; }), 20));
+  }
+  if (pred.potentialChanges.length) {
+    const dir = pc => pc.rankChange > 0 ? "▲ Up" : "▼ Down";
+    html += cap.section("Potential Ranking Changes", cap.tableBlock("", ["Item", "Direction", "Ranks"], pred.potentialChanges.map(pc => [pc.itemName, dir(pc), String(Math.abs(pc.rankChange))]), 50));
+  }
+  if (pred.outlook?.summary) {
+    html += cap.section("Outlook", `<div style="font-size:10px;color:var(--ink-dim);line-height:1.6">${escapeHtml(pred.outlook.summary)}</div>`);
+  }
+  return html + cap.pageClose();
+}
+
+async function marketSignalsTable() {
+  const sigRows = await signalReportRows();
+  const gen = ["Generated: " + new Date().toUTCString()];
+  if (!sigRows.length) return cap.pageOpen("War Era Market Report — Signals", "", gen) + "<div style='font-size:10px;color:var(--ink-dim)'>No signals available.</div>" + cap.pageClose();
+  const idx = S.market.compositeIndex;
+  const idxVal = idx && idx.daily.length ? idx.daily[idx.daily.length - 1].value : null;
+  const trend = indexTrend();
+  const sub = idxVal != null ? `<th colspan="7" style="${cap.STYLE.th};text-align:center">Composite Market Index: ${idxVal.toFixed(2)} (${fmtPct(trend)})</th>` : "";
+  const rows = sigRows.slice(0, 20).map((s, i) => [String(i + 1), marketItemName(s.code), s.level.name, (s.score >= 0 ? "+" : "") + s.score.toFixed(3), Math.round(s.confidence * 100) + "%", s.rsi != null ? s.rsi.toFixed(0) : "—", fmtMoney(s.price) + " BTC"]);
+  return cap.pageOpen("War Era Market Report — Signals", "", gen) +
+    cap.section("Commodity Signals", cap.tableBlock("", ["#", "Item", "Signal", "Score", "Confidence", "RSI", "Price"], rows, 20, sub)) +
+    cap.pageClose();
+}
+
+function marketProductionTable() {
   const pd = S.market._prodData;
-  let prodHtml = "";
+  const gen = ["Generated: " + new Date().toUTCString()];
+  if (!pd) return cap.pageOpen("War Era Market Report — Production", "", gen) + "<div style='font-size:10px;color:var(--ink-dim)'>No production data loaded yet.</div>" + cap.pageClose();
+  let html = cap.pageOpen("War Era Market Report — Production", "", gen);
   if (pd?.bestPerProduct?.length) {
-    const bestRows = pd.bestPerProduct.map(r => [r.productName, r.regionName, r.countryName, r.totalBonus.toFixed(1)+"%", fmtMoney(r.profitPerPP)+" ₿", fmtMoney(r.netWages)+" ₿"]);
-    prodHtml += cap.section("Production — Best Region per Product", cap.tableBlock("", ["Product","Region","Country","Bonus","Profit/PP","Net Wages"], bestRows, 99));
+    const bestRows = pd.bestPerProduct.map(r => [r.productName, r.regionName, r.countryName, r.totalBonus.toFixed(1) + "%", fmtMoney(r.profitPerPP) + " ₿", fmtMoney(r.netWages) + " ₿"]);
+    html += cap.section("Production — Best Region per Product", cap.tableBlock("", ["Product", "Region", "Country", "Bonus", "Profit/PP", "Net Wages"], bestRows, 99));
   }
   if (pd?.rows?.length) {
-    const wageRows = pd.rows.slice(0, 15).map((r, i) => [String(i+1), r.regionName, r.countryName, r.productName, r.totalBonus.toFixed(1)+"%", r.incomeTax+"%", fmtMoney(r.grossWages)+" ₿", fmtMoney(r.netWages)+" ₿"]);
-    prodHtml += cap.section("Production — Top 15 Regions by Net Wages", cap.tableBlock("", ["#","Region","Country","Product","Bonus","Tax","Gross","Net Wages"], wageRows, 15));
+    const wageRows = pd.rows.slice(0, 15).map((r, i) => [String(i + 1), r.regionName, r.countryName, r.productName, r.totalBonus.toFixed(1) + "%", r.incomeTax + "%", fmtMoney(r.grossWages) + " ₿", fmtMoney(r.netWages) + " ₿"]);
+    html += cap.section("Production — Top 15 Regions by Net Wages", cap.tableBlock("", ["#", "Region", "Country", "Product", "Bonus", "Tax", "Gross", "Net Wages"], wageRows, 15));
   }
+  if (!pd?.bestPerProduct?.length && !pd?.rows?.length) html += "<div style='font-size:10px;color:var(--ink-dim)'>No production data available.</div>";
+  return html + cap.pageClose();
+}
 
-  const sigRows = await signalReportRows();
-  let sigHtml = "";
-  if (sigRows.length) {
-    const idx = S.market.compositeIndex;
-    const idxVal = idx && idx.daily.length ? idx.daily[idx.daily.length - 1].value : null;
-    const trend = indexTrend();
-    const sub = idxVal != null ? `<th colspan="7" style="${cap.STYLE.th};text-align:center">Composite Market Index: ${idxVal.toFixed(2)} (${fmtPct(trend)})</th>` : "";
-    const rows = sigRows.slice(0, 20).map((s, i) => [String(i+1), marketItemName(s.code), s.level.name, (s.score >= 0 ? "+" : "") + s.score.toFixed(3), Math.round(s.confidence * 100) + "%", s.rsi != null ? s.rsi.toFixed(0) : "—", fmtMoney(s.price) + " BTC"]);
-    sigHtml = cap.section("Commodity Signals", cap.tableBlock("", ["#","Item","Signal","Score","Confidence","RSI","Price"], rows, 20, sub));
-  }
-
-  const html = cap.pageOpen("War Era Market Intelligence Report", "", ["Generated: "+new Date().toUTCString()]) +
-    (overviewRows.length ? cap.section("Economic Overview", cap.tableBlock("", ["Metric","Value"], overviewRows, 99)) : "") +
-    (priceRows.length ? cap.section("Top Commodity Prices", cap.tableBlock("", ["#","Item","Price"], priceRows.map((r,i)=>[String(i+1),...r]), 10)) : "") +
-    (valuableRows.length ? cap.section("Most Valuable Commodities", cap.tableBlock("", ["#","Item","Current Value ("+nowStr+")","Weekly Value"], valuableRows.map((r,i)=>[String(i+1),...r]), 10)) : "") +
-    sigHtml +
-    prodHtml +
-    cap.pageClose();
-  cap.captureHTML(html, "market_report_"+cap.ts()+".png");
+export function captureMarketReport() {
+  cap.openCapturePicker({
+    title: "Capture Market Report",
+    sections: [
+      { label: "Overview", filenameBase: "market_overview", table: marketOverviewTable, page: () => marketViewForCapture("overview"), cleanup: marketRestoreCapture },
+      { label: "Full Analytics", filenameBase: "market_analytics", table: marketAnalyticsTable, page: () => marketViewForCapture("analytics"), cleanup: marketRestoreCapture },
+      { label: "Predictions", filenameBase: "market_predictions", table: marketPredictionsTable, page: () => marketViewForCapture("predictions"), cleanup: marketRestoreCapture },
+      { label: "Signals", filenameBase: "market_signals", table: marketSignalsTable, page: () => marketViewForCapture("signals"), guard: marketSignalsReady, cleanup: marketRestoreCapture },
+      { label: "Production", filenameBase: "market_production", table: marketProductionTable, page: () => marketViewForCapture("production"), guard: marketProductionReady, cleanup: marketRestoreCapture },
+    ],
+  });
 }
