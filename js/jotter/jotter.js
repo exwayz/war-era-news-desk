@@ -52,6 +52,7 @@ const FONTS = [
 const OFFLINE_KEY = { country: "countries", region: "regions", alliance: "alliances", party: "parties", mu: "mus" };
 const DATA_KEY = { user: "userId", country: "countryId", region: "regionId", alliance: "allianceId", mu: "muId", party: "partyId", battle: "battleId", company: "companyId", article: "articleId" };
 const CHIP_BADGES = {
+  region:  { icon: "ic:sharp-terrain",           color: "#86efac" },
   mu:      { icon: "hugeicons:electric-tower-02", color: "#fca5a5" },
   party:   { icon: "mdi:lectern",                 color: "#93c5fd" },
   company: { icon: "at-icons:factory",            color: "#fde047" },
