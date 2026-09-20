@@ -2,7 +2,7 @@ import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
 import { apiKey, fetchTrpc, fetchTrpcApi2, fetchTrpcApi5, unwrap } from "../core/api.js";
 import { debounce, fmtDate, fmtNum, escapeHtml, articleCardStatsHtml } from "../core/utils.js";
-import { langName } from "../timeline/articles.js";
+import { langName, langFlagHtml } from "../timeline/articles.js";
 import { resolveUsers } from "../timeline/filters.js";
 import { getMeta, saveMeta, loadAll, saveMany, clearStore } from "./libraryStore.js";
 import { setCurrentArticle, getBookmarkRecords, isBookmarked, ensureBookmarksLoaded } from "./bookmarks.js";
@@ -440,7 +440,12 @@ export function renderLibrary() {
 		card.style.setProperty("--cat-bg", catMeta.bg);
 		}
       card.querySelector(".ac-title").textContent = a.title || "Untitled";
-      card.querySelector(".ac-meta").textContent = `${authorName(a.author)} · ${langName(a.language)} · ${fmtDate(a.createdAt)}`;
+      const author = authorName(a.author);
+      const u = a.author ? S.lookups.usersById.get(a.author) : null;
+      const av = u?.avatarUrl || u?.avatar || "";
+      const avatarHtml = av ? `<img class="ac-author-avatar" src="${escapeHtml(av)}" alt="" loading="lazy"> ` : "";
+      const langHtml = langFlagHtml(a.language, "ac-lang-flag") || escapeHtml(langName(a.language));
+      card.querySelector(".ac-meta").innerHTML = `${avatarHtml}${author} | ${langHtml} · ${fmtDate(a.createdAt)}`;
       card.querySelector(".ac-stats").innerHTML = articleCardStatsHtml(stats);
       card.querySelector(".ac-open").addEventListener("click", () => {
         window.open(`https://app.warera.io/article/${a._id}`, "_blank", "noopener");
@@ -493,9 +498,12 @@ function updateLangTrigger() {
   if (!cont) return;
   const trigger = cont.querySelector(".lang-dropdown-trigger");
   if (!trigger) return;
-  if (L.langs.length === 0) trigger.textContent = "All Languages";
-  else if (L.langs.length === 1) trigger.textContent = langName(L.langs[0]);
-  else trigger.textContent = `${L.langs.length} selected`;
+  const label = trigger.querySelector(".ld-trigger-label") || trigger;
+  if (L.langs.length === 0) label.textContent = "All Languages";
+  else if (L.langs.length === 1) label.textContent = langName(L.langs[0]);
+  else label.textContent = `${L.langs.length} selected`;
+  const clear = cont.querySelector("[data-ld-clear]");
+  if (clear) clear.hidden = L.langs.length === 0;
 }
 
 function populateLangDropdown() {
@@ -505,10 +513,11 @@ function populateLangDropdown() {
   if (!cont) return;
   const menu = cont.querySelector(".lang-dropdown-menu");
   if (!menu) return;
-  let html = `<div class="lang-dropdown-item${L.langs.length === 0 ? " selected" : ""}" data-lang=""><span class="ld-check">${L.langs.length === 0 ? "✓" : "&nbsp;"}</span>All</div>`;
+  let html = `<div class="lang-dropdown-item${L.langs.length === 0 ? " selected" : ""}" data-lang=""><span class="ld-check">${L.langs.length === 0 ? "✓" : "&nbsp;"}</span><span class="ld-name">All</span></div>`;
   for (const l of [...langs].sort()) {
     const active = L.langs.includes(l);
-    html += `<div class="lang-dropdown-item${active ? " selected" : ""}" data-lang="${l}"><span class="ld-check">${active ? "✓" : "&nbsp;"}</span>${langName(l)}</div>`;
+    const flagHtml = langFlagHtml(l, "ld-flag");
+    html += `<div class="lang-dropdown-item${active ? " selected" : ""}" data-lang="${l}"><span class="ld-check">${active ? "✓" : "&nbsp;"}</span>${flagHtml}<span class="ld-name">${langName(l)}</span></div>`;
   }
   menu.innerHTML = html;
   updateLangTrigger();
@@ -673,7 +682,16 @@ export function initLibrary() {
   if (langCont) {
     const trigger = langCont.querySelector(".lang-dropdown-trigger");
     const menu = langCont.querySelector(".lang-dropdown-menu");
-    trigger?.addEventListener("click", (e) => { e.stopPropagation(); menu?.classList.toggle("hidden"); });
+    trigger?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (e.target.closest("[data-ld-clear]")) {
+        L.langs = [];
+        populateLangDropdown();
+        renderLibrary();
+        return;
+      }
+      menu?.classList.toggle("hidden");
+    });
     document.addEventListener("click", (e) => {
       if (!e.target.closest("#libraryLangFilter")) menu?.classList.add("hidden");
     });

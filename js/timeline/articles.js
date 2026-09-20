@@ -26,8 +26,46 @@ const LANG_NAMES = {
   mn:"Монгол",ne:"नेपाली",si:"සිංහල",km:"ភាសាខ្មែរ",lo:"ລາວ",
   ta:"தமிழ்",te:"తెలుగు",kn:"ಕನ್ನಡ",ml:"മലയാളം",mr:"मराठी",
   gu:"ગુજરાતી",pa:"ਪੰਜਾਬੀ",ur:"اردو",
+  az:"Azerbaijani",be:"Belarusian",cymraeg:"Welsh",gd:"Scottish Gaelic",
+  kk:"Kazakh",uz:"Uzbek","zh-hant-tw":"繁體中文",
 };
-export function langName(code) { return LANG_NAMES[code] || (code ? code.toUpperCase() : "?"); }
+export function langName(code) {
+  const c = String(code || "").toLowerCase();
+  return LANG_NAMES[c] || (code ? String(code).toUpperCase() : "?");
+}
+
+const LANG_FLAG_CODES = {
+  en:"uk",de:"de",es:"es",fr:"fr",pt:"pt",ru:"ru",zh:"cn",ja:"jp",ko:"kr",
+  it:"it",pl:"pl",tr:"tr",nl:"nl",sv:"se",cs:"cz",ro:"ro",hu:"hu",uk:"ua",
+  ar:"sa",vi:"vn",th:"th",id:"id",ms:"my",hi:"in",bn:"bd",fa:"ir",he:"il",
+  el:"gr",fi:"fi",da:"dk",no:"no",nb:"no",nn:"no",bg:"bg",hr:"hr",sk:"sk",
+  sl:"si",et:"ee",lv:"lv",lt:"lt",ca:"es",gl:"es",eu:"es",ga:"ie",
+  mt:"mt",is:"is",mk:"mk",sq:"al",sr:"rs",bs:"ba",sw:"ke",am:"et",my:"mm",
+  ka:"ge",hy:"am",tl:"ph",haw:"us",mi:"nz",sm:"ws",zu:"za",af:"za",st:"za",
+  tn:"za",ss:"sz",ve:"za",ts:"za",nr:"za",nso:"za",rw:"rw",rn:"bi",lg:"ug",
+  ak:"gh",ee:"gh",ha:"ng",ig:"ng",yo:"ng",sn:"zw",ny:"mw",mn:"mn",ne:"np",
+  si:"lk",km:"kh",lo:"la",ta:"in",te:"in",kn:"in",ml:"in",mr:"in",gu:"in",
+  pa:"in",ur:"pk",az:"az",be:"by",kk:"kz",uz:"uz","zh-hant-tw":"tw",
+};
+const LANG_ICON_FLAGS = {
+  cy: "flagpack:gb-wls",
+  cymraeg: "flagpack:gb-wls",
+  gd: "flagpack:gb-sct",
+  meow: "fluent-emoji-flat:grinning-cat",
+};
+export function langFlagUrl(code) {
+  const c = String(code || "").toLowerCase();
+  const cc = LANG_FLAG_CODES[c];
+  return cc ? `https://media.warera.io/images/flags/${cc}.svg` : "";
+}
+export function langFlagHtml(code, cls) {
+  const c = String(code || "").toLowerCase();
+  const icon = LANG_ICON_FLAGS[c];
+  const k = cls || "lang-flag";
+  if (icon) return `<iconify-icon icon="${icon}" class="${k}" data-tip="${langName(c)}"></iconify-icon>`;
+  const url = langFlagUrl(c);
+  return url ? `<img class="${k}" src="${url}" alt="${langName(c)}" data-tip="${langName(c)}" loading="lazy">` : "";
+}
 
 function getActiveLangs() { return S.articleLangs || []; }
 function isLangActive(code) { return getActiveLangs().includes(code); }

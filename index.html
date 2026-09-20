@@ -422,7 +422,7 @@
             <input type="datetime-local" id="libraryTimeFrom" title="From" class="art-date" autocomplete="one-time-code">
             <input type="datetime-local" id="libraryTimeTo" title="To" class="art-date" disabled autocomplete="one-time-code">
             <div class="lang-dropdown" id="libraryLangFilter">
-              <button class="lang-dropdown-trigger" type="button">All Languages</button>
+              <button class="lang-dropdown-trigger" type="button"><span class="ld-trigger-label">All Languages</span><span class="ld-clear" data-ld-clear title="Clear selected languages" hidden><iconify-icon icon="mdi:close" class="lu"></iconify-icon></span></button>
               <div class="lang-dropdown-menu hidden"></div>
             </div>
             <select id="libraryCatFilter" class="filter-select" title="Filter by category"><option value="all">All Articles</option></select>
@@ -1383,7 +1383,7 @@ Charlie 750     3</pre>
 <template id="articleLibCardTemplate">
   <article class="article-card">
     <h3 class="ac-title"></h3>
-	<div class="ac-catmeta"><div class="ac-cat"></div> <div class="ac-meta"></div></div>
+	<div class="ac-catmeta"><div class="ac-meta"></div><div class="ac-cat"></div></div>
     <div class="ac-stats"></div>
     <div class="ac-actions">
       <button class="ac-open">Open</button>
