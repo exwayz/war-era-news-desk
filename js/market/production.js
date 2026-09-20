@@ -1,4 +1,4 @@
-import { fetchTrpc, fetchTrpcApi5, unwrap } from "../core/api.js";
+import { fetchTrpc, fetchTrpcApi2, unwrap } from "../core/api.js";
 import { apiKey } from "../core/api.js";
 import { S } from "../core/state.js";
 
@@ -165,27 +165,48 @@ async function _doCompute() {
 
   const countryArr = Array.isArray(countries) ? countries : (countries?.items || countries?.results || []);
   const countryById = {};
-  const uniqueParties = new Set();
+  const partyById = {};
   for (const c of countryArr) {
     const id = c._id || c.id;
     if (!id) continue;
     countryById[id] = c;
-    if (c.rulingParty) uniqueParties.add(c.rulingParty);
+    if (c.rulingParty) partyById[c.rulingParty] = true;
+  }
+
+  // Remove the per-party api5 `party.getById` storm (this used to fire ~100
+  // parallel requests per page load). A single paginated `party.getManyPaginated`
+  // returns every party (name + ethics) in a handful of requests.
+  const partyDataById = {};
+  const partyIds = Object.keys(partyById);
+  for (const fetcher of [fetchTrpc, fetchTrpcApi2]) {
+    try {
+      let cursor = null;
+      let fetched = 0;
+      while (true) {
+        const input = { limit: 100 };
+        if (cursor) input.cursor = cursor;
+        const res = unwrap(await fetcher("party.getManyPaginated", input, k));
+        const parties = Array.isArray(res) ? res : (res?.items || res?.parties || res?.data || []);
+        if (!parties.length) break;
+        for (const p of parties) {
+          const pid = p?._id || p?.id;
+          if (pid) partyDataById[pid] = p;
+        }
+        fetched += parties.length;
+        if (!res?.nextCursor || parties.length < 100) break;
+        cursor = res.nextCursor;
+      }
+      if (Object.keys(partyDataById).length) break;
+    } catch (err) {}
   }
 
   const partyIndById = {};
   const partyNameById = {};
-  const partyIds = [...uniqueParties];
-  const partyResults = await Promise.allSettled(
-    partyIds.map(pid => fetchTrpcApi5("party.getById", { partyId: pid }, k))
-  );
-  for (let i = 0; i < partyIds.length; i++) {
-    if (partyResults[i].status === "fulfilled") {
-      const pd = unwrap(partyResults[i].value);
-      if (pd) {
-        partyIndById[partyIds[i]] = pd.ethics?.industrialism || 0;
-        partyNameById[partyIds[i]] = pd.name || "Unknown";
-      }
+  for (const pid of partyIds) {
+    const pd = partyDataById[pid];
+    if (pd) {
+      partyIndById[pid] = pd.ethics?.industrialism || 0;
+      partyNameById[pid] = pd.name || "Unknown";
     }
   }
 
