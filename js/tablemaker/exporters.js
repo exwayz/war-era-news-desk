@@ -17,31 +17,74 @@ function loadHtml2Canvas() {
   return _html2canvasPromise;
 }
 
+function renderIcons(root) {
+  root.querySelectorAll("iconify-icon").forEach((ic) => {
+    if (typeof ic.getSVGElement !== "function") return;
+    try {
+      const svg = ic.getSVGElement({ includeStyle: true });
+      if (!svg) return;
+      const size = (ic.style && ic.style.fontSize) ? ic.style.fontSize : "1em";
+      const s = svg.cloneNode(true);
+      s.setAttribute("width", size);
+      s.setAttribute("height", size);
+      ic.replaceWith(s);
+    } catch {}
+  });
+}
+
+function prepareImages(root) {
+  root.querySelectorAll("img").forEach((im) => {
+    try { im.crossOrigin = "anonymous"; } catch {}
+    const src = im.getAttribute("src") || im.getAttribute("data-src");
+    if (src && !/^https?:/i.test(src)) {
+      try { im.setAttribute("src", new URL(src, location.href).href); im.removeAttribute("data-src"); } catch {}
+    }
+  });
+}
+
+function awaitImages(root) {
+  const imgs = Array.from(root.querySelectorAll("img")).filter((im) => im.src && !(im.complete && im.naturalWidth));
+  if (!imgs.length) return Promise.resolve();
+  return Promise.all(imgs.map((im) => new Promise((resolve) => {
+    let done = false;
+    const finish = () => { if (!done) { done = true; resolve(); } };
+    const t = setTimeout(finish, 3000);
+    im.addEventListener("load", () => { clearTimeout(t); finish(); });
+    im.addEventListener("error", () => { clearTimeout(t); finish(); });
+    if (im.complete) finish();
+  })));
+}
+
 // Render any DOM element (table or table wrapper) to a PNG Blob. Shared by the
 // Converter and Drawer export paths so both produce identical output.
 export async function renderElementPNG(el) {
   if (!el) throw new Error("Nothing to export");
   const html2canvas = await loadHtml2Canvas();
-  const tableEl = el.tagName === "TABLE" ? el : (el.querySelector("table") || el);
-  const tableW = Math.max(1, Math.round((tableEl || el).getBoundingClientRect().width));
   const clone = el.cloneNode(true);
-  clone.style.position = "fixed";
-  clone.style.left = "-9999px";
-  clone.style.top = "0";
-  clone.style.width = tableW + "px";
-  clone.style.margin = "0";
-  const holder = document.createElement("div");
-  holder.style.width = tableW + "px";
-  holder.style.background = "#ffffff";
-  holder.appendChild(clone);
-  document.body.appendChild(holder);
+
+  renderIcons(clone);
+  prepareImages(clone);
+
+  clone.style.cssText = "position:fixed;left:-9999px;top:0;width:auto;max-width:none;margin:0;height:auto;transform:none;";
+  clone.querySelectorAll("*").forEach((n) => {
+    n.style.overflow = "visible";
+    n.style.maxHeight = "none";
+    n.style.animation = "none";
+    n.style.transition = "none";
+  });
+
+  document.body.appendChild(clone);
   try {
-    const canvas = await html2canvas(holder, { backgroundColor: "#ffffff", scale: 2, useCORS: true, logging: false });
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const width = Math.max(1, Math.round(clone.getBoundingClientRect().width || el.getBoundingClientRect().width || 0));
+    clone.style.width = width + "px";
+    await awaitImages(clone);
+    const canvas = await html2canvas(clone, { backgroundColor: "#ffffff", scale: 2, useCORS: true, logging: false });
     return await new Promise((resolve, reject) => {
       canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("PNG rendering failed"))), "image/png");
     });
   } finally {
-    document.body.removeChild(holder);
+    clone.remove();
   }
 }
 
