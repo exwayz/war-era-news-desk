@@ -9,19 +9,92 @@ import { setCurrentArticle, getBookmarkRecords, isBookmarked, ensureBookmarksLoa
 import { openRootArticle } from "../ui/readerNav.js";
 
 const CATEGORY_META = {
-  news:          { label: "News",          icon: "mdi:newspaper-variant-outline" },
-  politics:      { label: "Politics",      icon: "mdi:bank-outline" },
-  election:      { label: "Election",      icon: "mdi:ballot-outline" },
-  economy:       { label: "Economy",       icon: "mdi:chart-line" },
-  military:      { label: "Military",      icon: "mdi:sword-cross" },
-  entertainment: { label: "Entertainment", icon: "mdi:movie-open-outline" },
-  guide:         { label: "Guides",        icon: "mdi:book-open-page-variant-outline" },
-  stats:         { label: "Stats",         icon: "mdi:chart-bar" },
-  begging:       { label: "Begging",       icon: "mdi:hand-heart-outline" },
-  other:         { label: "Other",         icon: "mdi:archive-outline" },
+  news: {
+    label: "News",
+    icon: "ic:sharp-article",
+    bg: "#051F41",
+    fg: "#9EBADB"
+  },
+
+  politics: {
+    label: "Politics",
+    icon: "mdi:bank-outline",
+    bg: "#052145",
+    fg: "#9EBADB"
+  },
+
+  election: {
+    label: "Election",
+    icon: "ic:sharp-how-to-vote",
+    bg: "#042245",
+    fg: "#9EBADB"
+  },
+
+  economy: {
+    label: "Economy",
+    icon: "bxs:coin",
+    bg: "#313213",
+    fg: "#D2D29E"
+  },
+
+  military: {
+    label: "Military",
+    icon: "heroicons:fire-16-solid",
+    bg: "#450E0F",
+    fg: "#F4A2A3"
+  },
+
+  entertainment: {
+    label: "Entertainment",
+    icon: "mdi:movie-open-outline",
+    bg: "#3B1431",
+    fg: "#E4ABD1"
+  },
+
+  guide: {
+    label: "Guides",
+    icon: "boxicons:light-bulb-filled",
+    bg: "#3E2D10",
+    fg: "#E6CDA5"
+  },
+
+  stats: {
+    label: "Stats",
+    icon: "mdi:chart-bar",
+    bg: "#032E31",
+    fg: "#AED2D6"
+  },
+
+  begging: {
+    label: "Begging",
+    icon: "mdi:hand-heart-outline",
+    bg: "#2D2928",
+    fg: "#CAC4C2"
+  },
+
+  giveaway: {
+    label: "Giveaway",
+    icon: "ant-design:gift-filled",
+    bg: "#003321",
+    fg: "#4BDAAF"
+  },
+
+  other: {
+    label: "Other",
+    icon: "mdi:shape",
+    bg: "#163337",
+    fg: "#AED2D6"
+  },
+
+  official: {
+    label: "Official",
+    icon: "bi:shield-fill-check",
+    bg: "#1C163F",
+    fg: "#B5ACDE"
+  },
 };
 
-const VISIBLE_STEP = 50;
+const VISIBLE_STEP = 99;
 
 const L = {
   index: [],
@@ -244,7 +317,11 @@ export function renderBookshelf() {
     const meta = c === "all" ? { label: "All", icon: "mdi:bookshelf" } : CATEGORY_META[c];
     const count = counts[c] || 0;
     const label = (c === "all" ? "All Articles" : meta.label) || c;
-    return `<button class="lib-book${isActive(c) ? " active" : ""}" data-lib-cat="${c}" data-tip="${escapeHtml(label)} - ${count} articles">
+    return `<button
+      class="lib-book${isActive(c) ? " active" : ""}"
+      data-lib-cat="${c}"
+      style="--cat-bg:${meta.bg || "var(--accent)"};--cat-fg:${meta.fg || "var(--ink)"};"
+      data-tip="${escapeHtml(label)} - ${count} articles">
       <iconify-icon icon="${meta.icon}" class="lu"></iconify-icon>
       <span class="lib-book-count">${fmtNum(count)}</span>
     </button>`;
@@ -354,8 +431,14 @@ export function renderLibrary() {
   } else {
     for (const a of shown) {
       const stats = a.stats || {};
-      const card = E.tplArticle.content.firstElementChild.cloneNode(true);
-      card.querySelector(".ac-cat").textContent = CATEGORY_META[a.category]?.label || a.category;
+      const card = E.tplArticleLib.content.firstElementChild.cloneNode(true);
+      const catEl = card.querySelector(".ac-cat");
+      const catMeta = CATEGORY_META[a.category];
+      catEl.textContent = catMeta?.label || a.category;
+      if (catMeta) {
+		card.style.setProperty("--cat-fg", catMeta.fg);
+		card.style.setProperty("--cat-bg", catMeta.bg);
+		}
       card.querySelector(".ac-title").textContent = a.title || "Untitled";
       card.querySelector(".ac-meta").textContent = `${authorName(a.author)} · ${langName(a.language)} · ${fmtDate(a.createdAt)}`;
       card.querySelector(".ac-stats").innerHTML = articleCardStatsHtml(stats);

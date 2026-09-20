@@ -79,6 +79,7 @@ export const E = {
   loadMoreJobsBtn: document.getElementById("loadMoreJobsButton"),
   tplEvent: document.getElementById("eventCardTemplate"),
   tplArticle: document.getElementById("articleCardTemplate"),
+  tplArticleLib: document.getElementById("articleLibCardTemplate"),
   tplBattle: document.getElementById("battleCardTemplate"),
   marketPricesChart: document.getElementById("marketPricesChart"),
   commodityOrdersBtn: document.getElementById("commodityOrdersBtn"),
