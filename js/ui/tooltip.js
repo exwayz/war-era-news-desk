@@ -28,7 +28,10 @@ function show(el, cx, cy) {
   let top = cy + 16;
   if (left < 4) left = 4;
   if (left + tw > window.innerWidth - 4) left = window.innerWidth - tw - 4;
+  if (left < 4) left = 4;
   if (top + th > window.innerHeight - 4) top = cy - th - 8;
+  if (top < 4) top = 4;
+  if (top + th > window.innerHeight - 4) top = Math.max(4, window.innerHeight - th - 4);
   _tip.style.left = left + "px";
   _tip.style.top = top + "px";
 }

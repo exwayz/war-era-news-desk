@@ -807,7 +807,8 @@ mark.reader-highlight {
 /* ── GLOBAL TOOLTIP ──────────────────────────────── */
 .nd-tooltip {
   position: fixed; z-index: 100100; display: none;
-  padding: 3px 8px; max-width: 260px; white-space: pre-wrap; word-break: break-word;
+  padding: 3px 8px; max-width: min(360px, calc(100vw - 8px)); max-height: calc(100vh - 8px);
+  overflow: hidden; white-space: pre-wrap; word-break: break-word;
   font-family: "Fira Code", monospace; font-size: .62rem; font-weight: 400;
   background: var(--surface-hi); color: var(--ink); border: 1px solid var(--line);
   box-shadow: 0 4px 12px rgba(0,0,0,.2); pointer-events: none;
