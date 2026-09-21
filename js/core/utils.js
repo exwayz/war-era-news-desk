@@ -7,7 +7,8 @@ export function debounce(fn, ms) {
 export function fmtMoney(v, precision) {
   const n=Number(v);
   if(!Number.isFinite(n)) return v==null?"—":String(v);
-  return new Intl.NumberFormat(undefined,{maximumFractionDigits: Number.isInteger(precision) ? precision : 2}).format(n);
+  const max = Number.isInteger(precision) ? Math.max(3, precision) : 3;
+  return new Intl.NumberFormat(undefined,{minimumFractionDigits: 3, maximumFractionDigits: max}).format(n);
 }
 
 export function fmtNum(v) {
@@ -21,6 +22,16 @@ export function fmtNum(v) {
 export function fmtDate(v) {
   if(!v) return "—"; const d=new Date(v); if(isNaN(d.getTime())) return String(v);
   return new Intl.DateTimeFormat(undefined,{year:"numeric",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(d);
+}
+
+export function fmtDateShort(v) {
+  if(!v) return "—"; const d=new Date(v); if(isNaN(d.getTime())) return String(v);
+  const dd = String(d.getDate()).padStart(2,"0");
+  const mm = String(d.getMonth()+1).padStart(2,"0");
+  const yy = String(d.getFullYear()).slice(-2);
+  const hh = String(d.getHours()).padStart(2,"0");
+  const min = String(d.getMinutes()).padStart(2,"0");
+  return `${dd}/${mm}/${yy}, ${hh}:${min}`;
 }
 
 export function parseLocal(v) { if(!v) return null; const d=new Date(v); return isNaN(d.getTime())?null:d; }

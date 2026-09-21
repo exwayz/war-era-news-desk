@@ -1,7 +1,7 @@
 import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
 import { apiKey, fetchTrpc, fetchTrpcApi2, fetchTrpcApi5, unwrap } from "../core/api.js";
-import { debounce, fmtDate, fmtNum, escapeHtml, articleCardStatsHtml } from "../core/utils.js";
+import { debounce, fmtDateShort, fmtNum, escapeHtml, articleCardStatsHtml } from "../core/utils.js";
 import { langName, langFlagHtml } from "../timeline/articles.js";
 import { resolveUsers } from "../timeline/filters.js";
 import { getMeta, saveMeta, loadAll, saveMany, clearStore } from "./libraryStore.js";
@@ -398,6 +398,9 @@ function libraryLoadMoreBtn() {
     _loadMoreLibraryBtn.className = "btn-load";
     _loadMoreLibraryBtn.hidden = true;
     _loadMoreLibraryBtn.textContent = "Load More";
+  }
+  if (!_loadMoreLibraryBtn._hasLoadListener) {
+    _loadMoreLibraryBtn._hasLoadListener = true;
     _loadMoreLibraryBtn.addEventListener("click", () => {
       L.visible += VISIBLE_STEP;
       renderLibrary();
@@ -445,7 +448,7 @@ export function renderLibrary() {
       const av = u?.avatarUrl || u?.avatar || "";
       const avatarHtml = av ? `<img class="ac-author-avatar" src="${escapeHtml(av)}" alt="" loading="lazy"> ` : "";
       const langHtml = langFlagHtml(a.language, "ac-lang-flag") || escapeHtml(langName(a.language));
-      card.querySelector(".ac-meta").innerHTML = `${avatarHtml}${author} | ${langHtml} · ${fmtDate(a.createdAt)}`;
+      card.querySelector(".ac-meta").innerHTML = `${avatarHtml}${author} | ${langHtml} · ${fmtDateShort(a.createdAt)}`;
       card.querySelector(".ac-stats").innerHTML = articleCardStatsHtml(stats);
       card.querySelector(".ac-open").addEventListener("click", () => {
         window.open(`https://app.warera.io/article/${a._id}`, "_blank", "noopener");

@@ -472,7 +472,17 @@ function chartSVG(hist) {
   const sp5 = s5 ? line2(s5) : "";
   const sp20 = s20 ? line2(s20) : "";
   const lastX = X(vals.length - 1);
-  return `<svg viewBox="0 0 ${W} ${HP + HV + 20}" class="exec-chart-svg">
+  const pts = vals.map((v, i) => ({
+    x: X(i),
+    y: Y(v.avg),
+    avg: v.avg,
+    qty: v.qty,
+    date: v.date,
+    s5: s5 ? s5[i] : null,
+    s20: s20 ? s20[i] : null,
+  }));
+  const ptsJson = escapeHtml(JSON.stringify(pts));
+  return `<svg viewBox="0 0 ${W} ${HP + HV + 20}" class="exec-chart-svg cm-chart-svg" data-pts='${ptsJson}'>
     <defs><linearGradient id="cmg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.22"/>
       <stop offset="100%" stop-color="var(--accent)" stop-opacity="0.02"/>
@@ -484,7 +494,90 @@ function chartSVG(hist) {
     <polyline points="${cpt}" fill="none" stroke="var(--accent)" stroke-width="1.6"/>
     <line x1="${pad}" y1="${HP + 8}" x2="${W - pad}" y2="${HP + 8}" stroke="var(--line)" stroke-width="1"/>
     ${vbars}
+    <line class="cm-crosshair" x1="0" y1="${pad}" x2="0" y2="${HP - pad}" stroke="var(--ink-dim)" stroke-width="1" stroke-dasharray="3,3" opacity="0"/>
+    <circle class="cm-crossdot" cx="0" cy="0" r="4.5" fill="var(--accent)" stroke="var(--bg)" stroke-width="1.5" opacity="0"/>
+    <rect x="${pad}" y="${pad}" width="${W - pad * 2}" height="${HP - pad * 2}" fill="transparent" class="cm-hover-area"/>
   </svg>`;
+}
+
+/* ── Commodity chart crosshair ───────────────────────────
+   Tracks the nearest daily close as the pointer moves over the price chart
+   and shows date, price and volume at that point (mirrors studio.js). */
+let _cmChartTip = null;
+
+function cmChartTipEl() {
+  if (!_cmChartTip) {
+    _cmChartTip = document.createElement("div");
+    _cmChartTip.className = "cm-chart-tip";
+    _cmChartTip.style.cssText = "display:none;position:fixed;z-index:100003;padding:6px 10px;background:var(--surface-hi);border:1px solid var(--line);color:var(--ink);font-size:.72rem;line-height:1.5;pointer-events:none;white-space:pre-wrap;max-width:220px;box-shadow:0 4px 12px rgba(0,0,0,.25)";
+    document.body.appendChild(_cmChartTip);
+  }
+  return _cmChartTip;
+}
+
+function fmtChartDate(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso || "");
+  return d.toLocaleDateString("en-US", {weekday: "long"}) + ", " + String(d.getDate()) + "/" + String(d.getMonth() + 1).padStart(2, "0") + "/" + String(d.getFullYear());
+}
+
+function initCommodityChartCrosshair(svg) {
+  if (!svg || !svg.dataset.pts) return;
+  let pts;
+  try { pts = JSON.parse(svg.dataset.pts); } catch { return; }
+  if (!pts.length) return;
+
+  const crosshair = svg.querySelector(".cm-crosshair");
+  const crossdot = svg.querySelector(".cm-crossdot");
+  const hoverArea = svg.querySelector(".cm-hover-area");
+  if (!crosshair || !crossdot || !hoverArea) return;
+
+  const vb = svg.viewBox.baseVal;
+  const tip = cmChartTipEl();
+
+  function svgX(e) {
+    const rect = svg.getBoundingClientRect();
+    return (e.clientX - rect.left) * (vb.width / rect.width);
+  }
+
+  function nearest(sx) {
+    let best = pts[0], bestD = Infinity;
+    for (const p of pts) {
+      const d = Math.abs(p.x - sx);
+      if (d < bestD) { bestD = d; best = p; }
+    }
+    return best;
+  }
+
+  function moveTip(e) {
+    tip.style.left = Math.min(e.clientX + 14, window.innerWidth - 240) + "px";
+    tip.style.top = Math.max(e.clientY - 70, 4) + "px";
+  }
+
+  function show(p) {
+    crosshair.setAttribute("x1", p.x.toFixed(1));
+    crosshair.setAttribute("x2", p.x.toFixed(1));
+    crosshair.setAttribute("opacity", "0.5");
+    crossdot.setAttribute("cx", p.x.toFixed(1));
+    crossdot.setAttribute("cy", p.y.toFixed(1));
+    crossdot.setAttribute("opacity", "1");
+    const s5 = p.s5 != null ? `<span style="color:var(--green)">SMA5 ${fmtMoney(p.s5)} ₿</span>` : "";
+    const s20 = p.s20 != null ? `<span style="color:var(--orange)">SMA20 ${fmtMoney(p.s20)} ₿</span>` : "";
+    tip.innerHTML = `${escapeHtml(fmtChartDate(p.date))}\nPrice: ${escapeHtml(fmtMoney(p.avg))} ₿\n${s5}\n${s20}\nVolume: ${escapeHtml(formatShortNumber(p.qty))}`;
+    tip.style.display = "block";
+  }
+
+  function hide() {
+    crosshair.setAttribute("opacity", "0");
+    crossdot.setAttribute("opacity", "0");
+    tip.style.display = "none";
+  }
+
+  hoverArea.addEventListener("mousemove", e => {
+    show(nearest(svgX(e)));
+    moveTip(e);
+  });
+  hoverArea.addEventListener("mouseleave", hide);
 }
 
 async function loadRecentTrades(code) {
@@ -604,7 +697,26 @@ async function renderCommodityModal(code, keepBody = false) {
       <div class="cm-stat"><span>30D Range</span><b>${fmtMoney(range.mn)} – ${fmtMoney(range.mx)}</b></div>
       <div class="cm-stat"><span>30D Volume</span><b>${formatShortNumber(totalVol)}</b></div>
     </div>
-    <h3 class="cm-sec">Price — 30 days (green=SMA5, orange=SMA20)</h3>
+    <h3 class="cm-sec">Price — 30 days (green=SMA5, orange=SMA20)
+      <iconify-icon icon="mdi:information-outline" class="cm-sec-info" width="13" height="13"
+        data-tip="SIMPLE MOVING AVERAGE (SMA)
+--------------
+A Simple Moving Average smooths out short-term price noise by averaging the last N daily closing prices. It shows the underlying trend of a commodity over that window.
+
+SMA5 (green) — average of the last 5 days. Fast, reacts quickly to price moves; useful for spotting the short-term direction.
+
+SMA20 (orange) — average of the last 20 days. Slow, lags the price; useful for seeing the bigger, steadier trend.
+
+FORMULA
+SMA(N) = (P1 + P2 + ... + PN) / N
+where P1..PN are the last N daily average prices, one per day.
+
+VERDICT
+• Price above both SMAs  → uptrend, buyers in control.
+• Price below both SMAs  → downtrend, sellers in control.
+• Short SMA above long SMA (green over orange) → accelerating momentum (bullish).
+• Short SMA below long SMA (green under orange) → slowing momentum (bearish)."></iconify-icon>
+    </h3>
     <div class="cm-chart">${chartSVG(hist)}</div>
     <h3 class="cm-sec">Signal Composition</h3>
     <div class="cm-comps">${compRows}</div>
@@ -630,6 +742,7 @@ async function renderCommodityModal(code, keepBody = false) {
       </div>
     </div>`;
   resolveTradeEntityNames(trades, k);
+  initCommodityChartCrosshair(body.querySelector(".cm-chart-svg"));
 }
 
 function clamp2(v) { return Math.max(-1, Math.min(1, v)); }

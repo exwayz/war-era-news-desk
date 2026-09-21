@@ -1030,6 +1030,9 @@ mark.reader-highlight {
 .exec-chart-wrap { margin-bottom: 10px; }
 .exec-chart-inner { }
 .exec-chart-svg { width: 100%; height: auto; }
+.cm-chart-svg .cm-crosshair { pointer-events: none; }
+.cm-chart-svg .cm-hover-area { cursor: crosshair; }
+.cm-chart-tip { font-family: var(--font-code); border-radius: 0 !important; }
 .exec-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; font-size: .72rem; }
 .exec-legend-item { display: inline-flex; align-items: center; gap: 4px; }
 .exec-legend-dot { width: 8px; height: 8px; flex-shrink: 0; }
@@ -1089,8 +1092,13 @@ mark.reader-highlight {
 .cm-stat { border: 1px solid var(--line); padding: 8px; display: flex; flex-direction: column; gap: 3px; }
 .cm-stat span { font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-dim); }
 .cm-stat b { font-family: var(--font-mono); font-size: .84rem; }
-.cm-sec { font-size: .78rem; margin: 12px 0 6px; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); }
-.cm-chart { }
+.cm-sec { font-size: .78rem; margin: 12px 0 6px; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.cm-sec-info { cursor: help; color: var(--ink-dim); flex-shrink: 0; }
+.cm-sec-info:hover { color: var(--accent); }
+div#commodityModalBody {
+    display: grid;
+}
+.cm-chart { max-height: 185px; }
 .cm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .cm-obl { display: flex; flex-direction: column; }
 .cm-obl .cm-tx-row { grid-template-columns: 1fr 1fr; }
