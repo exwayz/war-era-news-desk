@@ -29,6 +29,7 @@ export const S = {
   currentTab:"timeline",
   jobWageFilter:0,
   wallSort:"newest",
+  gameConfig:null,             // gameConfig.getGameConfig cache (core/gameConfig.js)
   newEventIds:new Set(),       // timeline events registered while away, awaiting user recognition
   seenNewEventIds:new Set(),   // subset of newEventIds whose cards have been visible on screen
   newMarkersSince:0,           // timestamp when the tagged cards were first shown to the user

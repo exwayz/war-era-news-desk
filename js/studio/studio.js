@@ -1,4 +1,5 @@
 import { apiKey, fetchTrpcApi2, unwrap } from "../core/api.js";
+import { fetchGameConfig, tipValues } from "../core/gameConfig.js";
 import { E } from "../core/dom.js";
 import { loadAll, saveMany } from "../library/libraryStore.js";
 import { setCurrentArticle } from "../library/bookmarks.js";
@@ -12,11 +13,13 @@ import { playRead } from "../audio/audio.js";
 const MAX_PAGES = 50;
 const PAGE_SIZE = 100;
 const ARTICLES_PER_PAGE = 20;
-const TIP_VALUE = 5;
-const TIP_FEE = 3;
 
-function articleBtcRev(a) { return (a.tips || 0) * TIP_VALUE - ((a.tips || 0) > 0 ? TIP_FEE : 0); }
-function articleGemRev(a) { return (a.gemTips || 0) * TIP_VALUE; }
+function btcTipValue() { return tipValues().btc; }
+function gemTipValue() { return tipValues().gem; }
+function publishFee() { return tipValues().publishCost; }
+
+function articleBtcRev(a) { return (a.tips || 0) * btcTipValue() - ((a.tips || 0) > 0 ? publishFee() : 0); }
+function articleGemRev(a) { return (a.gemTips || 0) * gemTipValue(); }
 
 let _data = null;
 let _section = "overview";
@@ -349,8 +352,8 @@ function computeMetrics(articles, profile) {
   for (const am of articleMetrics) am.classifications = classifyArticle(am, clsCtx);
 
   const tippedArticles = articleMetrics.filter(a => (a.tips + a.gemTips) > 0).length;
-  const totalBtcRev = Math.max(0, totalTips * TIP_VALUE - tippedArticles * TIP_FEE);
-  const totalGemRev = totalGemTips * TIP_VALUE;
+  const totalBtcRev = Math.max(0, totalTips * btcTipValue() - tippedArticles * publishFee());
+  const totalGemRev = totalGemTips * gemTipValue();
 
   return {
     articles: sorted, articleMetrics, totalArticles: n,
@@ -565,7 +568,7 @@ function initChartTooltips(container) {
     crossLabel.style.top = (labelY - 8) + "px";
 
     const avgEng = pt.count ? (pt.engagement / pt.count).toFixed(1) : "0";
-    const tips = pt.tips * TIP_VALUE;
+    const tips = pt.tips * btcTipValue();
     const dateStr = pt.date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
     const info = `${dateStr}\nViews: ${fmtN(pt.views)}\nArticles: ${pt.count}\nEngagement: ${avgEng}%\nTips: ${fmtN(tips)}`;
     _chartTooltip.textContent = info;
@@ -637,8 +640,8 @@ function renderOverview(el) {
   const fa = cutoff ? m.articleMetrics.filter(a => new Date(a.publishedAt || a.createdAt).getTime() >= now - cutoff) : m.articleMetrics;
   const fTotalViews = fa.reduce((s, a) => s + a.views, 0);
   const fTippedArticles = fa.filter(a => (a.tips + a.gemTips) > 0).length;
-  const fTotalTips = Math.max(0, fa.reduce((s, a) => s + a.tips, 0) * TIP_VALUE - fTippedArticles * TIP_FEE);
-  const fTotalGem = fa.reduce((s, a) => s + a.gemTips, 0) * TIP_VALUE;
+  const fTotalTips = Math.max(0, fa.reduce((s, a) => s + a.tips, 0) * btcTipValue() - fTippedArticles * publishFee());
+  const fTotalGem = fa.reduce((s, a) => s + a.gemTips, 0) * gemTipValue();
   const fEng = fa.length ? fa.reduce((s, a) => s + a.engagementRate, 0) / fa.length : 0;
 
   const healthScoreColor = health ? (health.score >= 70 ? "var(--st-green)" : health.score >= 35 ? "var(--st-yellow)" : "var(--st-red)") : "var(--st-ink-dim)";
@@ -939,7 +942,7 @@ export async function openStudio(userId, profileData) {
   modal.classList.remove("hidden");
   content.innerHTML = `<div class="st-loading"><iconify-icon icon="mdi:loading" class="nd-spin"></iconify-icon><p>Loading profile analytics...</p></div>`;
 
-  _data = { userId, profile: profileData };
+_data = { userId, profile: profileData };
   const k = apiKey();
   _subsGains = loadSubsTracker(userId).gains;
 
@@ -963,6 +966,11 @@ export async function openStudio(userId, profileData) {
     head.appendChild(tsEl);
   }
   updateRefreshTimestamp();
+
+  // Live tip/fee values (fire-and-forget; fallbacks keep math valid until loaded).
+  fetchGameConfig().then(() => {
+    if (!modal.classList.contains("hidden")) renderSection();
+  }).catch(() => {});
 
   const { data: cachedAnalytics, stale } = loadCachedAnalytics(userId);
   if (cachedAnalytics) {

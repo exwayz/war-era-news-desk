@@ -1,5 +1,7 @@
 import { S } from "../core/state.js";
 import { apiKey, fetchTrpc, fetchTrpcApi2, fetchTrpcApi5, unwrap, fetchAI } from "../core/api.js";
+import { fetchGameConfig, getGameConfig } from "../core/gameConfig.js";
+import { formatCountdown, getGameDates, fetchGameDates } from "../visuals/clock.js";
 import { fmtNum, fmtDate, fmtMoney } from "../core/utils.js";
 import { resolveParty, resolveAlliance, resolveContentLinks } from "../core/resolver.js";
 import { evtData, evtTime, buildTitle, buildSummary, fmtType } from "../timeline/events.js";
@@ -25,6 +27,7 @@ let _parties = [];
 let _elections = [];
 let _alliance = null;
 let _politicsRegionFilter = "";
+let _polElecCdTimer = null;
 
 export async function loadPolitics(force = false) {
   if (!force && _loaded) return;
@@ -35,6 +38,10 @@ export async function loadPolitics(force = false) {
 
   document.getElementById("politicsStatus").hidden = false;
   document.getElementById("politicsStatus").textContent = "Loading countries...";
+
+  fetchGameConfig().then(() => {
+    if (!_selectedCountryId) renderCountryGrid();
+  }).catch(() => {});
 
   try {
     const r = await fetchTrpc("country.getAllCountries", {}, k);
@@ -214,6 +221,30 @@ function renderPolitics() {
   });
   document.getElementById("backToCountryGridBtn")?.addEventListener("click", backToCountryGrid);
   window.ndMobile?.applyPolitics();
+
+  ensureElectionCountdowns();
+}
+
+/* ── Election countdown chips ── */
+
+function tickElectionCountdowns() {
+  const now = Date.now();
+  document.querySelectorAll(".pol-elec-countdown").forEach(el => {
+    const target = Number(el.dataset.elecTarget) || 0;
+    if (target) el.textContent = formatCountdown(target - now);
+  });
+}
+
+function ensureElectionCountdowns() {
+  const gd = getGameDates();
+  if (!gd) {
+    fetchGameDates().then(() => { if (_selectedCountryId) renderPolitics(); }).catch(() => {});
+  }
+  if (_polElecCdTimer) return;
+  _polElecCdTimer = setInterval(() => {
+    const panel = document.getElementById("tab-politics");
+    if (panel && panel.classList.contains("active")) tickElectionCountdowns();
+  }, 1000);
 }
 
 function renderGovernment() {
@@ -348,20 +379,45 @@ function renderParties() {
 function renderElections() {
   if (!_elections.length) return '<p class="pol-empty">No elections</p>';
   const now = Date.now();
+
+  // Latest card of each type gets a live countdown to the next scheduled election.
+  const gd = getGameDates() || {};
+  const targets = {
+    president: gd.nextPresidentialElectionsAt ? new Date(gd.nextPresidentialElectionsAt).getTime() : 0,
+    congress: gd.nextCongressElectionsAt ? new Date(gd.nextCongressElectionsAt).getTime() : 0,
+  };
+  const latestByType = { president: null, congress: null };
+  for (const e of _elections) {
+    const t = e.type === "president" ? "president" : "congress";
+    const ts = e.votesEndAt ? new Date(e.votesEndAt).getTime() : (e.votesStartAt ? new Date(e.votesStartAt).getTime() : 0);
+    if (!latestByType[t] || ts > latestByType[t].ts) latestByType[t] = { id: e._id, ts };
+  }
+
   return _elections.map(e => {
-    const type = e.type === 'president' ? '🏛 Presidential' : '🏛 Congress';
+    const type = e.type === 'president'
+      ? `<iconify-icon icon="bi:star-fill" class="lu pol-elec-type-icon"></iconify-icon> Presidential`
+      : `<iconify-icon icon="streamline:capitol-solid" class="lu pol-elec-type-icon"></iconify-icon> Congress`;
     const start = e.votesStartAt ? new Date(e.votesStartAt).getTime() : 0;
     const end = e.votesEndAt ? new Date(e.votesEndAt).getTime() : 0;
     let status, statusClass;
     if (start && end && now < start) { status = 'UPCOMING'; statusClass = 'pol-status-upcoming'; }
     else if (start && end && now >= start && now <= end) { status = 'ACTIVE'; statusClass = 'pol-status-active'; }
     else { status = 'CLOSED'; statusClass = 'pol-status-closed'; }
+
+    const t = e.type === "president" ? "president" : "congress";
+    const isLatest = latestByType[t]?.id === e._id;
+    const target = targets[t] || 0;
+    const chip = isLatest && target
+      ? `<span class="pol-elec-countdown" data-elec-cd="${t}" data-elec-target="${target}" data-tip="Next scheduled ${t === "president" ? "presidential" : "congressional"} election">${formatCountdown(target - now)}</span>`
+      : "";
+
     return `
       <div class="pol-election-row" data-election-id="${e._id}">
         <div class="pol-election-type">${type}</div>
         <div class="pol-election-dates">
           ${e.votesStartAt ? escHtml(fmtDate(e.votesStartAt)) : '—'} → ${e.votesEndAt ? escHtml(fmtDate(e.votesEndAt)) : '—'}
         </div>
+		${chip}
         <span class="pol-election-status ${statusClass}">${status}</span>
         <span class="pol-election-votes">${e.votesCount != null ? fmtNum(e.votesCount) + ' votes' : ''}</span>
       </div>
@@ -374,6 +430,81 @@ function backToCountryGrid() {
   const input = document.getElementById("politicsCountryInput");
   if (input) input.value = "";
   if (_countries.length) renderCountryGrid();
+}
+
+/* ── Game mechanics explainer ─────────────────────────── */
+
+function row(icon, label, value, tip = "") {
+  return `
+    <div class="pol-mech-row">
+      <span class="pol-mech-icon"><iconify-icon icon="${icon}" class="lu"></iconify-icon></span>
+      <span class="pol-mech-label"${tip ? ` data-tip="${escHtml(tip)}"` : ""}>${label}</span>
+      <span class="pol-mech-value">${value}</span>
+    </div>`;
+}
+
+function renderMechanicsPanel() {
+  const cfg = getGameConfig();
+  const humans = (h, suffix = "") => h ? `${h} hour${h !== 1 ? "s" : ""}${suffix}` : "—";
+  const days = (d, suffix = "") => d ? `${d} day${d !== 1 ? "s" : ""}${suffix}` : "—";
+
+  const elec = cfg?.election || {};
+  const law = cfg?.law || {};
+  const region = cfg?.region || {};
+  const unrest = cfg?.unrest || {};
+  const battle = cfg?.battle || {};
+
+  const electionRows = [
+    row("mdi:account-plus-outline", "Candidate registration", humans(elec.candidateDurationHours), "Window for players to register as election candidates."),
+    row("mdi:vote-outline", "Voting", humans(elec.electionVoteDurationHours), "Once voting opens, this is how long ballots are cast before results."),
+    row("mdi:account-check-outline", "Min level: candidate", `${elec.candidateMinLevel ?? "—"}`, "Minimum player level required to run for office."),
+    row("mdi:account-check-outline", "Min level: voter", `${elec.voteMinLevel ?? "—"}`, "Minimum player level required to vote."),
+  ].join("");
+
+  const lawRows = [
+    row("mdi:gavel", "Law vote duration", humans(law.lawVotesDurationHours), "How long a proposed law stays open to votes from congress."),
+    row("mdi:scale-balance", "Congress ratio required", law.votersRatioNeeded != null ? Math.round(law.votersRatioNeeded * 100) + "%" : "—", "Portion of congress that must vote before a law can pass."),
+    row("mdi:account-alert-outline", "Abusive law cooldown", days(law.abusiveLawsCooldownInDays), "Cooldown after an abusive law is detected before new laws can be proposed."),
+  ].join("");
+
+  const regionRows = [
+    row("mdi:flag-variant-outline", "Liberation cooldown", days(region.liberationDaysCooldown), "A region must wait this long after being liberated before it can be liberated again."),
+    row("mdi:peace", "Non-aggression: after liberation", humans(region.nonAggressionHoursAfterLiberation), "The liberating country cannot be attacked back in this window."),
+    row("mdi:handshake", "Non-aggression: after peace", humans(region.nonAggressionHoursAfterPeace), "War cannot be re-declared during this window after a peace agreement."),
+    row("mdi:swap-horizontal-bold", "Region transfer cooldown", days(region.transferDaysCooldown), "How often a region can be transferred to another country."),
+  ].join("");
+
+  const unrestRows = [
+    row("mdi:fire-alert", "Revolt battle cost", unrest.battleStartCost != null ? fmtNum(unrest.battleStartCost) : "—", "Unrest pool energy cost for a financed revolt battle to start."),
+    row("mdi:timer-outline", "Revolt battle cooldown", humans(unrest.battleCooldownHours), "Cooldown between revolt battles."),
+    row("mdi:borders", "Revolt borders open", days(unrest.bordersOpenDays), "How long a country's borders stay open after a revolution."),
+    row("mdi:account-group-outline", "Nomination period", humans(unrest.nominationPeriodHours), "Window for players to nominate a leader during a revolt."),
+  ].join("");
+
+  const battleRows = [
+    row("mdi:shield-sword", "Rounds to win", `${battle.roundsToWin ?? "—"}`, "Battles are first-to-N rounds; most points in a round wins it."),
+    row("mdi:sword-cross", "Max rounds", `${battle.maxRounds ?? "—"}`, "A battle tie-breaks if it reaches this many rounds."),
+    row("mdi:counter", "Points to win round", `${battle.pointsToWinRound ?? "—"}`, "A side wins a round when its accumulated damage points cross this threshold."),
+    row("mdi:hearts", "Health cost per hit", `${battle.healthCost ?? "—"}`, "Player health consumed by each battle action."),
+  ].join("");
+
+  return `
+    <details class="pol-mech-panel">
+      <summary class="pol-mech-summary">
+        <iconify-icon icon="mdi:cog-outline" class="lu pol-mech-summary-icon"></iconify-icon>
+        <span>Game Mechanics</span>
+        <span class="details-marker">▾</span>
+      </summary>
+      <div class="pol-mech-body">
+        <div class="pol-mech-group"><div class="pol-mech-group-title"><iconify-icon icon="mdi:vote-outline" class="lu"></iconify-icon> Elections</div>${electionRows}</div>
+        <div class="pol-mech-group"><div class="pol-mech-group-title"><iconify-icon icon="mdi:gavel" class="lu"></iconify-icon> Laws</div>${lawRows}</div>
+        <div class="pol-mech-group"><div class="pol-mech-group-title"><iconify-icon icon="mdi:map-marker-outline" class="lu"></iconify-icon> Regions</div>${regionRows}</div>
+        <div class="pol-mech-group"><div class="pol-mech-group-title"><iconify-icon icon="mdi:fire-alert" class="lu"></iconify-icon> Unrest & Revolts</div>${unrestRows}</div>
+        <div class="pol-mech-group"><div class="pol-mech-group-title"><iconify-icon icon="mdi:shield-sword" class="lu"></iconify-icon> Battles</div>${battleRows}</div>
+        <div class="pol-mech-note">Live values from the game config — auto-refreshes on each visit. Hover a label for more context.</div>
+      </div>
+    </details>
+  `;
 }
 
 function renderCountryGrid() {
@@ -389,6 +520,7 @@ function renderCountryGrid() {
   }
   const sorted = [...filtered].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
   container.innerHTML = `
+    ${renderMechanicsPanel()}
     <div class="pol-country-grid">
       ${sorted.map(c => {
         const flag = c.code ? `<img class="pol-grid-flag" src="https://media.warera.io/images/flags/${c.code.toLowerCase()}.svg" alt="" loading="lazy">` : "";

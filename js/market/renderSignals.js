@@ -105,15 +105,15 @@ function signalRowHTML(s) {
 }
 
 function sigSortSuffix() {
-  const arrow = _sort.dir > 0 ? "↑" : "↓";
-  if (_sort.key === "signal") return `<i class="sig-sort-hint">${arrow} ${SIG_MODE_ABBR[_sort.mode] || ""}</i>`;
+  const arrow = _sort.dir > 0 ? "▲" : "▼";
+  if (_sort.key === "signal") return `<i class="sig-sort-hint">${arrow}<span class="hint-sig-abbr">${SIG_MODE_ABBR[_sort.mode] || ""}</span></i>`;
   return `<i class="sig-sort-hint">${arrow}</i>`;
 }
 
 function sigHeadCell(key, label) {
   const active = _sort.key === key;
   const tip = key === "signal"
-    ? "Signal: band ↑/↓ → range ↑/↓ → strength ↑/↓ (keep clicking)"
+    ? "Signal: band ▲/▼ → range ▲/▼ → strength ▲/▼ (keep clicking)"
     : `Sort by ${label}`;
   return `<span class="sig-head-cell${active ? " active" : ""}" data-sig-sort="${key}" title="${tip}">${label}${active ? sigSortSuffix() : ""}</span>`;
 }
@@ -351,19 +351,104 @@ function indexSVG() {
     const gy = pad + (g / 5) * (H - pad * 2);
     grid += `<line x1="${pad}" y1="${gy.toFixed(1)}" x2="${W - pad}" y2="${gy.toFixed(1)}" stroke="var(--line)" stroke-width="1"/>`;
   }
-  const pts = points.map((p, i) => `${X(i).toFixed(1)},${Y(p.v).toFixed(1)}`);
-  const area = `M${pts[0]} ${pts.slice(1).map(p => "L" + p).join(" ")} L${W - pad},${H - pad} L${pad},${H - pad} Z`;
-  const last = pts[pts.length - 1].split(",");
-  return `<svg viewBox="0 0 ${W} ${H}" class="exec-chart-svg">
+  const pts = points.map((p, i) => ({ x: X(i), y: Y(p.v), value: p.v, t: p.t }));
+  const linePts = pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`);
+  const area = `M${linePts[0]} ${linePts.slice(1).map(p => "L" + p).join(" ")} L${W - pad},${H - pad} L${pad},${H - pad} Z`;
+  const last = linePts[linePts.length - 1].split(",");
+  const ptsJson = escapeHtml(JSON.stringify(pts));
+  return `<svg viewBox="0 0 ${W} ${H}" class="exec-chart-svg ix-chart-svg" data-pts='${ptsJson}'>
     ${grid}
     <defs><linearGradient id="ixgrad" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="var(--blue)" stop-opacity="0.22"/>
       <stop offset="100%" stop-color="var(--blue)" stop-opacity="0.02"/>
     </linearGradient></defs>
     <path d="${area}" fill="url(#ixgrad)"/>
-    <polyline points="${pts.join(" ")}" fill="none" stroke="var(--blue)" stroke-width="1.5"/>
+    <polyline points="${linePts.join(" ")}" fill="none" stroke="var(--blue)" stroke-width="1.5"/>
     <circle cx="${last[0]}" cy="${last[1]}" r="3.5" fill="var(--blue)"/>
+    <line class="ix-crosshair" x1="0" y1="${pad}" x2="0" y2="${H - pad}" stroke="var(--ink-dim)" stroke-width="1" stroke-dasharray="3,3" opacity="0"/>
+    <circle class="ix-crossdot" cx="0" cy="0" r="4.5" fill="var(--blue)" stroke="var(--bg)" stroke-width="1.5" opacity="0"/>
+    <rect x="${pad}" y="${pad}" width="${W - pad * 2}" height="${H - pad * 2}" fill="transparent" class="ix-hover-area"/>
   </svg>`;
+}
+
+/* ── Composite index chart crosshair ────────────────────
+   Mirrors the commodity chart tooltip so the index value at
+   any date can be read off the line on hover. */
+function fmtIxDate(ts) {
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return String(ts || "");
+  return d.toLocaleDateString("en-US", {weekday: "long"}) + ", " + String(d.getDate()) + "/" + String(d.getMonth() + 1).padStart(2, "0") + "/" + String(d.getFullYear());
+}
+
+let _ixChartTip = null;
+
+function ixChartTipEl() {
+  if (!_ixChartTip) {
+    _ixChartTip = document.createElement("div");
+    _ixChartTip.className = "ix-chart-tip";
+    _ixChartTip.style.cssText = "display:none;position:fixed;z-index:100003;padding:6px 10px;border-radius:6px;background:var(--surface-hi);border:1px solid var(--line);color:var(--ink);font-size:.72rem;line-height:1.5;pointer-events:none;white-space:pre-wrap;max-width:220px;box-shadow:0 4px 12px rgba(0,0,0,.25)";
+    document.body.appendChild(_ixChartTip);
+  }
+  return _ixChartTip;
+}
+
+function initIndexChartCrosshair(svg) {
+  if (!svg || !svg.dataset.pts) return;
+  let pts;
+  try { pts = JSON.parse(svg.dataset.pts); } catch { return; }
+  if (!pts.length) return;
+
+  const crosshair = svg.querySelector(".ix-crosshair");
+  const crossdot = svg.querySelector(".ix-crossdot");
+  const hoverArea = svg.querySelector(".ix-hover-area");
+  if (!crosshair || !crossdot || !hoverArea) return;
+
+  const vb = svg.viewBox.baseVal;
+  const tip = ixChartTipEl();
+
+  function svgX(e) {
+    const rect = svg.getBoundingClientRect();
+    return (e.clientX - rect.left) * (vb.width / rect.width);
+  }
+
+  function nearest(sx) {
+    let best = pts[0], bestD = Infinity;
+    for (const p of pts) {
+      const d = Math.abs(p.x - sx);
+      if (d < bestD) { bestD = d; best = p; }
+    }
+    return best;
+  }
+
+  function moveTip(e) {
+    tip.style.left = Math.min(e.clientX + 14, window.innerWidth - 240) + "px";
+    tip.style.top = Math.max(e.clientY - 70, 4) + "px";
+  }
+
+  function show(p) {
+    crosshair.setAttribute("x1", p.x.toFixed(1));
+    crosshair.setAttribute("x2", p.x.toFixed(1));
+    crosshair.setAttribute("opacity", "0.5");
+    crossdot.setAttribute("cx", p.x.toFixed(1));
+    crossdot.setAttribute("cy", p.y.toFixed(1));
+    crossdot.setAttribute("opacity", "1");
+    tip.innerHTML = `${escapeHtml(fmtIxDate(p.t))}\nIndex: ${escapeHtml(p.value.toFixed(4))}`;
+    tip.style.display = "block";
+  }
+
+  function hide() {
+    crosshair.setAttribute("opacity", "0");
+    crossdot.setAttribute("opacity", "0");
+    tip.style.display = "none";
+  }
+
+  hoverArea.addEventListener("mousemove", e => {
+    show(nearest(svgX(e)));
+    moveTip(e);
+  });
+  hoverArea.addEventListener("mouseleave", hide);
+
+  svg._ixCrosshairInited = true;
 }
 
 // ── Signals view HTML ───────────────────────────────────────────────────────
@@ -389,7 +474,25 @@ function signalsHTML() {
   return `
     <div class="market-card signals-index-card">
       <div class="market-card-header">
-        <span class="market-card-title">Composite Market Index</span>
+        <span class="market-card-title">Composite Market Index
+          <iconify-icon icon="mdi:information-outline" class="ix-sec-info" width="13" height="13"
+            data-tip="COMPOSITE MARKET INDEX
+--------------
+A single number that tracks the overall strength of the whole commodity market over time, instead of looking at each item separately.
+
+HOW IT IS BUILT
+Each day the index takes every commodity's price relative to the previous day and combines those daily ratios into one geometric average, then chains that ratio onto the running index. A rising index means most commodities are getting pricier; a falling index means they are getting cheaper overall.
+
+DAILY vs INTRADAY
+• Daily dots — one value per trading day, the steady long-term line.
+• Intraday link — a dashed/final point chaining today's live prices onto the last daily close, so the chart stays current between snapshots.
+
+READING IT
+• Movement up → broad market strength (most goods gaining value).
+• Movement down → broad market weakness (most goods losing value).
+• Steeper slope → stronger/faster market-wide move.
+• Flattened line → market roughly in balance."></iconify-icon>
+        </span>
         <span class="signals-idx-meta">
           <b style="color:var(--blue)">${idxVal != null ? idxVal.toFixed(2) : "—"}</b>
           <span class="${trend > 0 ? "up" : trend < 0 ? "down" : ""}">${fmtPct(trend)}</span>
@@ -416,6 +519,7 @@ export async function renderSignalsView(section) {
     computeMarketSignals();
     computeCompositeIndex();
     section.innerHTML = signalsHTML();
+    initIndexChartCrosshair(section.querySelector(".ix-chart-svg"));
     return;
   }
   section.innerHTML = '<p style="color:var(--ink-dim);padding:12px">Loading market signals…</p>';
@@ -424,6 +528,7 @@ export async function renderSignalsView(section) {
   computeMarketSignals();
   computeCompositeIndex();
   section.innerHTML = signalsHTML();
+  initIndexChartCrosshair(section.querySelector(".ix-chart-svg"));
 }
 
 // Cheap recompute (histories stay cached) — called on the 10s refresh.
@@ -432,7 +537,10 @@ export function refreshSignals() {
   computeMarketSignals();
   computeCompositeIndex();
   const section = document.querySelector(".signals-section");
-  if (section && !section.hidden && section.offsetParent !== null) section.innerHTML = signalsHTML();
+  if (section && !section.hidden && section.offsetParent !== null) {
+    section.innerHTML = signalsHTML();
+    initIndexChartCrosshair(section.querySelector(".ix-chart-svg"));
+  }
   if (_modalCode) renderCommodityModal(_modalCode, true);
 }
 

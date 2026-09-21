@@ -285,7 +285,8 @@ export function marketItemName(code){
     oil:"Oil",
     scraps:"Scraps",
     concrete:"Concrete",
-    steel:"Steel"
+    steel:"Steel",
+	woodenCase:"Wooden Case"
   };
   if(commodityNames[code]) return commodityNames[code];
   const weaponNames = {
