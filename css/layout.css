@@ -1194,6 +1194,8 @@ div#commodityModalBody {
 .cm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .cm-obl { display: flex; flex-direction: column; }
 .cm-obl .cm-tx-row { grid-template-columns: 1fr 1fr; }
+.cm-tx-row-label { text-align: left; }
+.cm-tx-row-value { text-align: right;}
 .cm-comps { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
 .cm-comp-row { display: grid; grid-template-columns: 90px 1fr 70px; align-items: center; gap: 8px; font-size: .76rem; }
 .cm-comp-label { color: var(--ink-dim); }

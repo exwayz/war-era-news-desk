@@ -832,13 +832,13 @@ VERDICT
       <div>
         <h3 class="cm-sec">Order Book</h3>
         ${book ? `<div class="cm-obl">
-          <div class="cm-tx-row"><span>Best Bid</span><span>${fmtMoney(book.bestBid || 0)} ₿</span></div>
-          <div class="cm-tx-row"><span>Best Ask</span><span>${fmtMoney(book.bestAsk || 0)} ₿</span></div>
-          <div class="cm-tx-row"><span>Spread</span><span>${book.spreadPct != null ? (book.spreadPct * 100).toFixed(2) + "%" : "—"}</span></div>
-          <div class="cm-tx-row"><span>Depth</span><span>${formatShortNumber(book.depth || 0)}</span></div>
-          <div class="cm-tx-row"><span>Bid Money</span><span>${fmtMoney(book.bidMoney || 0)} ₿</span></div>
-          <div class="cm-tx-row"><span>Ask Money</span><span>${fmtMoney(book.askMoney || 0)} ₿</span></div>
-          <div class="cm-tx-row"><span>Imbalance</span><span>${book.imbalance != null ? (book.imbalance * 100).toFixed(1) + "%" : "—"}</span></div>
+          <div class="cm-tx-row"><span class="cm-tx-row-label">Best Bid (buy)</span><span class="cm-tx-row-value">${fmtMoney(book.bestBid || 0)} ₿</span></div>
+          <div class="cm-tx-row"><span class="cm-tx-row-label">Best Ask (sell)</span><span class="cm-tx-row-value">${fmtMoney(book.bestAsk || 0)} ₿</span></div>
+          <div class="cm-tx-row"><span class="cm-tx-row-label">Spread</span><span class="cm-tx-row-value">${book.spreadPct != null ? (book.spreadPct * 100).toFixed(2) + "%" : "—"}</span></div>
+          <div class="cm-tx-row"><span class="cm-tx-row-label">Depth</span><span class="cm-tx-row-value">${formatShortNumber(book.depth || 0)}</span></div>
+          <div class="cm-tx-row"><span class="cm-tx-row-label">Bid Money (buy)</span><span class="cm-tx-row-value">${fmtMoney(book.bidMoney || 0)} ₿</span></div>
+          <div class="cm-tx-row"><span class="cm-tx-row-label">Ask Money( (sell)</span><span class="cm-tx-row-value">${fmtMoney(book.askMoney || 0)} ₿</span></div>
+          <div class="cm-tx-row"><span class="cm-tx-row-label">Imbalance</span><span class="cm-tx-row-value">${book.imbalance != null ? (book.imbalance * 100).toFixed(1) + "%" : "—"}</span></div>
         </div>` : '<p style="color:var(--ink-dim)">No live orders.</p>'}
       </div>
       <div>
