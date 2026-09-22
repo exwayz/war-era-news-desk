@@ -307,16 +307,22 @@ export function marketItemName(code){
   return code || "Unknown";
 }
 
-export function commodityBars(data){
-  if(!data.length) return "";
-  const max = Math.max(...data.map(x=>x.value));
+export function commodityBars(data, opts) {
+  if (!data.length) return "";
+  const max = (opts && opts.maxValue) || Math.max(...data.map(x => x.value)) || 1;
+  const maxDepth = (opts && opts.maxDepth) || Math.max(...data.map(x => x.depth || 0)) || 1;
   return `
     <div class="commodity-bars">
-      ${data.map(x=>`
+      ${data.map(x => `
         <div class="commodity-bar-row">
           <div class="commodity-bar-head">
   <span>
     ${x.item}
+    ${
+      x.trades != null
+      ? `<small class="commodity-up" style="margin-left:4px;opacity:.75">${x.trades} tx</small>`
+      : ""
+    }
     ${
       x.bonus != null
       ? `<small class="commodity-up" style="margin-left:4px">+${x.bonus.toFixed(0)}%bonus</small>`
@@ -333,8 +339,15 @@ export function commodityBars(data){
   <span>${fmtMoney(x.value)} ₿</span>
 </div>
           <div class="commodity-bar-bg">
-            <div class="commodity-bar-fill" style="width:${(x.value/max)*100}%"></div>
+            <div class="commodity-bar-fill" style="width:${(x.value / max) * 100}%"></div>
           </div>
+          ${
+            x.depth > 0
+            ? `<div class="commodity-bar-bg commodity-bar-bg-depth" title="Order-book depth: ${fmtMoney(x.depth)} ₿">
+                <div class="commodity-bar-fill commodity-bar-fill-depth" style="width:${(x.depth / maxDepth) * 100}%"></div>
+              </div>`
+            : ""
+          }
         </div>
       `).join("")}
     </div>

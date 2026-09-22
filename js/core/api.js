@@ -83,6 +83,9 @@ export function getBestTxData() {
   return null;
 }
 
+export function getLiteTxData() { return _liteTx; }
+export function getTrueTxData() { return _trueTx; }
+
 export function apiKey() {
   return localStorage.getItem(STORE.apiKey) || E.apiKeyInput.value.trim() || "";
 }

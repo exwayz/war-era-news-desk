@@ -112,6 +112,7 @@ function buildBandChart(rows, sels, mode, wage, fidMin, fidMax, rawMin, rawMax, 
     svg += `<line x1="${xPos(x).toFixed(1)}" y1="${padT}" x2="${xPos(x).toFixed(1)}" y2="${H - padB}" stroke="var(--line)" stroke-width="1"/>`;
     svg += `<text x="${xPos(x).toFixed(1)}" y="${H - padB + 14}" text-anchor="middle" font-size="10" fill="var(--ink-caption)" font-family="var(--font-num)">${fmtTick(x)}</text>`;
   }
+  let heldBand = 0;
   for (const b of bands) {
     const upPts = b.up.map((v, i) => `${xPos(xs[i]).toFixed(1)},${yPos(v).toFixed(1)}`);
     const loPts = b.lo.map((v, i) => `${xPos(xs[i]).toFixed(1)},${yPos(v).toFixed(1)}`);
@@ -119,12 +120,19 @@ function buildBandChart(rows, sels, mode, wage, fidMin, fidMax, rawMin, rawMax, 
     svg += `<path d="${bandPath}" fill="${b.color}" fill-opacity="0.12" stroke="none"/>`;
     svg += `<polyline points="${upPts.join(" ")}" fill="none" stroke="${b.color}" stroke-width="1.5" stroke-dasharray="3,2"/>`;
     svg += `<polyline points="${loPts.join(" ")}" fill="none" stroke="${b.color}" stroke-width="1.5"/>`;
+    svg += `<circle class="pb-band-dot" data-band="${heldBand}" data-edge="up" cx="0" cy="0" r="3" fill="${b.color}" stroke="var(--bg)" stroke-width="1.5" opacity="0"/>`;
+    svg += `<circle class="pb-band-dot" data-band="${heldBand}" data-edge="lo" cx="0" cy="0" r="3" fill="${b.color}" stroke="var(--bg)" stroke-width="1.5" opacity="0"/>`;
+    heldBand++;
   }
   if (isFinite(sell)) {
     const sy = yPos(sell);
-    svg += `<line x1="${padL}" y1="${sy.toFixed(1)}" x2="${W - padR}" y2="${sy.toFixed(1)}" stroke="var(--link)" stroke-width="1.5" stroke-dasharray="6,4"/>`;
+    svg += `<line class="pb-sell-line" x1="${padL}" y1="${sy.toFixed(1)}" x2="${W - padR}" y2="${sy.toFixed(1)}" stroke="var(--link)" stroke-width="1.5" stroke-dasharray="6,4"/>`;
     svg += `<text x="${W - padR - 4}" y="${(sy - 4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--link)" font-family="var(--font-num)">sell ${fmtTick(sell)}</text>`;
+    svg += `<circle class="pb-sell-dot" cx="0" cy="0" r="3.5" fill="var(--link)" stroke="var(--bg)" stroke-width="1.5" opacity="0"/>`;
   }
+  svg += `<line class="pb-crosshair" x1="0" y1="${padT}" x2="0" y2="${H - padB}" stroke="var(--ink-dim)" stroke-width="1" stroke-dasharray="3,3" opacity="0"/>`;
+  svg += `<circle class="pb-crossdot" cx="0" cy="0" r="4.5" fill="var(--accent)" stroke="var(--bg)" stroke-width="1.5" opacity="0"/>`;
+  svg += `<rect x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent" class="pb-hover-area"/>`;
   svg += `<text x="${padL}" y="10" font-size="10" fill="var(--ink-caption)" font-family="var(--font-num)">cost to make 1 ${prodName} (₿) · ${rawName} price on x-axis</text>`;
   svg += `</svg>`;
 
@@ -156,7 +164,127 @@ function buildBandChart(rows, sels, mode, wage, fidMin, fidMax, rawMin, rawMax, 
       <td class="prod-num">${beFTxt(beF)}</td>
     </tr>`;
   }
-  return { svg, legend, rows: rowsHtml, title: `Cost to manufacture one ${prodName} (₿)`, xtitle: `${rawName} price (₿/unit)` };
+  const interact = {
+    xs, mn, mx, rawMin, rawMax, sell, prodName, rawName,
+    W, H, padL, padR, padT, padB,
+    bands: bands.map((b, i) => ({
+      idx: i, color: b.color, regionName: b.r.regionName,
+      incomeTax: b.r.incomeTax, totalBonus: b.r.totalBonus,
+      live: !!b.r.liveDeposit, depositBonus: b.r.depositBonus,
+      up: b.up, lo: b.lo,
+    })),
+  };
+  return { svg, legend, rows: rowsHtml, interact, title: `Cost to manufacture one ${prodName} (₿)`, xtitle: `${rawName} price (₿/unit)` };
+}
+
+/* ── Band chart crosshair ────────────────────────────────
+   The production band chart has a continuous raw-price x-axis
+   instead of discrete data points, so the crosshair snaps to the
+   nearest sampled raw price and reads each band's low/high-fidelity
+   edges plus the net benefit vs sell at that point. */
+let _pChartTip = null;
+
+function pChartTipEl() {
+  if (!_pChartTip) {
+    _pChartTip = document.createElement("div");
+    _pChartTip.className = "pb-chart-tip";
+    _pChartTip.style.cssText = "display:none;position:fixed;z-index:100003;padding:6px 10px;border-radius:6px;background:var(--surface-hi);border:1px solid var(--line);color:var(--ink);font-size:.72rem;line-height:1.5;pointer-events:none;white-space:pre-wrap;max-width:260px;box-shadow:0 4px 12px rgba(0,0,0,.25)";
+    document.body.appendChild(_pChartTip);
+  }
+  return _pChartTip;
+}
+
+function initBandChartCrosshair(svg) {
+  if (!svg || !svg.dataset.interact || svg._pbXInited) return;
+  let d;
+  try { d = JSON.parse(svg.dataset.interact); } catch { return; }
+  if (!d.xs || !d.bands.length) return;
+
+  const crosshair = svg.querySelector(".pb-crosshair");
+  const crossdot = svg.querySelector(".pb-crossdot");
+  const hoverArea = svg.querySelector(".pb-hover-area");
+  if (!crosshair || !crossdot || !hoverArea) return;
+
+  const vb = svg.viewBox.baseVal;
+  const plotW = d.W - d.padL - d.padR, plotH = d.H - d.padT - d.padB;
+  const tip = pChartTipEl();
+
+  const xPos = x => d.rawMax > d.rawMin ? d.padL + ((x - d.rawMin) / (d.rawMax - d.rawMin)) * plotW : d.padL + plotW / 2;
+  const yPos = v => d.padT + plotH - ((v - d.mn) / (d.mx - d.mn)) * plotH;
+
+  function svgX(e) {
+    const rect = svg.getBoundingClientRect();
+    return (e.clientX - rect.left) * (vb.width / rect.width);
+  }
+
+  function nearest(sx) {
+    let best = 0, bestD = Infinity;
+    for (let i = 0; i < d.xs.length; i++) {
+      const dd = Math.abs(xPos(d.xs[i]) - sx);
+      if (dd < bestD) { bestD = dd; best = i; }
+    }
+    return best;
+  }
+
+  function moveTip(e) {
+    tip.style.left = Math.min(e.clientX + 14, window.innerWidth - 280) + "px";
+    tip.style.top = Math.max(e.clientY - 36, 4) + "px";
+  }
+
+  function show(i) {
+    const x = xPos(d.xs[i]);
+    crosshair.setAttribute("x1", x.toFixed(1));
+    crosshair.setAttribute("x2", x.toFixed(1));
+    crosshair.setAttribute("opacity", "0.5");
+    crossdot.setAttribute("cx", x.toFixed(1));
+    crossdot.setAttribute("cy", yPos((d.mn + d.mx) / 2).toFixed(1));
+    crossdot.setAttribute("opacity", "1");
+
+    const svgEl = svg;
+    svgEl.querySelectorAll(".pb-band-dot").forEach(dot => {
+      const b = d.bands[+dot.dataset.band];
+      if (!b) { dot.setAttribute("opacity", "0"); return; }
+      const v = dot.dataset.edge === "up" ? b.up[i] : b.lo[i];
+      dot.setAttribute("cx", x.toFixed(1));
+      dot.setAttribute("cy", yPos(v).toFixed(1));
+      dot.setAttribute("opacity", "1");
+    });
+    const sellDot = svgEl.querySelector(".pb-sell-dot");
+    if (sellDot && isFinite(d.sell)) {
+      sellDot.setAttribute("cx", x.toFixed(1));
+      sellDot.setAttribute("cy", yPos(d.sell).toFixed(1));
+      sellDot.setAttribute("opacity", "1");
+    }
+
+    const lines = [`Raw ${d.rawName} price: ${fmtTick(d.xs[i])} ₿/unit`];
+    for (const b of d.bands) {
+      const up = b.up[i], lo = b.lo[i];
+      const mid = (up + lo) / 2;
+      const nb = isFinite(d.sell) ? d.sell - mid : null;
+      const live = b.live ? ` · LIVE +${b.depositBonus}%` : "";
+      lines.push(`<span style="color:${b.color}">■</span> ${esc(b.regionName)} · ${b.incomeTax}% tax · +${b.totalBonus}% bonus${live}`);
+      lines.push(`&nbsp;&nbsp;<span class="prod-dim">cost@1% ${fmtTick(lo)} / @10% ${fmtTick(up)}</span>${nb != null ? ` · net <span class="${nb >= 0 ? "prod-profit" : "prod-neg"}">${nb >= 0 ? "+" : ""}${fmtTick(nb)}</span>` : ""}`);
+    }
+    tip.innerHTML = lines.join("\n");
+    tip.style.display = "block";
+  }
+
+  function hide() {
+    crosshair.setAttribute("opacity", "0");
+    crossdot.setAttribute("opacity", "0");
+    svg.querySelectorAll(".pb-band-dot").forEach(dot => dot.setAttribute("opacity", "0"));
+    const sellDot = svg.querySelector(".pb-sell-dot");
+    if (sellDot) sellDot.setAttribute("opacity", "0");
+    tip.style.display = "none";
+  }
+
+  hoverArea.addEventListener("mousemove", e => {
+    show(nearest(svgX(e)));
+    moveTip(e);
+  });
+  hoverArea.addEventListener("mouseleave", hide);
+
+  svg._pbXInited = true;
 }
 
 function refreshStudio() {
@@ -186,6 +314,11 @@ function refreshStudio() {
 
   const c = buildBandChart(rows, sels, mode, wage, fidMin, fidMax, rawMin, rawMax, sell, goodName(key), goodName(ref?.rmName || ""));
   document.getElementById("psChart").innerHTML = `<div class="prod-legend">${c.legend || '<span class="prod-dim">No regions selected.</span>'}</div>${c.svg}`;
+  const bandSvg = document.getElementById("psChart").querySelector(".prod-band-svg");
+  if (bandSvg) {
+    bandSvg.dataset.interact = JSON.stringify(c.interact || { xs: [], bands: [] });
+    initBandChartCrosshair(bandSvg);
+  }
   document.getElementById("psReadout").querySelector("tbody").innerHTML = c.rows || '<tr><td colspan="7" class="prod-dim" style="text-align:center;padding:16px">Select at least one region.</td></tr>';
 }
 

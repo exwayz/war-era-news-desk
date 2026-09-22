@@ -2,7 +2,7 @@ import { S } from "../core/state.js";
 import { marketItemName } from "../core/utils.js";
 
 export function computePredictions() {
-  // ── Value metrics from topValuable (order-book aggregate — changes each cycle) ──
+  // ── Value metrics from topValuable (executed trade ₿ value — changes each cycle) ──
   const topValuable = S.market.topValuable || [];
   const currentValues = {};
   for (const tv of topValuable) currentValues[tv.item] = Number(tv.value || 0);

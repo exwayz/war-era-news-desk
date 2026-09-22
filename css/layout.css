@@ -1039,6 +1039,9 @@ mark.reader-highlight {
 .cm-chart-svg .cm-crosshair { pointer-events: none; }
 .cm-chart-svg .cm-hover-area { cursor: crosshair; }
 .cm-chart-tip { font-family: var(--font-code); border-radius: 0 !important; }
+.pb-chart-tip { font-family: var(--font-code); border-radius: 0 !important; }
+.prod-band-svg .pb-crosshair { pointer-events: none; }
+.prod-band-svg .pb-hover-area { cursor: crosshair; }
 .exec-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; font-size: .72rem; }
 .exec-legend-item { display: inline-flex; align-items: center; gap: 4px; }
 .exec-legend-dot { width: 8px; height: 8px; flex-shrink: 0; }
@@ -1626,6 +1629,8 @@ p.job-boss {
 .commodity-bar-head { display: flex; justify-content: space-between; font-size: .76rem; margin-bottom: 2px; }
 .commodity-bar-bg { height: 6px; background: var(--line); overflow: hidden; }
 .commodity-bar-fill { height: 100%; background: var(--accent); }
+.commodity-bar-bg-depth { height: 3px; margin-top: 2px; background: color-mix(in srgb, var(--line) 50%, transparent); overflow: hidden; cursor: help; }
+.commodity-bar-fill-depth { height: 100%; background: color-mix(in srgb, var(--ink-dim) 70%, transparent); }
 .mvi-empty { padding: 14px 10px; font-size: .76rem; line-height: 1.5; color: var(--ink-dim); }
 
 /* ── MARKET ORDER SWITCH ────────────────────────────── */

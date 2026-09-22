@@ -1,6 +1,6 @@
 import { S } from "../core/state.js";
 import { E } from "../core/dom.js";
-import { apiKey, fetchTrpc, fetchTrpcApi2, fetchMarketData, fetchTxPaginated, startTransactionTrueAmount, startTransactionLiteAmount, getBestTxData, onTxUpgrade, unwrap } from "../core/api.js";
+import { apiKey, fetchTrpc, fetchTrpcApi2, fetchMarketData, fetchTxPaginated, startTransactionTrueAmount, startTransactionLiteAmount, getBestTxData, getLiteTxData, getTrueTxData, onTxUpgrade, unwrap } from "../core/api.js";
 import { fmtMoney, fmtNum, formatShortNumber, marketItemName, commodityBars, miniChart, escapeHtml } from "../core/utils.js";
 import { toast } from "../ui/toast.js";
 import * as cap from "../core/captureReport.js";
@@ -9,7 +9,7 @@ import { calculateAnalytics, updateHistories } from "./analytics.js";
 import { renderExecutiveDashboard } from "./renderAnalytics.js";
 import { renderPredictionDashboard } from "./renderPredictions.js";
 import { computePredictions } from "./predictions.js";
-import { storeMarketSnapshot, loadWeeklyMVI } from "./marketHistory.js";
+import { storeMarketSnapshot } from "./marketHistory.js";
 import { computeProduction } from "./production.js";
 import { renderProductionStudio, renderWorkerYield } from "./renderStudio.js";
 import { renderSignalsView, refreshSignals } from "./renderSignals.js";
@@ -257,34 +257,20 @@ export async function loadMarketFull(showLoading=true) {
     clrMs(E.marketOrdersStatus);
   } catch(e){ setMs(E.marketOrdersStatus,"Could not load orders: "+(e.message||""),true); }
 
-  const commodityScores = {};
+  // Order-book depth stays as a secondary liquidity signal (thin bar), not the
+  // ranking driver — the ranking now reflects REAL traded ₿ value (executed trades).
+  const depthScores = {};
   for (const o of allOrders) {
     const item = marketItemName(o._itemCode || o.itemCode || o.item);
     const qty = Number(o._qty || o.quantity || o.amount || 0);
     const price = Number(o._price || o.price || 0);
-    if(!commodityScores[item]){ commodityScores[item] = { item, qty:0, value:0 }; }
-    commodityScores[item].qty += qty;
-    commodityScores[item].value += qty * price;
+    if (!depthScores[item]) depthScores[item] = { name: item, qty: 0, depth: 0 };
+    depthScores[item].qty += qty;
+    depthScores[item].depth += qty * price;
   }
+  S.market.orderDepth = depthScores;
 
-  const topValuable = Object.values(commodityScores).sort((a,b)=>b.value-a.value).slice(0,20);
-  S.market.topValuable = topValuable;
-
-  const prevScores = S.market.prevCommodityScores || {};
-  for(const item of topValuable){
-    const oldValue = prevScores[item.item];
-    item.trend = 0;
-    item.changePct = 0;
-    if(Number.isFinite(oldValue) && oldValue > 0){
-      item.changePct = ((item.value - oldValue) / oldValue) * 100;
-      if(item.value > oldValue){ item.trend = 1; }
-      else if(item.value < oldValue){ item.trend = -1; }
-    }
-  }
-
-  S.market._prevScoresSnapshot = { ...prevScores };
-  S.market.prevCommodityScores = {};
-  for(const item of topValuable){ S.market.prevCommodityScores[item.item] = item.value; }
+  computeTopValuable(true);
   renderMVI();
   updateInfobar();
 
@@ -302,7 +288,14 @@ export async function loadMarketFull(showLoading=true) {
   startTransactionLiteAmount(k);
   onTxUpgrade((source) => {
     const best = getBestTxData();
+    if (source === "true") S.market._trueTxReady = true;
     if (best) renderEconomicOverview(best);
+    if (source === "lite" || source === "true") {
+      // Keep the cycle baseline: only refresh values, don't move the ▲/▼ goalposts.
+      computeTopValuable(false);
+      renderMVI();
+      updateInfobar();
+    }
     syncPredictionView();
   });
 
@@ -335,37 +328,103 @@ function syncPredictionView() {
   if (section) renderPredictionDashboard();
 }
 
+// ── Real Traded Value ranking ─────────────────────────────
+// topValuable now measures EXECUTED trade ₿ volume per item within the selected
+// window (1h = lite tx sweep, 24h = true tx sweep). Order-book depth is kept
+// separately (S.market.orderDepth) and rendered only as a thin secondary bar.
+//
+// updateBaseline is TRUE only at the start of a full market cycle (Group A).
+// It captures the previous cycle's values as a stable trend baseline. Every
+// intermediate recompute (lite/true tx sweeps landing) passes FALSE so the
+// ▲/▼ compares against the SAME baseline and values update silently instead of
+// re-snapshotting seconds-old data (which caused the arrows to blink on/off).
+function computeTopValuable(updateBaseline) {
+  const windowMs = S.market._mviWindow === "24h" ? 24 * 3600 * 1000 : 3600 * 1000;
+  const cutoff = Date.now() - windowMs;
+  // 1h window uses the fresh lite sweep; 24h prefers the piped-through true sweep.
+  const tier = S.market._mviWindow === "24h" ? getTrueTxData() : getLiteTxData();
+  const trades = (tier?.trades || getBestTxData()?.trades || []);
+  const scores = {};
+  for (const t of trades) {
+    const ts = new Date(t.createdAt || t.date || t.timestamp || 0).getTime();
+    if (!Number.isFinite(ts) || ts < cutoff || ts > Date.now()) continue;
+    const item = marketItemName(t.itemCode || t.item || t.product || "");
+    if (!item) continue;
+    const qty = Number(t.quantity ?? t.amount ?? t.count ?? 0);
+    if (!scores[item]) scores[item] = { item, qty: 0, value: 0, trades: 0 };
+    scores[item].qty += qty;
+    scores[item].value += txAmt(t);
+    scores[item].trades += 1;
+  }
+
+  const topValuable = Object.values(scores).sort((a, b) => b.value - a.value).slice(0, 20);
+  const orderDepth = S.market.orderDepth || {};
+  for (const item of topValuable) item.depth = orderDepth[item.item]?.depth || 0;
+
+  if (updateBaseline) {
+    S.market._mviBaseline = { ...(S.market.prevCommodityScores || {}) };
+  }
+  const baseline = S.market._mviBaseline || {};
+  for (const item of topValuable) {
+    const oldValue = baseline[item.item];
+    if (Number.isFinite(oldValue) && oldValue > 0) {
+      item.changePct = ((item.value - oldValue) / oldValue) * 100;
+      item.trend = item.value > oldValue ? 1 : (item.value < oldValue ? -1 : 0);
+    } else {
+      item.trend = 0;
+      item.changePct = 0;
+    }
+  }
+
+  S.market.topValuable = topValuable;
+
+  if (updateBaseline) {
+    // Expose the baseline snapshot for the prediction engine, then seed
+    // next cycle's baseline from today's values.
+    S.market._prevScoresSnapshot = { ...baseline };
+    S.market.prevCommodityScores = {};
+    for (const item of topValuable) { S.market.prevCommodityScores[item.item] = item.value; }
+  }
+}
+
 function renderMVI() {
   const btn = document.getElementById("mviToggle");
-  const weekly = S.market._mviView === "weekly";
-  let data = weekly ? S.market._weeklyMVI : S.market.topValuable;
+  const data = S.market.topValuable;
 
-  if (!weekly && S.market._prodData?.bestPerProduct?.length) {
+  if (!data?.length) {
+    E.marketValuableData.innerHTML = '<p class="mvi-empty">Gathering executed trade data…</p>';
+    if (btn) btn.textContent = S.market._mviWindow === "24h" ? "24h" : "1h";
+    return;
+  }
+
+  let rows = data;
+  if (S.market._prodData?.bestPerProduct?.length) {
     const bonusMap = {};
     for (const r of S.market._prodData.bestPerProduct) bonusMap[r.productName] = r;
-    data = (data || []).map(item => {
+    rows = data.map(item => {
       const bonus = bonusMap[item.item];
       return bonus ? { ...item, bonus: bonus.totalBonus, ppw: bonus.profitPerPP } : item;
     });
   }
 
-  if (weekly && data == null) {
-    E.marketValuableData.innerHTML = '<p class="mvi-empty">Loading weekly values…</p>';
-  } else if (weekly && !data.length) {
-    E.marketValuableData.innerHTML = '<p class="mvi-empty">Weekly values not available yet — market snapshots are still being collected. Open the Market tab regularly so they can accumulate.</p>';
-  } else {
-    E.marketValuableData.innerHTML = commodityBars(data || []);
-  }
-  if (btn) btn.textContent = weekly ? "Weekly" : "Live";
+  const maxValue = Math.max(...rows.map(r => r.value).filter(v => isFinite(v) && v > 0), 1);
+  E.marketValuableData.innerHTML = commodityBars(rows, { maxValue });
+  if (btn) btn.textContent = S.market._mviWindow === "24h" ? "24h" : "1h";
 }
 
 export async function toggleMVI() {
-  S.market._mviView = S.market._mviView === "live" ? "weekly" : "live";
-  renderMVI();
-  if (S.market._mviView === "weekly") {
-    await loadWeeklyMVI(true);
-    renderMVI();
+  S.market._mviWindow = S.market._mviWindow === "24h" ? "1h" : "24h";
+  // 24h needs the deep true-tx sweep; fire it on demand if it hasn't run yet.
+  if (S.market._mviWindow === "24h" && !S.market._trueTxReady) {
+    const k = apiKey();
+    if (k) startTransactionTrueAmount(k);
   }
+  // Window switch restarts the trend baseline (different data universe).
+  S.market._mviBaseline = null;
+  S.market.prevCommodityScores = {};
+  computeTopValuable(true);
+  renderMVI();
+  updateInfobar();
 }
 
 document.addEventListener("click", e => {
@@ -520,29 +579,21 @@ export async function copyMarketReport() {
   for(const i of prices.slice(0,23)) r+=`- ${marketItemName(i.itemCode||i.name)}: ${fmtMoney(Number(i.price||0))} BTC\n`;
   r+=`\n## Recent Trading Orders\n`;
   for(const o of orders.slice(0,100)) r+=`- [${fmtTime(o._time)}] ${(o.orderType||o.type||"ORDER")} ${marketItemName(o._itemCode||o.itemCode)} ×${fmtNum(o._qty||o.quantity||0)} @ ${fmtMoney(o._price||0)} BTC/u\n`;
-  r += `\n\n## Most Valuable Commodities\n`;
-  const commodityScores = {};
-  for(const o of orders){
-    const item = marketItemName(o._itemCode || o.itemCode || o.item || "?");
-    const qty = Number(o._qty || o.quantity || o.amount || 0);
-    const price = Number(o._price || o.price || 0);
-    if(!commodityScores[item]){ commodityScores[item] = { item, value:0 }; }
-    commodityScores[item].value += qty * price;
-  }
-  const valuable = Object.values(commodityScores).sort((a,b)=>b.value-a.value).slice(0,20);
-  const weeklyMap = {};
-  if (S.market._weeklyMVI) for (const w of S.market._weeklyMVI) weeklyMap[w.item] = w.value;
-  const prevScores = S.market.prevCommodityScores || {};
-  for(const item of valuable){
-    const oldValue = prevScores[item.item];
-    let trend = ""; let change = "";
-    if(Number.isFinite(oldValue) && oldValue > 0){
-      const pct = ((item.value - oldValue) / oldValue) * 100;
-      if(pct > 0){ trend = "▲"; change = ` (+${pct.toFixed(1)}%)`; }
-      else if(pct < 0){ trend = "▼"; change = ` (${pct.toFixed(1)}%)`; }
+  r += `\n\n## Most Valuable Items (Real Traded Value)\n`;
+  if (!S.market.topValuable?.length) {
+    r += "- No traded-value data loaded yet.\n";
+  } else {
+    const prevScores = S.market._prevScoresSnapshot || {};
+    for (const item of S.market.topValuable) {
+      const oldValue = prevScores[item.item];
+      let trend = ""; let change = "";
+      if (Number.isFinite(oldValue) && oldValue > 0) {
+        const pct = ((item.value - oldValue) / oldValue) * 100;
+        if (pct > 0) { trend = "▲"; change = ` (+${pct.toFixed(1)}%)`; }
+        else if (pct < 0) { trend = "▼"; change = ` (${pct.toFixed(1)}%)`; }
+      }
+      r += `- ${item.item}: ${fmtMoney(item.value)} BTC traded (${item.trades} tx)${item.depth ? ` · book ${fmtMoney(item.depth)} BTC` : ""} ${trend}${change}\n`;
     }
-    const wv = weeklyMap[item.item];
-    r += `- ${item.item}: ${fmtMoney(item.value)} BTC${wv ? ` (weekly: ${fmtMoney(wv)} BTC)` : ""} ${trend}${change}\n`;
   }
   const pd = S.market._prodData;
   if (pd?.bestPerProduct?.length) {
@@ -669,30 +720,14 @@ function marketOverviewTable() {
     overviewRows.push(["Trade Volume", fmtMoney(ec.tradeVol) + " BTC (" + ec.tradeCount + " txn)"]);
   }
   const priceRows = prices.slice(0, 10).map(i => [marketItemName(i.itemCode || i.name), fmtMoney(Number(i.price || 0)) + " BTC"]);
-  const commodityScores = {};
-  for (const o of orders) {
-    const itemCode = o._itemCode || o.itemCode || o.item || "?";
-    const qty = Number(o._qty || o.quantity || o.amount || 0);
-    const price = Number(o._price || o.price || 0);
-    if (!commodityScores[itemCode]) commodityScores[itemCode] = { itemCode, value: 0 };
-    commodityScores[itemCode].value += qty * price;
-  }
-  const valuable = Object.values(commodityScores).sort((a, b) => b.value - a.value).slice(0, 10);
-  const weeklyMap = {};
-  if (S.market._weeklyMVI) for (const w of S.market._weeklyMVI) weeklyMap[w.item] = w.value;
-  const nowStr = new Date().toLocaleString();
-  const valuableRows = valuable.map(entry => {
-    const name = marketItemName(entry.itemCode);
-    const wv = weeklyMap[name];
-    return [name, fmtMoney(entry.value) + " BTC", wv ? fmtMoney(wv) + " BTC" : "—"];
-  });
+  const valuableRows = (S.market.topValuable || []).slice(0, 10).map(entry => [entry.item, fmtMoney(entry.value) + " BTC"]);
   if (!overviewRows.length && !priceRows.length && !valuableRows.length) {
     return cap.pageOpen("War Era Market Report — Overview", "", gen) + "<div style='font-size:10px;color:var(--ink-dim)'>No market data loaded yet — open the Market tab first.</div>" + cap.pageClose();
   }
   return cap.pageOpen("War Era Market Report — Overview", "", gen) +
     (overviewRows.length ? cap.section("Economic Overview", cap.tableBlock("", ["Metric", "Value"], overviewRows, 99)) : "") +
     (priceRows.length ? cap.section("Top Commodity Prices", cap.tableBlock("", ["#", "Item", "Price"], priceRows.map((r, i) => [String(i + 1), ...r]), 10)) : "") +
-    (valuableRows.length ? cap.section("Most Valuable Commodities", cap.tableBlock("", ["#", "Item", "Current Value (" + nowStr + ")", "Weekly Value"], valuableRows.map((r, i) => [String(i + 1), ...r]), 10)) : "") +
+    (valuableRows.length ? cap.section("Most Valuable Items (Real Traded Value)", cap.tableBlock("", ["#", "Item", "Traded Value"], valuableRows.map((r, i) => [String(i + 1), ...r]), 10)) : "") +
     cap.pageClose();
 }
 
